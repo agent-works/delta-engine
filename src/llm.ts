@@ -238,7 +238,13 @@ export function parseToolCalls(message: ChatCompletionMessage): Array<{
 
   return message.tool_calls.map(toolCall => {
     try {
-      const args = JSON.parse(toolCall.function.arguments);
+      // Handle cases where arguments are undefined, null, or empty string
+      // Some LLMs (like Claude) may return undefined for tools with no parameters
+      const argsString = toolCall.function.arguments;
+      const args = !argsString || argsString === 'undefined' || argsString === 'null' || argsString === ''
+        ? {} // Default to empty object for no parameters
+        : JSON.parse(argsString);
+
       return {
         id: toolCall.id,
         name: toolCall.function.name,
