@@ -1,0 +1,83 @@
+# Project specific exclusions
+PRD.md
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Agent work directories
+work_runs/
+*/work_runs/
+.work/
+tmp/
+
+# Trace and log files
+*.jsonl
+*.log
+trace-*.json
+debug-*.txt
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Package files
+*.tgz
+
+# TypeScript cache
+*.tsbuildinfo
+.tscache/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
