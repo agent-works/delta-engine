@@ -1,0 +1,70 @@
+# Source files (only dist is needed)
+src/
+tests/
+
+# Configuration files
+.env
+.DS_Store
+*.log
+tsconfig.json
+tsconfig.test.json
+jest.config.js
+
+# Development files
+test-run.sh
+examples/
+docs/
+
+# Git and IDE
+.git/
+.gitignore
+.claude/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.tsbuildinfo
+coverage/
+.nyc_output/
+
+# Work directories
+work_runs/
+workspaces/
+.delta/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Editor directories
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# npm debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Node modules (redundant but explicit)
+node_modules/
+
+# Keep these files
+!dist/
+!package.json
+!package-lock.json
+!README.md
+!LICENSE
