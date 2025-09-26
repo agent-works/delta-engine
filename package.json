@@ -1,6 +1,6 @@
 {
   "name": "delta-engine",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A minimalist platform for accelerating AI Agent prototype iteration",
   "type": "module",
   "main": "dist/index.js",

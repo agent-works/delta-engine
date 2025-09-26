@@ -10,32 +10,28 @@
 - 📦 **Portable** - Single directory contains everything
 - 🔄 **Stateless** - Resumable from any interruption
 
+
+## Core Concepts
+
+### Everything is a Command
+All agent capabilities are implemented through external commands - no built-in functions, just Unix tools.
+
+### Environment as Interface
+Agents interact with the world through their working directory (CWD) - files are the universal interface.
+
+### Stateless Core
+No in-memory state - everything is persisted to disk immediately, enabling perfect resumability.
+
+
 ## Quick Start
 
 ```bash
-# Install
-npm install
+npm install delta-engine -g
 
 # Run example agent
-npx tsx src/index.ts run --agent examples/hello-agent --task "List files"
-
-# Or build and run
-npm run build
-npx delta run --agent examples/hello-agent --task "Create a test file"
+delta run --agent examples/hello-agent --task "Just create a test file"
 ```
 
-## Project Structure
-
-```
-delta-engine/
-├── src/                 # Core engine source
-├── examples/           # Example agents
-├── tests/              # Test suites
-└── docs/               # Documentation
-    ├── architecture/   # Architecture design
-    ├── guides/        # User guides
-    └── api/           # API reference
-```
 
 ## Agent Structure
 
@@ -54,17 +50,6 @@ my-agent/
 - **[Architecture](docs/architecture/README.md)** - System design and principles
 - **[Agent Development](docs/guides/agent-development.md)** - Build your own agents
 - **[Migration Guide](docs/migration/v1.0-to-v1.1.md)** - Upgrade from v1.0
-
-## Core Concepts
-
-### Everything is a Command
-All agent capabilities are implemented through external commands - no built-in functions, just Unix tools.
-
-### Environment as Interface
-Agents interact with the world through their working directory (CWD) - files are the universal interface.
-
-### Stateless Core
-No in-memory state - everything is persisted to disk immediately, enabling perfect resumability.
 
 ## Development
 
