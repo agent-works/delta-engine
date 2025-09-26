@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { parseToolCalls, hasToolCalls } from '../src/llm.js';
+import { parseToolCalls, hasToolCalls } from '../../src/llm.js';
 import type { ChatCompletionMessage } from 'openai/resources/chat/index.js';
 
 describe('LLM Module', () => {

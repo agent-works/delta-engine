@@ -1,9 +1,8 @@
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/index.js';
-import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
 import { EngineContext } from './types.js';
 import { LLMAdapter, parseToolCalls, hasToolCalls } from './llm.js';
-import { Journal, createJournal } from './journal.js';
+import { Journal } from './journal.js';
 import { executeTool } from './executor.js';
 import { HookExecutor, createHookExecutor } from './hook-executor.js';
 import {
@@ -28,20 +27,18 @@ export class Engine {
   private readonly context: EngineContext;
   private readonly llm: LLMAdapter;
   private readonly journal: Journal;
-  private readonly runDir: string;
   private readonly hookExecutor: HookExecutor;
 
   /**
-   * Initialize the engine with context
-   * @param context - Engine context containing configuration and paths
+   * Initialize the engine with context containing shared journal instance
+   * @param context - Engine context containing configuration, paths, and shared journal
    */
   constructor(context: EngineContext) {
     this.context = context;
     this.llm = new LLMAdapter();
 
-    // v1.1: Setup journal from run directory
-    this.runDir = path.join(context.deltaDir, 'runs', context.runId);
-    this.journal = createJournal(context.runId, this.runDir);
+    // v1.1: Use shared journal instance from context instead of creating new one
+    this.journal = context.journal;
 
     // v1.1: Setup hook executor
     this.hookExecutor = createHookExecutor(

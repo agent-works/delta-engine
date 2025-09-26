@@ -135,6 +135,7 @@ export interface EngineContext {
   initialTask: string;
   // v1.1: Stateless core - no in-memory conversation history
   currentStep: number;    // Current step in the T-A-O loop (for journal sequencing)
+  journal: import('./journal.js').Journal; // Shared journal instance to prevent FileHandle leaks
 }
 
 // ============================================

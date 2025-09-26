@@ -183,7 +183,7 @@ export async function initializeContext(
   } catch {}
   await fs.symlink(runDir, latestLink, 'dir');
 
-  // Build and return EngineContext
+  // Build and return EngineContext with shared journal instance
   const context: EngineContext = {
     runId,
     agentPath,
@@ -193,6 +193,7 @@ export async function initializeContext(
     systemPrompt,
     initialTask: task,
     currentStep: 0,  // v1.1: Track current step for journal sequencing
+    journal,  // Include the shared journal instance to prevent duplicate FileHandles
   };
 
   return context;
@@ -271,6 +272,7 @@ export async function loadExistingContext(workDir: string): Promise<EngineContex
       systemPrompt,
       initialTask: metadata.task,
       currentStep,
+      journal,  // Include the journal instance to prevent duplicate FileHandles
     };
   } catch (error) {
     throw new Error(

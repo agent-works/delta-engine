@@ -4,8 +4,8 @@ import {
   convertToolsToOpenAISchema,
   validateOpenAIToolSchema,
   extractToolNames,
-} from '../src/tool_schema.js';
-import { ToolDefinition, InjectionType } from '../src/types.js';
+} from '../../src/tool_schema.js';
+import { ToolDefinition, InjectionType } from '../../src/types.js';
 
 describe('Tool Schema Conversion', () => {
   describe('convertSingleToolToOpenAISchema', () => {

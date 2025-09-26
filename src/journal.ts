@@ -73,6 +73,10 @@ export class Journal {
     }
 
     // Open engine log file for streaming
+    // Close existing stream if it exists to prevent FileHandle leaks
+    if (this.engineLogStream) {
+      await this.engineLogStream.close();
+    }
     this.engineLogStream = await fs.open(this.engineLogPath, 'a');
   }
 

@@ -8,13 +8,13 @@ import {
   replaceVariables,
   validateRequiredParameters,
   formatExecutionResult,
-} from '../src/executor.js';
+} from '../../src/executor.js';
 import {
   EngineContext,
   ToolDefinition,
   InjectionType,
   AgentConfig,
-} from '../src/types.js';
+} from '../../src/types.js';
 
 describe('ToolExecutor', () => {
   let tempDir: string;

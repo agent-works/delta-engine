@@ -97,9 +97,9 @@ export async function executeTool(
   // Step 3: Execute command with proper configuration
   try {
     // Universal approach for commands with stdin to prevent file descriptor leaks
-    // When stdin is provided, use shell pipes for robust stream handling
+    // When stdin is provided (even if empty), use shell pipes for robust stream handling
     // This ensures proper cleanup and avoids Node.js file descriptor warnings
-    if (stdinInput && stdinInput.length > 0) {
+    if (stdinInput !== null && stdinInput !== undefined) {
       // Build the shell command with proper argument escaping
       // Each argument is passed as a positional parameter to avoid injection
       const shellArgs = ['-c'];
@@ -121,6 +121,7 @@ export async function executeTool(
         cwd: context.workDir,
         reject: false,
         stripFinalNewline: false,
+        timeout: 30000, // 30 second timeout to prevent hanging
         env: {
           ...process.env,
           AGENT_HOME: context.agentPath,
@@ -140,6 +141,7 @@ export async function executeTool(
       cwd: context.workDir,  // Critical: Set CWD to work directory (TSD 4.2.1)
       reject: false,  // Don't throw on non-zero exit (TSD 4.2.4)
       stripFinalNewline: false,  // Preserve output formatting
+      timeout: 30000, // 30 second timeout to prevent hanging
       env: {
         ...process.env,
         AGENT_HOME: context.agentPath,  // Also set as environment variable for compatibility
