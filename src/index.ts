@@ -11,7 +11,8 @@ import dotenv from 'dotenv';
 import { run } from './cli.js';
 
 // Load environment variables from .env file if it exists
-dotenv.config();
+// Suppress dotenv debug output for cleaner CLI output
+dotenv.config({ quiet: true } as any);
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {

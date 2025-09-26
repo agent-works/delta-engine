@@ -5,6 +5,15 @@ import { initializeContext } from './context.js';
 import { EngineContext } from './types.js';
 import { Engine } from './engine.js';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+// Get package.json path
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJsonPath = join(__dirname, '..', 'package.json');
+const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
 /**
  * Format console output with consistent styling
@@ -198,7 +207,7 @@ export function createProgram(): Command {
   program
     .name('delta-engine')
     .description('Delta Engine - A minimalist platform for AI Agent prototype iteration')
-    .version('1.0.0');
+    .version(packageJson.version);
 
   // Define the run command as per TSD 4.1
   program
@@ -238,6 +247,13 @@ export function createProgram(): Command {
  * Parse command line arguments and execute
  */
 export async function run(): Promise<void> {
+  // Check for version flags before commander.js processes them
+  const args = process.argv.slice(2);
+  if (args.length === 1 && (args[0] === '-v' || args[0] === '--version')) {
+    console.log(packageJson.version);
+    process.exit(0);
+  }
+
   const program = createProgram();
   await program.parseAsync(process.argv);
 }
