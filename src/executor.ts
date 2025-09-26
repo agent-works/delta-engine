@@ -96,16 +96,57 @@ export async function executeTool(
 
   // Step 3: Execute command with proper configuration
   try {
-    const result = await execa(executable, finalArgs, {
+    // Universal approach for commands with stdin to prevent file descriptor leaks
+    // When stdin is provided, use shell pipes for robust stream handling
+    // This ensures proper cleanup and avoids Node.js file descriptor warnings
+    if (stdinInput && stdinInput.length > 0) {
+      // Build the shell command with proper argument escaping
+      // Each argument is passed as a positional parameter to avoid injection
+      const shellArgs = ['-c'];
+
+      // Build the command string with positional parameters
+      let commandString = `printf '%s' "$1" | "${executable}"`;
+      const positionalArgs = ['_', stdinInput]; // $0 is '_', $1 is stdin content
+
+      // Add each argument as a positional parameter
+      finalArgs.forEach((arg, index) => {
+        commandString += ` "$${index + 2}"`; // $2, $3, etc.
+        positionalArgs.push(arg);
+      });
+
+      shellArgs.push(commandString);
+      shellArgs.push(...positionalArgs);
+
+      const result = await execa('sh', shellArgs, {
+        cwd: context.workDir,
+        reject: false,
+        stripFinalNewline: false,
+        env: {
+          ...process.env,
+          AGENT_HOME: context.agentPath,
+        },
+      });
+
+      return {
+        stdout: result.stdout || '',
+        stderr: result.stderr || '',
+        exitCode: result.exitCode ?? (result.failed ? 1 : 0),
+        success: !result.failed && result.exitCode === 0,
+      };
+    }
+
+    // Regular command execution without stdin
+    const execOptions: any = {
       cwd: context.workDir,  // Critical: Set CWD to work directory (TSD 4.2.1)
-      input: stdinInput || undefined,  // Pass stdin if provided (TSD 4.2.3)
       reject: false,  // Don't throw on non-zero exit (TSD 4.2.4)
       stripFinalNewline: false,  // Preserve output formatting
       env: {
         ...process.env,
         AGENT_HOME: context.agentPath,  // Also set as environment variable for compatibility
       },
-    });
+    };
+
+    const result = await execa(executable, finalArgs, execOptions);
 
     return {
       stdout: result.stdout || '',
