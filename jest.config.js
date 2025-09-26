@@ -22,7 +22,7 @@ export default {
   transformIgnorePatterns: [
     'node_modules/(?!(execa|strip-final-newline|npm-run-path|path-key|mimic-fn|onetime|human-signals|is-stream|get-stream)/)',
   ],
-  testMatch: ['**/tests/**/*.test.ts'],
+  testMatch: ['**/tests/unit/**/*.test.ts'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

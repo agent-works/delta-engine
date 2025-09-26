@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 import { EngineContext } from './types.js';
 import { loadAndValidateAgent } from './config.js';
+import { createJournal } from './journal.js';
 
 /**
  * Format current timestamp as YYYYMMDD_HHmmss
@@ -22,11 +23,31 @@ function formatTimestamp(): string {
 }
 
 /**
- * Generate a short UUID (first 8 characters)
+ * Generate a short UUID (first 6 characters)
  * @returns Short UUID string
  */
 function generateShortUuid(): string {
-  return uuidv4().substring(0, 8);
+  return uuidv4().substring(0, 6);
+}
+
+/**
+ * Generate run ID according to v1.1 spec: <YYYYMMDD_HHMMSS>_<ShortUUID>
+ * @returns Run ID string
+ */
+function generateRunId(): string {
+  const timestamp = formatTimestamp();
+  const shortUuid = generateShortUuid();
+  return `${timestamp}_${shortUuid}`;
+}
+
+/**
+ * Generate workspace ID with prefix: workspace_<YYYYMMDD_HHMMSS>_<ShortUUID>
+ * @returns Workspace ID string
+ */
+function generateWorkspaceId(): string {
+  const timestamp = formatTimestamp();
+  const shortUuid = generateShortUuid();
+  return `workspace_${timestamp}_${shortUuid}`;
 }
 
 /**
@@ -66,8 +87,8 @@ export async function initializeContext(
   task: string,
   workDirInput?: string
 ): Promise<EngineContext> {
-  // Generate run ID
-  const runId = uuidv4();
+  // Generate run ID according to v1.1 spec
+  const runId = generateRunId();
 
   // Convert agent path to absolute path
   const agentPath = toAbsolutePath(agentPathInput);
@@ -85,21 +106,30 @@ export async function initializeContext(
     throw error;
   }
 
-  // Determine work directory
+  // Determine work directory (CWD in v1.1 terminology)
   let workDir: string;
   if (workDirInput) {
     // Use provided work directory (convert to absolute)
     workDir = toAbsolutePath(workDirInput);
   } else {
-    // Generate default work directory: <agentPath>/work_runs/YYYYMMDD_HHmmss_<uuid_short>
-    const timestamp = formatTimestamp();
-    const shortUuid = generateShortUuid();
-    const runDirName = `${timestamp}_${shortUuid}`;
-    workDir = path.join(agentPath, 'work_runs', runDirName);
+    // Default: Create a workspace directory under $AGENT_HOME/work_runs/
+    // Each workspace has a unique ID to distinguish it from run IDs
+    const workRunsDir = path.join(agentPath, 'work_runs');
+    await ensureDirectory(workRunsDir);
+    const workspaceId = generateWorkspaceId();
+    workDir = path.join(workRunsDir, workspaceId);
   }
 
   // Ensure work directory exists
   await ensureDirectory(workDir);
+
+  // v1.1: Create .delta control plane directory structure
+  const deltaDir = path.join(workDir, '.delta');
+  const runDir = path.join(deltaDir, 'runs', runId);
+
+  await ensureDirectory(deltaDir);
+  await fs.writeFile(path.join(deltaDir, 'schema_version.txt'), '1.1\n', 'utf-8');
+  await ensureDirectory(path.join(deltaDir, 'runs'));
 
   // Try to load .env file from agent directory if it exists
   const agentEnvPath = path.join(agentPath, '.env');
@@ -114,38 +144,55 @@ export async function initializeContext(
   // Load and validate agent configuration
   const { config, systemPrompt } = await loadAndValidateAgent(agentPath);
 
-  // Create metadata.json in work directory
-  const metadata = {
-    runId,
-    agentPath,
-    initialTask: task,
-    startTime: new Date().toISOString(),
-    workDir,
-    agentName: config.name,
-    agentVersion: config.version,
-  };
+  // v1.1: Initialize Journal and run directory structure
+  const journal = createJournal(runId, runDir);
+  await journal.initialize();
+  await journal.initializeMetadata(agentPath, task);
 
-  const metadataPath = path.join(workDir, 'metadata.json');
+  // v1.1: Copy configuration snapshot
+  const configDir = path.join(runDir, 'configuration');
+  await ensureDirectory(configDir);
+
+  await fs.copyFile(
+    path.join(agentPath, 'config.yaml'),
+    path.join(configDir, 'resolved_config.yaml')
+  );
+
+  // Copy system prompt (support both .md and .txt)
+  const systemPromptMd = path.join(agentPath, 'system_prompt.md');
+  const systemPromptTxt = path.join(agentPath, 'system_prompt.txt');
+
   try {
-    await fs.writeFile(
-      metadataPath,
-      JSON.stringify(metadata, null, 2),
-      'utf-8'
+    await fs.access(systemPromptMd);
+    await fs.copyFile(
+      systemPromptMd,
+      path.join(configDir, 'system_prompt.md')
     );
-  } catch (error) {
-    throw new Error(
-      `Failed to write metadata.json: ${error instanceof Error ? error.message : String(error)}`
+  } catch {
+    // Fallback to .txt if .md doesn't exist
+    await fs.copyFile(
+      systemPromptTxt,
+      path.join(configDir, 'system_prompt.txt')
     );
   }
+
+  // Create LATEST symlink for convenience
+  const latestLink = path.join(deltaDir, 'runs', 'LATEST');
+  try {
+    await fs.unlink(latestLink);
+  } catch {}
+  await fs.symlink(runDir, latestLink, 'dir');
 
   // Build and return EngineContext
   const context: EngineContext = {
     runId,
     agentPath,
     workDir,
+    deltaDir,  // v1.1: Added control plane directory
     config,
     systemPrompt,
     initialTask: task,
+    currentStep: 0,  // v1.1: Track current step for journal sequencing
   };
 
   return context;
@@ -157,27 +204,73 @@ export async function initializeContext(
  * @returns Engine context
  */
 export async function loadExistingContext(workDir: string): Promise<EngineContext> {
-  const metadataPath = path.join(workDir, 'metadata.json');
+  // v1.1: Check for .delta directory
+  const deltaDir = path.join(workDir, '.delta');
+
+  try {
+    const schemaVersion = await fs.readFile(path.join(deltaDir, 'schema_version.txt'), 'utf-8');
+    if (!schemaVersion.trim().startsWith('1.1')) {
+      throw new Error(`Unsupported schema version: ${schemaVersion.trim()}`);
+    }
+  } catch (error) {
+    throw new Error(`Invalid or missing .delta directory: ${error}`);
+  }
+
+  // Find the latest run
+  const latestLink = path.join(deltaDir, 'runs', 'LATEST');
+  let runDir: string = '';
+
+  try {
+    const stats = await fs.lstat(latestLink);
+    if (stats.isSymbolicLink()) {
+      runDir = await fs.readlink(latestLink);
+    } else {
+      throw new Error('LATEST is not a symbolic link');
+    }
+  } catch {
+    // No LATEST link, find the most recent run
+    const runsDir = path.join(deltaDir, 'runs');
+    const runs = await fs.readdir(runsDir);
+    const validRuns = runs.filter(r => r !== 'LATEST').sort();
+    if (validRuns.length === 0) {
+      throw new Error('No runs found in .delta/runs/');
+    }
+    const lastRun = validRuns[validRuns.length - 1];
+    if (!lastRun) {
+      throw new Error('No valid run found');
+    }
+    runDir = path.join(runsDir, lastRun);
+  }
+
+  // Load metadata from the run
+  const metadataPath = path.join(runDir, 'execution', 'metadata.json');
 
   try {
     const metadataContent = await fs.readFile(metadataPath, 'utf-8');
     const metadata = JSON.parse(metadataContent);
 
     // Validate required metadata fields
-    if (!metadata.runId || !metadata.agentPath || !metadata.initialTask) {
+    if (!metadata.run_id || !metadata.agent_ref || !metadata.task) {
       throw new Error('Invalid metadata.json: missing required fields');
     }
 
     // Load agent configuration
-    const { config, systemPrompt } = await loadAndValidateAgent(metadata.agentPath);
+    const { config, systemPrompt } = await loadAndValidateAgent(metadata.agent_ref);
+
+    // Count existing journal events to determine current step
+    const journal = createJournal(metadata.run_id, runDir);
+    const events = await journal.readJournal();
+    const currentStep = events.length;
 
     return {
-      runId: metadata.runId,
-      agentPath: metadata.agentPath,
+      runId: metadata.run_id,
+      agentPath: metadata.agent_ref,
       workDir: toAbsolutePath(workDir),
+      deltaDir,
       config,
       systemPrompt,
-      initialTask: metadata.initialTask,
+      initialTask: metadata.task,
+      currentStep,
     };
   } catch (error) {
     throw new Error(

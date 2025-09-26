@@ -11,8 +11,13 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
-    "test": "NODE_OPTIONS='--experimental-vm-modules' jest --no-coverage",
-    "test:watch": "jest --watch",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-coverage tests/unit",
+    "test:integration": "tsx tests/run-integration.ts",
+    "test:watch": "jest --watch tests/unit",
+    "test:stateless": "tsx tests/integration/stateless-core.test.ts",
+    "test:hooks": "tsx tests/integration/hooks.test.ts",
+    "test:io": "tsx tests/integration/io-audit.test.ts",
     "clean": "rm -rf dist",
     "start": "node dist/index.js"
   },

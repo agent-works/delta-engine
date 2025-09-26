@@ -93,6 +93,7 @@ async function handleRunCommand(options: {
     logger.divider();
 
     const engine = new Engine(context);
+    await engine.initialize();
 
     try {
       // Run the main engine loop
@@ -108,26 +109,30 @@ async function handleRunCommand(options: {
 
       logger.divider();
 
-      // Print trace summary
-      const tracer = engine.getTracer();
-      const summary = await tracer.getTraceSummary();
+      // Print journal summary
+      const journal = engine.getJournal();
+      const events = await journal.readJournal();
+      const metadata = await journal.readMetadata();
 
       logger.info('Execution Summary:');
-      logger.info(`  • Iterations: ${summary.iterations}`);
-      logger.info(`  • LLM Requests: ${summary.llmRequests}`);
-      logger.info(`  • Tool Calls: ${summary.toolCalls}`);
-      logger.info(`  • Errors: ${summary.errors}`);
-      if (summary.duration !== undefined) {
-        logger.info(`  • Duration: ${summary.duration.toFixed(2)}s`);
+      logger.info(`  • Iterations: ${metadata.iterations_completed}`);
+      logger.info(`  • Total Events: ${events.length}`);
+      logger.info(`  • Status: ${metadata.status}`);
+      if (metadata.end_time && metadata.start_time) {
+        const duration = (new Date(metadata.end_time).getTime() - new Date(metadata.start_time).getTime()) / 1000;
+        logger.info(`  • Duration: ${duration.toFixed(2)}s`);
       }
 
       logger.divider();
       logger.info(`Work directory: ${context.workDir}`);
-      logger.info(`Trace log: ${path.join(context.workDir, 'trace.jsonl')}`);
+      logger.info(`Journal log: ${path.join(context.deltaDir, 'runs', context.runId, 'execution', 'journal.jsonl')}`);
 
       if (options.verbose) {
         logger.divider();
-        await tracer.printTrace();
+        logger.info('Journal Events:');
+        events.forEach(event => {
+          console.log(`  [${event.seq}] ${event.type} at ${new Date(event.timestamp).toLocaleTimeString()}`);
+        });
       }
 
     } catch (engineError) {
@@ -145,18 +150,19 @@ async function handleRunCommand(options: {
         logger.error(String(engineError));
       }
 
-      // Try to print trace if available
+      // Try to print journal summary if available
       try {
-        const tracer = engine.getTracer();
-        const summary = await tracer.getTraceSummary();
+        const journal = engine.getJournal();
+        const events = await journal.readJournal();
+        const metadata = await journal.readMetadata();
 
         logger.divider();
         logger.info('Partial Execution Summary:');
-        logger.info(`  • Iterations before failure: ${summary.iterations}`);
-        logger.info(`  • Errors encountered: ${summary.errors}`);
-        logger.info(`Check trace log for details: ${path.join(context.workDir, 'trace.jsonl')}`);
+        logger.info(`  • Iterations before failure: ${metadata.iterations_completed}`);
+        logger.info(`  • Events logged: ${events.length}`);
+        logger.info(`Check journal log for details: ${path.join(context.deltaDir, 'runs', context.runId, 'execution', 'journal.jsonl')}`);
       } catch {
-        // Ignore errors when trying to print trace
+        // Ignore errors when trying to print journal
       }
 
       logger.divider();

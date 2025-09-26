@@ -20,7 +20,11 @@ export async function loadAndValidateAgent(
 
   // Define expected file paths
   const configPath = path.join(agentPath, 'config.yaml');
-  const systemPromptPath = path.join(agentPath, 'system_prompt.txt');
+
+  // Support both .md and .txt extensions for system prompt (prefer .md)
+  const systemPromptPathMd = path.join(agentPath, 'system_prompt.md');
+  const systemPromptPathTxt = path.join(agentPath, 'system_prompt.txt');
+  let systemPromptPath: string;
 
   // Check if required files exist
   try {
@@ -29,10 +33,17 @@ export async function loadAndValidateAgent(
     throw new Error(`config.yaml not found or not readable at: ${configPath}`);
   }
 
+  // Check for system prompt file (prefer .md over .txt)
   try {
-    await fs.access(systemPromptPath, fs.constants.R_OK);
-  } catch (error) {
-    throw new Error(`system_prompt.txt not found or not readable at: ${systemPromptPath}`);
+    await fs.access(systemPromptPathMd, fs.constants.R_OK);
+    systemPromptPath = systemPromptPathMd;
+  } catch {
+    try {
+      await fs.access(systemPromptPathTxt, fs.constants.R_OK);
+      systemPromptPath = systemPromptPathTxt;
+    } catch (error) {
+      throw new Error(`system_prompt.md or system_prompt.txt not found or not readable at: ${agentPath}`);
+    }
   }
 
   // Load and parse config.yaml
@@ -70,17 +81,18 @@ export async function loadAndValidateAgent(
 
   // Load system prompt
   let systemPrompt: string;
+  const promptFileName = path.basename(systemPromptPath);
   try {
     systemPrompt = await fs.readFile(systemPromptPath, 'utf-8');
   } catch (error) {
     throw new Error(
-      `Failed to read system_prompt.txt: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to read ${promptFileName}: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 
   // Validate system prompt is not empty
   if (!systemPrompt || systemPrompt.trim().length === 0) {
-    throw new Error('system_prompt.txt is empty');
+    throw new Error(`${promptFileName} is empty`);
   }
 
   return {

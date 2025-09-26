@@ -1,8 +1,19 @@
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/index.js';
+import path from 'node:path';
+import { v4 as uuidv4 } from 'uuid';
 import { EngineContext } from './types.js';
 import { LLMAdapter, parseToolCalls, hasToolCalls } from './llm.js';
-import { Tracer } from './tracer.js';
+import { Journal, createJournal } from './journal.js';
 import { executeTool } from './executor.js';
+import { HookExecutor, createHookExecutor } from './hook-executor.js';
+import {
+  ThoughtEvent,
+  ActionResultEvent,
+  LLMInvocationRequest,
+  LLMInvocationResponse,
+  LLMInvocationMetadata,
+  ToolExecutionRecord,
+} from './journal-types.js';
 
 /**
  * Maximum number of iterations to prevent infinite loops
@@ -11,11 +22,14 @@ const MAX_ITERATIONS = 30;
 
 /**
  * Core engine that orchestrates the Think-Act-Observe loop
+ * v1.1: Implements stateless core - rebuilds context from journal on each iteration
  */
 export class Engine {
   private readonly context: EngineContext;
   private readonly llm: LLMAdapter;
-  private readonly tracer: Tracer;
+  private readonly journal: Journal;
+  private readonly runDir: string;
+  private readonly hookExecutor: HookExecutor;
 
   /**
    * Initialize the engine with context
@@ -24,7 +38,75 @@ export class Engine {
   constructor(context: EngineContext) {
     this.context = context;
     this.llm = new LLMAdapter();
-    this.tracer = new Tracer(context.workDir, context.runId);
+
+    // v1.1: Setup journal from run directory
+    this.runDir = path.join(context.deltaDir, 'runs', context.runId);
+    this.journal = createJournal(context.runId, this.runDir);
+
+    // v1.1: Setup hook executor
+    this.hookExecutor = createHookExecutor(
+      this.journal,
+      context.workDir,
+      context.runId
+    );
+  }
+
+  /**
+   * Initialize the journal (must be called before run)
+   */
+  async initialize(): Promise<void> {
+    await this.journal.initialize();
+  }
+
+  /**
+   * Rebuild conversation history from journal (v1.1 stateless core)
+   * @returns Messages array for LLM
+   */
+  private async rebuildConversationFromJournal(): Promise<ChatCompletionMessageParam[]> {
+    const events = await this.journal.readJournal();
+    const messages: ChatCompletionMessageParam[] = [];
+
+    // Add initial user task
+    messages.push({
+      role: 'user',
+      content: this.context.initialTask,
+    });
+
+    // Process events to rebuild conversation
+    for (const event of events) {
+      switch (event.type) {
+        case 'THOUGHT': {
+          const thoughtEvent = event as ThoughtEvent;
+
+          // Add assistant message with original tool_calls from LLM
+          messages.push({
+            role: 'assistant',
+            content: thoughtEvent.payload.content || null,
+            tool_calls: thoughtEvent.payload.tool_calls,
+          } as ChatCompletionMessageParam);
+          break;
+        }
+
+        case 'ACTION_RESULT': {
+          const actionResult = event as ActionResultEvent;
+          // Add tool response
+          messages.push({
+            role: 'tool',
+            content: actionResult.payload.observation_content,
+            tool_call_id: actionResult.payload.action_id,
+          });
+          break;
+        }
+
+        case 'SYSTEM_MESSAGE': {
+          // System messages can be added to context if needed
+          // For now, we'll skip them in conversation reconstruction
+          break;
+        }
+      }
+    }
+
+    return messages;
   }
 
   /**
@@ -33,19 +115,8 @@ export class Engine {
    */
   async run(): Promise<string> {
     // Log engine start
-    await this.tracer.logEngineStart(
-      this.context.agentPath,
-      this.context.workDir,
-      this.context.initialTask
-    );
-
-    // Initialize conversation history with the initial task
-    const messages: ChatCompletionMessageParam[] = [
-      {
-        role: 'user',
-        content: this.context.initialTask,
-      },
-    ];
+    await this.journal.logRunStart(this.context.initialTask, this.context.agentPath);
+    await this.journal.writeEngineLog(`Engine started: ${this.context.runId}`);
 
     let iteration = 0;
     let finalResponse = '';
@@ -54,52 +125,176 @@ export class Engine {
       // Main loop
       while (iteration < MAX_ITERATIONS) {
         iteration++;
+        this.context.currentStep++;
 
         console.log(`\n[Iteration ${iteration}/${MAX_ITERATIONS}]`);
+        await this.journal.writeEngineLog(`Starting iteration ${iteration}`);
+
+        // ============================================
+        // STATELESS CORE: Rebuild context from journal
+        // ============================================
+        const messages = await this.rebuildConversationFromJournal();
 
         // ============================================
         // THINK: Call LLM with current conversation
         // ============================================
         console.log('🤔 Thinking...');
 
-        // Log LLM request
-        const messagesToLog = messages.map(m => ({
-          role: m.role,
-          content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-        }));
+        // Prepare baseline LLM request (P_base)
+        // Include system prompt at the beginning
+        const baselineRequest: LLMInvocationRequest = {
+          messages: [
+            {
+              role: 'system' as const,
+              content: this.context.systemPrompt,
+            },
+            ...messages.map(m => ({
+              role: m.role as 'system' | 'user' | 'assistant' | 'tool',
+              content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+              tool_call_id: (m as any).tool_call_id,
+              tool_calls: (m as any).tool_calls,
+            })),
+          ],
+          model: this.context.config.llm.model,
+          temperature: this.context.config.llm.temperature,
+          max_tokens: this.context.config.llm.max_tokens,
+          tools: this.context.config.tools.map(t => ({
+            type: 'function' as const,
+            function: {
+              name: t.name,
+              description: `Executes: ${t.command.join(' ')}`,
+              parameters: {
+                type: 'object' as const,
+                properties: t.parameters.reduce((acc, p) => ({
+                  ...acc,
+                  [p.name]: { type: p.type },
+                }), {}),
+                required: t.parameters.map(p => p.name),
+              },
+            },
+          })),
+        };
 
-        const toolsToLog = this.context.config.tools.map(t => ({
-          name: t.name,
-          description: `Executes: ${t.command.join(' ')}`,
-        }));
+        // ============================================
+        // HOOK: Execute pre_llm_req hook if configured
+        // ============================================
+        let finalRequest = baselineRequest;
 
-        await this.tracer.logLLMRequest(iteration, messagesToLog, toolsToLog);
+        if (this.context.config.lifecycle_hooks?.pre_llm_req) {
+          try {
+            const hookResult = await this.hookExecutor.executePreLLMReqHook(
+              this.context.config.lifecycle_hooks.pre_llm_req,
+              baselineRequest,
+              this.context.agentPath
+            );
 
-        // Call LLM
-        const response = await this.llm.call(this.context, messages);
+            if (hookResult.success && hookResult.finalPayload) {
+              // Use the modified payload (P_final)
+              finalRequest = hookResult.finalPayload as LLMInvocationRequest;
+              await this.journal.writeEngineLog('pre_llm_req hook succeeded, using modified payload');
+            } else if (!hookResult.success) {
+              // Hook failed, log warning and use baseline
+              const errorMsg = `pre_llm_req hook failed: ${hookResult.error || 'Unknown error'}`;
+              await this.journal.logSystemMessage('WARN', errorMsg);
+              await this.journal.writeEngineLog(errorMsg);
+              console.warn(`⚠️  ${errorMsg}`);
+            }
+          } catch (error) {
+            // Unexpected error, log and continue with baseline
+            const errorMsg = `pre_llm_req hook error: ${error instanceof Error ? error.message : String(error)}`;
+            await this.journal.logSystemMessage('ERROR', errorMsg);
+            await this.journal.writeEngineLog(errorMsg);
+            console.error(`❌ ${errorMsg}`);
+          }
+        }
 
-        // Log LLM response
-        const toolCalls = response.tool_calls?.map(tc => ({
-          id: tc.id,
-          name: tc.function.name,
-          arguments: tc.function.arguments,
-        }));
+        // Save LLM invocation ID for reference
+        const invocationId = uuidv4();
+        const startTime = Date.now();
 
-        await this.tracer.logLLMResponse(
-          iteration,
-          response.content || undefined,
-          toolCalls,
-          response.refusal ? 'refusal' : 'stop'
+        // Call LLM with final request (either P_final or P_base)
+        // IMPORTANT: Use the finalRequest which may have been modified by the hook
+        const response = await this.llm.callWithRequest(finalRequest);
+
+        // Calculate duration and token usage
+        const duration = Date.now() - startTime;
+
+        // Create LLM response object
+        const llmResponse: LLMInvocationResponse = {
+          id: invocationId,
+          object: 'chat.completion',
+          created: Math.floor(Date.now() / 1000),
+          model: this.context.config.llm.model,
+          choices: [{
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: response.content || undefined,
+              tool_calls: response.tool_calls,
+            },
+            finish_reason: response.refusal ? 'refusal' : 'stop',
+          }],
+          usage: {
+            prompt_tokens: 0, // Would need to track from actual API response
+            completion_tokens: 0,
+            total_tokens: 0,
+          },
+        };
+
+        // Save LLM invocation details
+        const llmMetadata: LLMInvocationMetadata = {
+          model_id: this.context.config.llm.model,
+          duration_ms: duration,
+          token_usage: {
+            prompt: 0,
+            completion: 0,
+            total: 0,
+          },
+          status: 'SUCCESS',
+        };
+
+        // CRITICAL: Save the finalRequest (not baselineRequest) to runtime_io
+        // This ensures runtime_io/invocations/<ID>/request.json contains the actual payload sent to LLM
+        await this.journal.saveLLMInvocation(
+          invocationId,
+          finalRequest,  // Use finalRequest, not a variable that doesn't exist
+          llmResponse,
+          llmMetadata
+        );
+
+        // Log thought event with tool calls
+        await this.journal.logThought(
+          response.content || '',
+          invocationId,
+          response.tool_calls  // Pass the original tool_calls from LLM
         );
 
         // ============================================
-        // PARSE: Add assistant response to history
+        // HOOK: Execute post_llm_resp hook if configured
         // ============================================
-        messages.push({
-          role: 'assistant',
-          content: response.content,
-          tool_calls: response.tool_calls,
-        } as ChatCompletionMessageParam);
+        if (this.context.config.lifecycle_hooks?.post_llm_resp) {
+          try {
+            const hookResult = await this.hookExecutor.executePostLLMRespHook(
+              this.context.config.lifecycle_hooks.post_llm_resp,
+              llmResponse,
+              this.context.agentPath
+            );
+
+            if (!hookResult.success) {
+              // Hook failed, log warning but continue
+              const errorMsg = `post_llm_resp hook failed: ${hookResult.error || 'Unknown error'}`;
+              await this.journal.logSystemMessage('WARN', errorMsg);
+              await this.journal.writeEngineLog(errorMsg);
+              console.warn(`⚠️  ${errorMsg}`);
+            }
+          } catch (error) {
+            // Unexpected error, log but continue
+            const errorMsg = `post_llm_resp hook error: ${error instanceof Error ? error.message : String(error)}`;
+            await this.journal.logSystemMessage('ERROR', errorMsg);
+            await this.journal.writeEngineLog(errorMsg);
+            console.error(`❌ ${errorMsg}`);
+          }
+        }
 
         // ============================================
         // CHECK TERMINATION: No tool calls means done
@@ -129,50 +324,105 @@ export class Engine {
             const errorMsg = `Tool not found: ${toolCall.name}`;
             console.error(`  ❌ ${errorMsg}`);
 
-            // Log error and add to conversation
-            await this.tracer.logError(errorMsg, 'Tool execution', iteration);
+            // Log system message for error
+            await this.journal.logSystemMessage('ERROR', errorMsg);
 
-            messages.push({
-              role: 'tool',
-              content: `Error: ${errorMsg}`,
-              tool_call_id: toolCall.id,
-            });
+            // Log action result as error
+            await this.journal.logActionResult(
+              toolCall.id,
+              'ERROR',
+              `Error: ${errorMsg}`,
+              ''
+            );
             continue;
           }
 
           try {
-            // Log tool execution start
-            await this.tracer.logToolExecutionStart(
-              iteration,
-              toolCall.name,
-              toolDef.command,
-              toolCall.arguments
-            );
+            // Log action request
+            const resolvedCommand = [
+              ...toolDef.command,
+              ...Object.values(toolCall.arguments),
+            ].join(' ');
 
-            // Execute the tool
-            const result = await executeTool(
-              this.context,
-              toolDef,
-              toolCall.arguments
-            );
-
-            // Log tool execution end
-            await this.tracer.logToolExecutionEnd(
-              iteration,
+            // Use the original tool_call_id from LLM response
+            const actionId = await this.journal.logActionRequest(
+              toolCall.id,  // Pass the original tool_call_id
               toolCall.name,
-              result
+              toolCall.arguments,
+              resolvedCommand
             );
 
             // ============================================
-            // OBSERVE: Format and add result to history
+            // HOOK: Execute pre_tool_exec hook if configured
             // ============================================
-            const formattedResult = this.formatToolResult(result);
+            let skipTool = false;
+            if (this.context.config.lifecycle_hooks?.pre_tool_exec) {
+              try {
+                const hookResult = await this.hookExecutor.executePreToolExecHook(
+                  this.context.config.lifecycle_hooks.pre_tool_exec,
+                  {
+                    tool_name: toolCall.name,
+                    tool_args: toolCall.arguments,
+                    resolved_command: resolvedCommand,
+                  },
+                  this.context.agentPath
+                );
 
-            messages.push({
-              role: 'tool',
-              content: formattedResult,
-              tool_call_id: toolCall.id,
-            });
+                if (!hookResult.success) {
+                  console.warn(`⚠️  pre_tool_exec hook failed: ${hookResult.error}`);
+                } else if (hookResult.control?.skip) {
+                  // Hook requested to skip tool execution
+                  skipTool = true;
+                  console.log(`  ⏭️  Tool execution skipped by pre_tool_exec hook`);
+                }
+              } catch (error) {
+                console.error(`❌ pre_tool_exec hook error: ${error}`);
+              }
+            }
+
+            let result: any;
+            let duration = 0;
+
+            if (!skipTool) {
+              // Execute the tool
+              const startTime = Date.now();
+              result = await executeTool(
+                this.context,
+                toolDef,
+                toolCall.arguments
+              );
+              duration = Date.now() - startTime;
+            } else {
+              // Create a mock result for skipped tool
+              result = {
+                stdout: 'Tool execution skipped by pre_tool_exec hook',
+                stderr: '',
+                exitCode: 0,
+                success: true,
+              };
+            }
+
+            // Save tool execution details
+            const executionRecord: ToolExecutionRecord = {
+              command: resolvedCommand,
+              stdout: result.stdout,
+              stderr: result.stderr,
+              exit_code: result.exitCode,
+              duration_ms: duration,
+            };
+
+            await this.journal.saveToolExecution(actionId, executionRecord);
+
+            // Format observation for LLM
+            const observation = this.formatToolResult(result);
+
+            // Log action result
+            await this.journal.logActionResult(
+              actionId,
+              result.success ? 'SUCCESS' : 'FAILED',
+              observation,
+              actionId // execution_ref points to the tool_executions directory
+            );
 
             if (result.success) {
               console.log(`  ✓ Success (exit code: ${result.exitCode})`);
@@ -180,51 +430,131 @@ export class Engine {
               console.log(`  ✗ Failed (exit code: ${result.exitCode})`);
             }
 
+            // ============================================
+            // HOOK: Execute post_tool_exec hook if configured
+            // ============================================
+            if (this.context.config.lifecycle_hooks?.post_tool_exec && !skipTool) {
+              try {
+                const hookResult = await this.hookExecutor.executePostToolExecHook(
+                  this.context.config.lifecycle_hooks.post_tool_exec,
+                  {
+                    tool_name: toolCall.name,
+                    exit_code: result.exitCode,
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                  },
+                  this.context.agentPath
+                );
+
+                if (!hookResult.success) {
+                  console.warn(`⚠️  post_tool_exec hook failed: ${hookResult.error}`);
+                }
+              } catch (error) {
+                console.error(`❌ post_tool_exec hook error: ${error}`);
+              }
+            }
+
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             console.error(`  ❌ Tool execution error: ${errorMsg}`);
 
-            // Log error
-            await this.tracer.logError(
-              error instanceof Error ? error : errorMsg,
-              `Tool execution: ${toolCall.name}`,
-              iteration
+            // Log system message for error
+            await this.journal.logSystemMessage(
+              'ERROR',
+              `Tool execution error: ${errorMsg}`
             );
 
-            // Add error to conversation
-            messages.push({
-              role: 'tool',
-              content: `Error executing tool: ${errorMsg}`,
-              tool_call_id: toolCall.id,
-            });
+            // Log action result as error
+            await this.journal.logActionResult(
+              toolCall.id,
+              'ERROR',
+              `Error executing tool: ${errorMsg}`,
+              ''
+            );
+
+            // ============================================
+            // HOOK: Execute on_error hook if configured
+            // ============================================
+            if (this.context.config.lifecycle_hooks?.on_error) {
+              try {
+                const hookResult = await this.hookExecutor.executeOnErrorHook(
+                  this.context.config.lifecycle_hooks.on_error,
+                  {
+                    error_type: 'TOOL_EXECUTION_ERROR',
+                    message: errorMsg,
+                    context: {
+                      tool_name: toolCall.name,
+                      tool_args: toolCall.arguments,
+                    },
+                  },
+                  this.context.agentPath
+                );
+
+                if (!hookResult.success) {
+                  console.warn(`⚠️  on_error hook failed: ${hookResult.error}`);
+                }
+              } catch (hookError) {
+                console.error(`❌ on_error hook error: ${hookError}`);
+              }
+            }
           }
         }
+
+        // Update iterations in metadata
+        await this.journal.incrementIterations();
       }
 
       // Check if we hit max iterations
       if (iteration >= MAX_ITERATIONS && !finalResponse) {
         finalResponse = 'Maximum iterations reached. Task may be incomplete.';
         console.warn(`⚠️  Maximum iterations (${MAX_ITERATIONS}) reached`);
+        await this.journal.logSystemMessage(
+          'WARN',
+          `Maximum iterations (${MAX_ITERATIONS}) reached`
+        );
       }
 
       // Log engine end
-      await this.tracer.logEngineEnd(true, iteration);
+      await this.journal.logRunEnd('COMPLETED');
+      await this.journal.writeEngineLog(`Engine completed successfully after ${iteration} iterations`);
 
     } catch (error) {
       // Log fatal error
-      await this.tracer.logError(
-        error instanceof Error ? error : String(error),
-        'Engine execution',
-        iteration
-      );
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.journal.logSystemMessage('ERROR', `Fatal error: ${errorMsg}`);
+      await this.journal.writeEngineLog(`Engine failed with error: ${errorMsg}`);
+
+      // ============================================
+      // HOOK: Execute on_error hook for fatal errors
+      // ============================================
+      if (this.context.config.lifecycle_hooks?.on_error) {
+        try {
+          await this.hookExecutor.executeOnErrorHook(
+            this.context.config.lifecycle_hooks.on_error,
+            {
+              error_type: 'FATAL_ERROR',
+              message: errorMsg,
+              context: {
+                iteration,
+                run_id: this.context.runId,
+              },
+            },
+            this.context.agentPath
+          );
+        } catch (hookError) {
+          // Log but don't throw - we're already in error handling
+          await this.journal.writeEngineLog(`on_error hook failed: ${hookError}`);
+        }
+      }
 
       // Log engine end with failure
-      await this.tracer.logEngineEnd(false, iteration);
+      await this.journal.logRunEnd('FAILED');
 
       throw error;
     } finally {
       // Ensure all logs are written
-      await this.tracer.flush();
+      await this.journal.flush();
+      await this.journal.close();
     }
 
     return finalResponse;
@@ -233,7 +563,7 @@ export class Engine {
   /**
    * Format tool execution result for LLM consumption
    * @param result - Tool execution result
-   * @returns Formatted string
+   * @returns Formatted string (may be truncated for large outputs)
    */
   private formatToolResult(result: {
     stdout: string;
@@ -241,18 +571,29 @@ export class Engine {
     exitCode: number;
     success: boolean;
   }): string {
+    const MAX_OUTPUT_LENGTH = 5000; // Limit observation to 5KB for LLM context
     const lines: string[] = [];
 
-    // Add stdout if present
+    // Add stdout if present (truncate if too long)
     if (result.stdout) {
       lines.push('=== STDOUT ===');
-      lines.push(result.stdout);
+      if (result.stdout.length > MAX_OUTPUT_LENGTH) {
+        lines.push(result.stdout.substring(0, MAX_OUTPUT_LENGTH));
+        lines.push(`\n[Output truncated - ${result.stdout.length} total characters]`);
+      } else {
+        lines.push(result.stdout);
+      }
     }
 
-    // Add stderr if present
+    // Add stderr if present (truncate if too long)
     if (result.stderr) {
       lines.push('=== STDERR ===');
-      lines.push(result.stderr);
+      if (result.stderr.length > MAX_OUTPUT_LENGTH) {
+        lines.push(result.stderr.substring(0, MAX_OUTPUT_LENGTH));
+        lines.push(`\n[Error output truncated - ${result.stderr.length} total characters]`);
+      } else {
+        lines.push(result.stderr);
+      }
     }
 
     // Add exit status
@@ -267,20 +608,11 @@ export class Engine {
   }
 
   /**
-   * Get the tracer instance for external access
-   * @returns Tracer instance
+   * Get the journal instance for external access
+   * @returns Journal instance
    */
-  getTracer(): Tracer {
-    return this.tracer;
-  }
-
-  /**
-   * Get the conversation history (for debugging)
-   * @returns Current message history
-   */
-  getMessageHistory(): ChatCompletionMessageParam[] {
-    // This would need to be stored as instance variable if needed
-    return [];
+  getJournal(): Journal {
+    return this.journal;
   }
 }
 
@@ -291,5 +623,6 @@ export class Engine {
  */
 export async function runEngine(context: EngineContext): Promise<string> {
   const engine = new Engine(context);
+  await engine.initialize();
   return engine.run();
 }

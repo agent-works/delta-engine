@@ -83,6 +83,28 @@ export const LLMConfigSchema = z.object({
 export type LLMConfig = z.infer<typeof LLMConfigSchema>;
 
 // ============================================
+// Lifecycle Hooks Schemas and Types (v1.1)
+// ============================================
+
+export const HookDefinitionSchema = z.object({
+  command: z.array(z.string()).min(1),
+  timeout_ms: z.number().positive().optional(),
+  description: z.string().optional(),
+});
+
+export type HookDefinition = z.infer<typeof HookDefinitionSchema>;
+
+export const LifecycleHooksSchema = z.object({
+  pre_llm_req: HookDefinitionSchema.optional(),
+  post_llm_resp: HookDefinitionSchema.optional(),
+  pre_tool_exec: HookDefinitionSchema.optional(),
+  post_tool_exec: HookDefinitionSchema.optional(),
+  on_error: HookDefinitionSchema.optional(),
+}).optional();
+
+export type LifecycleHooks = z.infer<typeof LifecycleHooksSchema>;
+
+// ============================================
 // Agent Configuration Schemas and Types
 // ============================================
 
@@ -92,6 +114,7 @@ export const AgentConfigSchema = z.object({
   description: z.string().optional(),
   llm: LLMConfigSchema,
   tools: z.array(ToolDefinitionSchema),
+  lifecycle_hooks: LifecycleHooksSchema.optional(), // v1.1: Added lifecycle hooks
   max_iterations: z.number().positive().default(10),
   timeout_seconds: z.number().positive().optional(),
 });
@@ -106,9 +129,12 @@ export interface EngineContext {
   runId: string;
   agentPath: string;      // Agent project absolute path
   workDir: string;        // Run work directory absolute path (CWD)
+  deltaDir: string;       // v1.1: .delta directory path (control plane)
   config: AgentConfig;
   systemPrompt: string;
   initialTask: string;
+  // v1.1: Stateless core - no in-memory conversation history
+  currentStep: number;    // Current step in the T-A-O loop (for journal sequencing)
 }
 
 // ============================================

@@ -2,14 +2,21 @@ name: hello-agent
 version: 1.0.0
 description: A simple agent that can list files and read them
 
+max_iterations: 30
 llm:
-  model: claude-3-5-sonnet-20240620
+  model: gpt-4o
+  # model: claude-3-5-sonnet-20240620
+  # model: gemini-2.5-pro
   temperature: 0.7
 
 tools:
   - name: list_files
     command: ["ls", "-la"]
-    parameters: []
+    parameters:
+      - name: directory
+        type: string
+        default: "."
+        inject_as: argument 
 
   - name: read_file
     command: ["cat"]
@@ -27,12 +34,3 @@ tools:
       - name: content
         type: string
         inject_as: stdin
-
-  - name: echo_message
-    command: ["echo"]
-    parameters:
-      - name: message
-        type: string
-        inject_as: argument
-
-max_iterations: 10

@@ -143,6 +143,64 @@ export class LLMAdapter {
   }
 
   /**
+   * Call the LLM with a pre-built request (for hook integration)
+   * @param request - Pre-built request with messages, model, and parameters
+   * @returns The LLM's response message
+   */
+  async callWithRequest(
+    request: {
+      messages: Array<{
+        role: 'system' | 'user' | 'assistant' | 'tool';
+        content: string;
+        tool_call_id?: string;
+        tool_calls?: any[];
+      }>;
+      model: string;
+      temperature?: number;
+      max_tokens?: number;
+      tools?: any[];
+    }
+  ): Promise<ChatCompletionMessage> {
+    try {
+      // Build request parameters from pre-built request
+      const requestParams: ChatCompletionCreateParams = {
+        model: request.model,
+        messages: request.messages as ChatCompletionMessageParam[],
+        ...(request.temperature !== undefined && { temperature: request.temperature }),
+        ...(request.max_tokens && { max_tokens: request.max_tokens }),
+      };
+
+      // Add tools if available
+      if (request.tools && request.tools.length > 0) {
+        requestParams.tools = request.tools;
+        requestParams.tool_choice = 'auto';
+      }
+
+      // Make the API call
+      const completion = await this.client.chat.completions.create(requestParams);
+
+      // Extract and return the first message
+      const message = completion.choices[0]?.message;
+
+      if (!message) {
+        throw new Error('No response message received from OpenAI API');
+      }
+
+      return message;
+    } catch (error) {
+      // Handle specific OpenAI errors
+      if (error instanceof OpenAI.APIError) {
+        throw new Error(
+          `OpenAI API error: ${error.message} (Status: ${error.status}, Type: ${error.type})`
+        );
+      }
+
+      // Re-throw other errors
+      throw error;
+    }
+  }
+
+  /**
    * Continue a conversation with tool results
    * @param context - Engine context
    * @param history - Previous message history
