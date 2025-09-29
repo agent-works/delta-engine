@@ -58,6 +58,10 @@ tools:
         type: string
         description: File to read
         inject_as: argument
+
+  # Human interaction tool (v1.2)
+  - name: ask_human
+    # Built-in tool for requesting user input
 ```
 
 Create `system_prompt.md`:
@@ -102,6 +106,7 @@ Tools are external commands that your agent can execute:
 - Each tool maps to a command-line program
 - Parameters can be injected as arguments, stdin, or options
 - Tool outputs are captured and fed back to the LLM
+- **ask_human** (v1.2) - Built-in tool for requesting user input
 
 ### Think-Act-Observe Loop
 1. **Think** - LLM processes the current context
@@ -113,6 +118,25 @@ Each run creates an isolated workspace:
 - Independent working directory
 - Complete audit trail in `.delta/`
 - Can be reused with `--work-dir` flag
+
+### Human-in-the-Loop (v1.2)
+Two modes for human interaction:
+
+1. **Interactive Mode (`-i`)** - Synchronous CLI interaction
+   ```bash
+   delta run -i --agent my-agent --task "Get user preferences"
+   ```
+   - Agent pauses and waits for input in terminal
+   - Suitable for local development and debugging
+
+2. **Async Mode (default)** - File-based interaction
+   ```bash
+   delta run --agent my-agent --task "Process with confirmation"
+   ```
+   - Agent writes request to `.delta/interaction/request.json`
+   - User provides response in `.delta/interaction/response.txt`
+   - Re-run `delta run` to continue execution
+   - Suitable for automation and external integrations
 
 ## Next Steps
 

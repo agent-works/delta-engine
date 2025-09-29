@@ -250,13 +250,21 @@ export interface HookExecutionMeta {
 // CWD Structure Types (Section 5)
 // ============================================
 
+export enum RunStatus {
+  RUNNING = 'RUNNING',
+  WAITING_FOR_INPUT = 'WAITING_FOR_INPUT',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  INTERRUPTED = 'INTERRUPTED'
+}
+
 export interface DeltaRunMetadata {
   run_id: string;
   start_time: string;
   end_time?: string;
   agent_ref: string;
   task: string;
-  status: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'INTERRUPTED';
+  status: RunStatus;
   iterations_completed: number;
   error?: string;
 }

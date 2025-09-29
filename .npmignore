@@ -13,7 +13,7 @@ jest.config.js
 # Development files
 test-run.sh
 examples/
-docs/
+
 
 # Git and IDE
 .git/

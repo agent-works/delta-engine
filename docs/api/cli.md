@@ -42,6 +42,12 @@ delta run --agent <path> --task <description> [options]
 
 #### Optional Options
 
+- `--interactive`, `-i` **(v1.2)**
+  - Enable interactive mode for human-in-the-loop
+  - Synchronous CLI interaction for ask_human tool
+  - Agent pauses and waits for input in terminal
+  - Default: false (async mode with file-based interaction)
+
 - `--work-dir <path>`, `-w <path>`
   - Custom working directory
   - Default: `$AGENT_HOME/work_runs/workspace_<timestamp>`
@@ -68,6 +74,16 @@ delta run --agent ./my-agent --task "List all Python files"
 # Short form
 delta run -a ./my-agent -t "Create a README file"
 
+# Interactive mode (v1.2) - synchronous CLI interaction
+delta run -i --agent ./my-agent --task "Get user preferences"
+
+# Async mode (v1.2) - file-based interaction (default)
+delta run --agent ./my-agent --task "Deploy after confirmation"
+
+# Resume after async pause (v1.2)
+# After providing response in .delta/interaction/response.txt
+delta run --agent ./my-agent
+
 # Custom working directory
 delta run --agent ./my-agent --task "Continue analysis" --work-dir ./workspace
 
@@ -84,7 +100,7 @@ Display Delta Engine version.
 
 ```bash
 delta version
-# Output: Delta Engine v1.1.0
+# Output: Delta Engine v1.2.0
 ```
 
 ### `help`
@@ -145,7 +161,10 @@ Each run creates a workspace with the following structure:
 ```
 $AGENT_HOME/work_runs/workspace_<timestamp>/
 ├── .delta/                    # Control plane
-│   ├── schema_version.txt    # v1.1
+│   ├── schema_version.txt    # v1.2
+│   ├── interaction/          # v1.2: Human interaction directory
+│   │   ├── request.json     # Pending interaction request
+│   │   └── response.txt     # User's response
 │   └── runs/
 │       ├── <run_id>/         # Single run data
 │       │   ├── execution/
@@ -221,6 +240,7 @@ Task completed successfully. Created 3 files.
 - `3` - Agent not found
 - `4` - Configuration error
 - `5` - LLM API error
+- `101` - Waiting for user input (v1.2, async mode only)
 - `130` - Interrupted (Ctrl+C)
 
 ## Debugging
@@ -269,6 +289,72 @@ ls -la work_runs/*/delta/runs/*/runtime_io/hooks/
 
 # View hook output
 cat work_runs/*/delta/runs/*/runtime_io/hooks/*/execution_meta/stdout.log
+```
+
+## Human-in-the-Loop Interaction (v1.2)
+
+### Interactive Mode
+
+Use the `-i` flag for synchronous CLI interaction:
+
+```bash
+# Agent will pause and wait for input in terminal
+delta run -i --agent ./my-agent --task "Configure settings"
+
+# Example interaction:
+# [Agent]: Please enter your API key:
+# [User types]: sk-abc123...
+# [Agent continues with the provided key]
+```
+
+### Async Mode (Default)
+
+Without the `-i` flag, agent uses file-based interaction:
+
+```bash
+# Step 1: Start the agent
+delta run --agent ./my-agent --task "Deploy application"
+
+# Agent pauses with exit code 101
+# Creates .delta/interaction/request.json:
+# {
+#   "prompt": "Confirm deployment to production (yes/no):",
+#   "input_type": "text"
+# }
+
+# Step 2: Provide response
+echo "yes" > work_runs/workspace_*/delta/interaction/response.txt
+
+# Step 3: Resume execution
+delta run --agent ./my-agent
+# Agent automatically resumes from where it paused
+```
+
+### Automation Example
+
+```bash
+#!/bin/bash
+# Automated script handling async interaction
+
+WORKSPACE="./my-workspace"
+
+# Run agent
+if delta run --agent ./my-agent --task "Setup project" --work-dir "$WORKSPACE"; then
+  echo "Agent completed successfully"
+else
+  EXIT_CODE=$?
+  if [ $EXIT_CODE -eq 101 ]; then
+    # Agent needs input
+    REQUEST=$(cat "$WORKSPACE/.delta/interaction/request.json")
+    echo "Agent requesting: $(echo $REQUEST | jq -r .prompt)"
+
+    # Provide automated response
+    echo "default-value" > "$WORKSPACE/.delta/interaction/response.txt"
+
+    # Resume execution
+    delta run --agent ./my-agent --work-dir "$WORKSPACE"
+  fi
+fi
 ```
 
 ## Advanced Usage

@@ -9,6 +9,7 @@
 - 🔌 **Extensible** - Lifecycle hooks for customization
 - 📦 **Portable** - Single directory contains everything
 - 🔄 **Stateless** - Resumable from any interruption
+- 👥 **Interactive** - Human-in-the-loop support for user input (v1.2)
 
 
 ## Core Concepts
@@ -30,6 +31,12 @@ npm install delta-engine -g
 
 # Run example agent
 delta run --agent examples/hello-agent --task "Just create a test file"
+
+# Run with interactive mode (v1.2) - synchronous CLI interaction
+delta run -i --agent examples/interactive-agent --task "Get user preferences"
+
+# Run with async mode (v1.2) - file-based interaction for automation
+delta run --agent examples/interactive-agent --task "Process with user confirmation"
 ```
 
 
@@ -80,6 +87,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## Version
 
-Current: **v1.1** - Stateless architecture with lifecycle hooks
+Current: **v1.2** - Human-in-the-loop interaction support
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.

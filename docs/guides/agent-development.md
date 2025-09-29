@@ -69,6 +69,11 @@ tools:
         type: string
         description: Content to write
         inject_as: stdin
+
+  # Human interaction tool (v1.2)
+  - name: ask_human
+    # Built-in tool for requesting user input
+    # No command needed - handled by Delta Engine
 ```
 
 `system_prompt.md`:
@@ -86,6 +91,7 @@ You are a file management assistant that helps users organize and manipulate fil
 - Always confirm before deleting files
 - Provide clear feedback after operations
 - Handle errors gracefully
+- Use ask_human for user confirmation when needed
 ```
 
 ## Advanced Tool Configuration
@@ -295,6 +301,102 @@ ls -la work_runs/workspace_*/delta/runs/*/runtime_io/tool_executions/
 3. **LLM Not Using Tools**
    - Improve system prompt clarity
    - Add tool usage examples in prompt
+
+## Human-in-the-Loop Interaction (v1.2)
+
+### Using the ask_human Tool
+
+The `ask_human` tool is a built-in tool that allows agents to request input from users:
+
+```yaml
+# In config.yaml
+tools:
+  - name: ask_human
+    # No command needed - handled internally by Delta Engine
+```
+
+### Interactive Mode Example
+
+```bash
+# Run with interactive mode flag
+delta run -i --agent ./my-agent --task "Configure application settings"
+```
+
+Agent code:
+```python
+# The agent can call ask_human like any other tool
+user_preference = ask_human(
+    prompt="What database would you prefer? (postgres/mysql/sqlite)",
+    input_type="text"
+)
+```
+
+### Async Mode Example
+
+```bash
+# Run in async mode (default)
+delta run --agent ./my-agent --task "Deploy with user confirmation"
+```
+
+Workflow:
+1. Agent calls `ask_human` tool
+2. Engine creates `.delta/interaction/request.json`
+3. Process exits with code 101
+4. User creates `.delta/interaction/response.txt`
+5. User runs `delta run` again to continue
+
+### Request/Response Format
+
+**request.json:**
+```json
+{
+  "request_id": "uuid-here",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "prompt": "Please confirm deployment to production (yes/no):",
+  "input_type": "text",
+  "sensitive": false
+}
+```
+
+**response.txt:**
+```
+yes
+```
+
+### Use Cases
+
+1. **Getting API Keys:**
+```yaml
+- name: setup_api
+  system_prompt: |
+    When setting up external services,
+    use ask_human to get API keys:
+    ask_human(prompt="Enter your API key:", sensitive=true)
+```
+
+2. **Confirmation for Destructive Operations:**
+```yaml
+- name: cleanup_agent
+  system_prompt: |
+    Before deleting files, always confirm:
+    ask_human(prompt="Delete 10 files? (yes/no)")
+```
+
+3. **Gathering User Preferences:**
+```yaml
+- name: config_agent
+  system_prompt: |
+    Collect user preferences interactively:
+    ask_human(prompt="Choose theme (dark/light):")
+```
+
+### Best Practices
+
+1. **Clear Prompts:** Make prompts specific and actionable
+2. **Input Validation:** Validate user input before proceeding
+3. **Sensitive Data:** Mark passwords/keys as sensitive
+4. **Fallback Logic:** Handle cases where user cancels
+5. **Progress Indication:** Tell users what will happen next
 
 ## Advanced Patterns
 

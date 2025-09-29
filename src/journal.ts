@@ -4,6 +4,7 @@ import {
   JournalEvent,
   JournalEventType,
   DeltaRunMetadata,
+  RunStatus,
   LLMInvocationRequest,
   LLMInvocationResponse,
   LLMInvocationMetadata,
@@ -122,7 +123,7 @@ export class Journal {
       start_time: new Date().toISOString(),
       agent_ref: agentRef,
       task: task,
-      status: 'RUNNING',
+      status: RunStatus.RUNNING,
       iterations_completed: 0,
     };
 
@@ -177,9 +178,12 @@ export class Journal {
   async logRunEnd(status: 'COMPLETED' | 'FAILED' | 'INTERRUPTED'): Promise<void> {
     await this.writeEvent(JournalEventType.RUN_END, { status });
 
-    // Update metadata
+    // Update metadata with the correct RunStatus enum value
+    const statusEnum = status === 'COMPLETED' ? RunStatus.COMPLETED :
+                       status === 'FAILED' ? RunStatus.FAILED :
+                       RunStatus.INTERRUPTED;
     await this.updateMetadata({
-      status,
+      status: statusEnum,
       end_time: new Date().toISOString(),
     });
   }

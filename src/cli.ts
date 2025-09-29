@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { initializeContext } from './context.js';
+import { initializeContext, checkForResumableRun, resumeContext } from './context.js';
 import { EngineContext } from './types.js';
 import { Engine } from './engine.js';
+import { RunStatus } from './journal-types.js';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +35,7 @@ async function handleRunCommand(options: {
   task: string;
   workDir?: string;
   verbose?: boolean;
+  interactive?: boolean;
 }) {
   try {
     logger.divider();
@@ -45,19 +47,50 @@ async function handleRunCommand(options: {
       logger.info(`Work Directory: ${options.workDir}`);
     }
 
+    if (options.interactive) {
+      logger.info(`Mode: Interactive (-i)`);
+    }
+
     logger.divider();
 
-    // Initialize the engine context
-    logger.info('Initializing engine context...');
+    // Check for resumable run if work directory is provided
+    let context: EngineContext;
+    let isResuming = false;
 
-    const context: EngineContext = await initializeContext(
-      options.agent,
-      options.task,
-      options.workDir
-    );
+    if (options.workDir) {
+      const resumableRunDir = await checkForResumableRun(options.workDir);
+
+      if (resumableRunDir) {
+        logger.info('Found a resumable run with status WAITING_FOR_INPUT or INTERRUPTED');
+        logger.info('Resuming existing run...');
+        context = await resumeContext(options.workDir, resumableRunDir, options.interactive);
+        isResuming = true;
+      } else {
+        logger.info('Initializing new engine context...');
+        context = await initializeContext(
+          options.agent,
+          options.task,
+          options.workDir,
+          options.interactive
+        );
+      }
+    } else {
+      // No work directory specified, create new run
+      logger.info('Initializing new engine context...');
+      context = await initializeContext(
+        options.agent,
+        options.task,
+        options.workDir,
+        options.interactive
+      );
+    }
 
     // Print initialization success information
-    logger.success('Engine context initialized successfully!');
+    if (isResuming) {
+      logger.success('Successfully resumed existing run!');
+    } else {
+      logger.success('Engine context initialized successfully!');
+    }
     logger.divider();
     logger.info(`Run ID: ${context.runId}`);
     logger.info(`Work Directory: ${context.workDir}`);
@@ -103,6 +136,26 @@ async function handleRunCommand(options: {
 
     const engine = new Engine(context);
     await engine.initialize();
+
+    // Set up signal handlers to mark run as INTERRUPTED
+    const handleInterrupt = async () => {
+      logger.divider();
+      logger.info('Received interrupt signal, marking run as INTERRUPTED...');
+      try {
+        const journal = engine.getJournal();
+        await journal.updateMetadata({ status: RunStatus.INTERRUPTED });
+        await journal.logSystemMessage('INFO', 'Run interrupted by user');
+        await journal.flush();
+        await journal.close();
+        logger.info('Run marked as INTERRUPTED. You can resume by running the same command again.');
+      } catch (error) {
+        logger.error('Failed to mark run as interrupted: ' + error);
+      }
+      process.exit(130); // Standard exit code for SIGINT
+    };
+
+    process.on('SIGINT', handleInterrupt);
+    process.on('SIGTERM', handleInterrupt);
 
     try {
       // Run the main engine loop
@@ -228,6 +281,11 @@ export function createProgram(): Command {
     .option(
       '-v, --verbose',
       'Enable verbose output',
+      false
+    )
+    .option(
+      '-i, --interactive',
+      'Enable interactive mode for ask_human tool',
       false
     )
     .action(handleRunCommand);

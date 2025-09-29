@@ -1,10 +1,17 @@
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/index.js';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'node:path';
 import { EngineContext } from './types.js';
 import { LLMAdapter, parseToolCalls, hasToolCalls } from './llm.js';
 import { Journal } from './journal.js';
 import { executeTool } from './executor.js';
 import { HookExecutor, createHookExecutor } from './hook-executor.js';
+import {
+  isAskHumanTool,
+  handleAskHumanAsync,
+  checkForInteractionResponse,
+  type AskHumanParams
+} from './ask-human.js';
 import {
   ThoughtEvent,
   ActionResultEvent,
@@ -107,12 +114,85 @@ export class Engine {
   }
 
   /**
+   * Check and handle pending ask_human response
+   * @returns true if we should continue, false if we need to pause again
+   */
+  private async handlePendingAskHuman(): Promise<boolean> {
+    // Find the last ask_human action request that doesn't have a result
+    const events = await this.journal.readJournal();
+    let pendingActionId: string | null = null;
+    let pendingPrompt: string = '';
+
+    for (const event of events) {
+      if (event.type === 'ACTION_REQUEST' && (event as any).payload.tool_name === 'ask_human') {
+        pendingActionId = (event as any).payload.action_id;
+        pendingPrompt = (event as any).payload.tool_args?.prompt || 'Waiting for input';
+      } else if (event.type === 'ACTION_RESULT' && (event as any).payload.action_id === pendingActionId) {
+        pendingActionId = null;
+        pendingPrompt = '';
+      }
+    }
+
+    // If there's no pending ask_human, we can continue
+    if (!pendingActionId) {
+      return true;
+    }
+
+    // Check if there's a response
+    const pendingResponse = await checkForInteractionResponse(this.context.workDir);
+
+    if (pendingResponse !== null) {
+      console.log('📨 Found user response, processing...');
+
+      // Log the action result for ask_human
+      await this.journal.logActionResult(
+        pendingActionId,
+        'SUCCESS',
+        pendingResponse,
+        pendingActionId
+      );
+
+      // Save a fake execution record for consistency
+      await this.journal.saveToolExecution(pendingActionId, {
+        command: 'ask_human',
+        stdout: pendingResponse,
+        stderr: '',
+        exit_code: 0,
+        duration_ms: 0,
+      });
+
+      // Continue execution
+      return true;
+    } else {
+      // No response yet, we need to pause again
+      console.log('\n' + '─'.repeat(60));
+      console.log('🔔 Agent is still waiting for your input.');
+      console.log('─'.repeat(60));
+      console.log(`\nPrompt: ${pendingPrompt}\n`);
+      console.log('Action required:');
+      console.log(`1. Provide your response in: ${path.join(this.context.workDir, '.delta', 'interaction', 'response.txt')}`);
+      console.log(`2. Run 'delta run --work-dir ${this.context.workDir}' to continue.`);
+      console.log('─'.repeat(60) + '\n');
+
+      // Exit with code 101 to signal pause
+      process.exit(101);
+    }
+  }
+
+  /**
    * Run the main engine loop
    * @returns Final response from the agent
    */
   async run(): Promise<string> {
-    // Log engine start
-    await this.journal.logRunStart(this.context.initialTask, this.context.agentPath);
+    // Only log RUN_START if this is a new run (not resuming)
+    // Check if we already have events in the journal
+    const existingEvents = await this.journal.readJournal();
+    const isNewRun = existingEvents.length === 0 ||
+                     !existingEvents.some(e => e.type === 'RUN_START');
+
+    if (isNewRun) {
+      await this.journal.logRunStart(this.context.initialTask, this.context.agentPath);
+    }
     await this.journal.writeEngineLog(`Engine started: ${this.context.runId}`);
 
     let iteration = 0;
@@ -126,6 +206,15 @@ export class Engine {
 
         console.log(`\n[Iteration ${iteration}/${MAX_ITERATIONS}]`);
         await this.journal.writeEngineLog(`Starting iteration ${iteration}`);
+
+        // Check if we're resuming with a pending ask_human
+        // This must happen BEFORE rebuilding conversation to ensure ACTION_RESULT is recorded
+        const canContinue = await this.handlePendingAskHuman();
+        if (!canContinue) {
+          // This shouldn't happen as handlePendingAskHuman exits the process
+          // but TypeScript needs this for type safety
+          break;
+        }
 
         // ============================================
         // STATELESS CORE: Rebuild context from journal
@@ -155,21 +244,51 @@ export class Engine {
           model: this.context.config.llm.model,
           temperature: this.context.config.llm.temperature,
           max_tokens: this.context.config.llm.max_tokens,
-          tools: this.context.config.tools.map(t => ({
-            type: 'function' as const,
-            function: {
-              name: t.name,
-              description: `Executes: ${t.command.join(' ')}`,
-              parameters: {
-                type: 'object' as const,
-                properties: t.parameters.reduce((acc, p) => ({
-                  ...acc,
-                  [p.name]: { type: p.type },
-                }), {}),
-                required: t.parameters.map(p => p.name),
+          tools: [
+            // Include configured tools
+            ...this.context.config.tools.map(t => ({
+              type: 'function' as const,
+              function: {
+                name: t.name,
+                description: `Executes: ${t.command.join(' ')}`,
+                parameters: {
+                  type: 'object' as const,
+                  properties: t.parameters.reduce((acc, p) => ({
+                    ...acc,
+                    [p.name]: { type: p.type },
+                  }), {}),
+                  required: t.parameters.map(p => p.name),
+                },
+              },
+            })),
+            // Include built-in ask_human tool
+            {
+              type: 'function' as const,
+              function: {
+                name: 'ask_human',
+                description: 'Ask the human user for input or clarification',
+                parameters: {
+                  type: 'object' as const,
+                  properties: {
+                    prompt: {
+                      type: 'string',
+                      description: 'The question or prompt to show the user',
+                    },
+                    input_type: {
+                      type: 'string',
+                      description: 'Type of input expected: text, password, confirmation',
+                      enum: ['text', 'password', 'confirmation'],
+                    },
+                    sensitive: {
+                      type: 'boolean',
+                      description: 'Whether the input is sensitive and should be hidden',
+                    },
+                  },
+                  required: ['prompt'],
+                },
               },
             },
-          })),
+          ],
         };
 
         // ============================================
@@ -311,6 +430,60 @@ export class Engine {
 
         for (const toolCall of parsedToolCalls) {
           console.log(`  → Executing: ${toolCall.name}`);
+
+          // Check if this is the built-in ask_human tool
+          if (isAskHumanTool(toolCall.name)) {
+            // Handle ask_human tool specially
+            const params: AskHumanParams = {
+              prompt: toolCall.arguments.prompt || '',
+              input_type: toolCall.arguments.input_type,
+              sensitive: toolCall.arguments.sensitive === 'true' || toolCall.arguments.sensitive === true,
+            };
+
+            // Log action request for ask_human
+            await this.journal.logActionRequest(
+              toolCall.id,
+              'ask_human',
+              toolCall.arguments,
+              'ask_human ' + params.prompt
+            );
+
+            // Check if we're in interactive mode (-i flag)
+            const isInteractive = this.context.isInteractive || false;
+
+            if (!isInteractive) {
+              // Async mode: Create request and pause
+              await handleAskHumanAsync(this.context, params);
+
+              // Log that we're pausing
+              await this.journal.logSystemMessage('INFO', 'Agent pausing for human input');
+
+              // Exit with code 101 to signal pause
+              process.exit(101);
+            } else {
+              // Interactive mode: Get input directly
+              const { handleAskHumanInteractive } = await import('./ask-human.js');
+              const response = await handleAskHumanInteractive(params);
+
+              // Log action result immediately
+              await this.journal.logActionResult(
+                toolCall.id,
+                'SUCCESS',
+                response,
+                toolCall.id
+              );
+
+              // Save a fake execution record for consistency
+              await this.journal.saveToolExecution(toolCall.id, {
+                command: 'ask_human',
+                stdout: response,
+                stderr: '',
+                exit_code: 0,
+                duration_ms: 0,
+              });
+            }
+            continue;
+          }
 
           // Find tool definition
           const toolDef = this.context.config.tools.find(
