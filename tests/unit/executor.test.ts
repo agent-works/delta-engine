@@ -471,4 +471,249 @@ describe('ToolExecutor', () => {
       expect(formatted).toContain('Error occurred');
     });
   });
+
+  describe('buildCommandAndStdin - Edge Cases', () => {
+    it('should handle multiple option parameters', () => {
+      const toolDef: ToolDefinition = {
+        name: 'multi-opt',
+        command: ['command'],
+        parameters: [
+          { name: 'opt1', type: 'string', inject_as: InjectionType.Option, option_name: '--first' },
+          { name: 'opt2', type: 'string', inject_as: InjectionType.Option, option_name: '--second' },
+        ],
+      };
+
+      const params = { opt1: 'value1', opt2: 'value2' };
+      const { args, stdinInput } = buildCommandAndStdin(toolDef, params);
+
+      expect(args).toEqual(['--first', 'value1', '--second', 'value2']);
+      expect(stdinInput).toBe('');
+    });
+
+    it('should handle stdin + option combination', () => {
+      const toolDef: ToolDefinition = {
+        name: 'stdin-opt',
+        command: ['command'],
+        parameters: [
+          { name: 'input', type: 'string', inject_as: InjectionType.Stdin },
+          { name: 'flag', type: 'string', inject_as: InjectionType.Option, option_name: '--flag' },
+        ],
+      };
+
+      const params = { input: 'stdin data', flag: 'option value' };
+      const { args, stdinInput } = buildCommandAndStdin(toolDef, params);
+
+      expect(args).toEqual(['--flag', 'option value']);
+      expect(stdinInput).toBe('stdin data');
+    });
+
+    it('should handle stdin + argument combination', () => {
+      const toolDef: ToolDefinition = {
+        name: 'stdin-arg',
+        command: ['command'],
+        parameters: [
+          { name: 'input', type: 'string', inject_as: InjectionType.Stdin },
+          { name: 'arg', type: 'string', inject_as: InjectionType.Argument },
+        ],
+      };
+
+      const params = { input: 'stdin data', arg: 'arg value' };
+      const { args, stdinInput } = buildCommandAndStdin(toolDef, params);
+
+      expect(args).toEqual(['arg value']);
+      expect(stdinInput).toBe('stdin data');
+    });
+
+    it('should handle missing optional parameters gracefully', () => {
+      const toolDef: ToolDefinition = {
+        name: 'partial',
+        command: ['command'],
+        parameters: [
+          { name: 'required', type: 'string', inject_as: InjectionType.Argument },
+          { name: 'optional', type: 'string', inject_as: InjectionType.Option, option_name: '--opt' },
+        ],
+      };
+
+      // Only provide required param
+      const params = { required: 'value' };
+      const { args, stdinInput } = buildCommandAndStdin(toolDef, params);
+
+      expect(args).toEqual(['value']);
+      expect(stdinInput).toBe('');
+    });
+
+    it('should handle option with special characters in value', () => {
+      const toolDef: ToolDefinition = {
+        name: 'special',
+        command: ['command'],
+        parameters: [
+          { name: 'text', type: 'string', inject_as: InjectionType.Option, option_name: '--text' },
+        ],
+      };
+
+      const params = { text: 'value with "quotes" and $special' };
+      const { args } = buildCommandAndStdin(toolDef, params);
+
+      expect(args).toEqual(['--text', 'value with "quotes" and $special']);
+    });
+  });
+
+  describe('replaceVariables - Edge Cases', () => {
+    it('should replace multiple ${AGENT_HOME} occurrences in single item', () => {
+      const items = ['${AGENT_HOME}/bin:${AGENT_HOME}/lib'];
+      const result = replaceVariables(items, '/home/agent');
+
+      expect(result).toEqual(['/home/agent/bin:/home/agent/lib']);
+    });
+
+    it('should handle items without ${AGENT_HOME}', () => {
+      const items = ['regular', 'command', 'args'];
+      const result = replaceVariables(items, '/home/agent');
+
+      expect(result).toEqual(['regular', 'command', 'args']);
+    });
+
+    it('should handle empty array', () => {
+      const result = replaceVariables([], '/home/agent');
+      expect(result).toEqual([]);
+    });
+
+    it('should handle agent path with special regex characters', () => {
+      const items = ['${AGENT_HOME}/test'];
+      // Agent path with special regex chars (e.g., dots, brackets)
+      const result = replaceVariables(items, '/tmp/agent[v1.0]');
+
+      expect(result).toEqual(['/tmp/agent[v1.0]/test']);
+    });
+  });
+
+  describe('executeTool - Command Array Edge Cases', () => {
+    it('should reject empty command array', async () => {
+      const toolDef: ToolDefinition = {
+        name: 'empty',
+        command: [],
+        parameters: [],
+      };
+
+      await expect(executeTool(context, toolDef, {})).rejects.toThrow('Tool command is empty');
+    });
+
+    it('should handle command with long argument list', async () => {
+      const toolDef: ToolDefinition = {
+        name: 'many-args',
+        command: ['echo'],
+        parameters: [],
+      };
+
+      // Create 100 arguments via command array
+      const longCommand = ['echo', ...Array(100).fill(null).map((_, i) => `arg${i}`)];
+      toolDef.command = longCommand;
+
+      const result = await executeTool(context, toolDef, {});
+
+      expect(result.success).toBe(true);
+      expect(result.exitCode).toBe(0);
+    });
+
+    it('should handle tool command timeout', async () => {
+      const toolDef: ToolDefinition = {
+        name: 'timeout',
+        command: ['sleep', '60'],
+        parameters: [],
+      };
+
+      const result = await executeTool(context, toolDef, {});
+
+      // Should timeout after 30 seconds (configured in executor.ts)
+      expect(result.success).toBe(false);
+      // execa may return different error messages for timeout
+      expect(result.exitCode).not.toBe(0);
+    }, 35000); // Test timeout set to 35s
+
+    it('should handle non-existent command gracefully', async () => {
+      const toolDef: ToolDefinition = {
+        name: 'non-existent',
+        command: ['this-command-does-not-exist-12345'],
+        parameters: [],
+      };
+
+      const result = await executeTool(context, toolDef, {});
+
+      expect(result.success).toBe(false);
+      expect(result.exitCode).not.toBe(0);
+    });
+  });
+
+  describe('executeTool - Environment Variables', () => {
+    it('should set AGENT_HOME environment variable', async () => {
+      const toolDef: ToolDefinition = {
+        name: 'env-test',
+        command: ['sh', '-c', 'echo "HOME:$AGENT_HOME"'],
+        parameters: [],
+      };
+
+      const result = await executeTool(context, toolDef, {});
+
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain(`HOME:${agentPath}`);
+    });
+
+    it('should preserve existing environment variables', async () => {
+      process.env.TEST_ENV_VAR = 'test_value';
+
+      const toolDef: ToolDefinition = {
+        name: 'env-preserve',
+        command: ['sh', '-c', 'echo "$TEST_ENV_VAR"'],
+        parameters: [],
+      };
+
+      const result = await executeTool(context, toolDef, {});
+
+      expect(result.success).toBe(true);
+      expect(result.stdout).toContain('test_value');
+
+      delete process.env.TEST_ENV_VAR;
+    });
+  });
+
+  describe('validateRequiredParameters - Edge Cases', () => {
+    it('should handle tool with no parameters', () => {
+      const toolDef: ToolDefinition = {
+        name: 'no-params',
+        command: ['command'],
+        parameters: [],
+      };
+
+      const missing = validateRequiredParameters(toolDef, {});
+      expect(missing).toEqual([]);
+    });
+
+    it('should detect multiple missing parameters', () => {
+      const toolDef: ToolDefinition = {
+        name: 'multi-missing',
+        command: ['command'],
+        parameters: [
+          { name: 'param1', type: 'string', inject_as: InjectionType.Argument },
+          { name: 'param2', type: 'string', inject_as: InjectionType.Argument },
+          { name: 'param3', type: 'string', inject_as: InjectionType.Argument },
+        ],
+      };
+
+      const missing = validateRequiredParameters(toolDef, {});
+      expect(missing).toEqual(['param1', 'param2', 'param3']);
+    });
+
+    it('should treat empty string as missing parameter', () => {
+      const toolDef: ToolDefinition = {
+        name: 'empty-string',
+        command: ['command'],
+        parameters: [
+          { name: 'param', type: 'string', inject_as: InjectionType.Argument },
+        ],
+      };
+
+      const missing = validateRequiredParameters(toolDef, { param: '' });
+      expect(missing).toEqual(['param']);
+    });
+  });
 });

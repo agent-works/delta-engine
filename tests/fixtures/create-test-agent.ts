@@ -12,6 +12,7 @@ export interface TestAgentConfig {
     model?: string;
     temperature?: number;
   };
+  maxIterations?: number;
   tools?: Array<{
     name: string;
     command: string[];
@@ -61,6 +62,7 @@ export async function createTestAgent(
   // Write config.yaml
   const llmModel = agentConfig.llm?.model || 'gpt-4';
   const llmTemp = agentConfig.llm?.temperature ?? 0.7;
+  const maxIterations = config?.maxIterations;
   const tools = agentConfig.tools || [];
 
   const configYaml = `name: ${agentConfig.name}
@@ -68,6 +70,7 @@ llm:
   model: ${llmModel}
   temperature: ${llmTemp}
 
+${maxIterations ? `max_iterations: ${maxIterations}\n` : ''}
 tools:
 ${tools
   .map(
@@ -75,7 +78,7 @@ ${tools
     command: ${JSON.stringify(tool.command)}
     ${tool.description ? `description: ${tool.description}` : ''}
     ${
-      tool.parameters
+      tool.parameters && tool.parameters.length > 0
         ? `parameters:
 ${tool.parameters
   .map(
@@ -86,7 +89,7 @@ ${tool.parameters
         ${p.option_name ? `option_name: ${p.option_name}` : ''}`
   )
   .join('\n')}`
-        : ''
+        : 'parameters: []'
     }`
   )
   .join('\n')}

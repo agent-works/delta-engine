@@ -1726,10 +1726,552 @@ exit 0
       expect(askHumanReq).toBeDefined();
       expect((askHumanReq?.payload as any).tool_args.sensitive).toBe(true);
     });
+
+    // ============================================
+    // ask_human Recovery Path Tests (5 tests)
+    // ============================================
+
+    test('should detect and process existing interaction response on resume', async () => {
+      context.isInteractive = false; // Async mode
+
+      // Pre-create interaction response
+      const interactionDir = path.join(context.deltaDir, context.runId, 'interaction');
+      await fs.mkdir(interactionDir, { recursive: true });
+
+      // Use correct format: request_id (not action_id)
+      const requestData = {
+        request_id: 'req_123',
+        timestamp: new Date().toISOString(),
+        prompt: 'What is your name?',
+        input_type: 'text',
+        sensitive: false,
+      };
+      await fs.writeFile(
+        path.join(interactionDir, 'request.json'),
+        JSON.stringify(requestData),
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(interactionDir, 'response.txt'),
+        'Alice',
+        'utf-8'
+      );
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      // Log the ask_human action request
+      await context.journal.logActionRequest(
+        'call_ask_1',
+        'ask_human',
+        { prompt: 'What is your name?', sensitive: false },
+        'ask_human "What is your name?"'
+      );
+
+      let callCount = 0;
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockImplementation(() => {
+          callCount++;
+          return Promise.resolve({
+            content: 'Got the name: Alice',
+            tool_calls: undefined,
+          });
+        }),
+      };
+
+      const result = await engine.run();
+
+      // Verify response was read and injected
+      expect(result).toContain('Alice');
+
+      // Verify ACTION_RESULT was logged
+      const events = await context.journal.readJournal();
+      const actionResults = events.filter(e => e.type === 'ACTION_RESULT');
+      const askHumanResult = actionResults.find(e => (e.payload as any).action_id === 'call_ask_1');
+
+      expect(askHumanResult).toBeDefined();
+      expect((askHumanResult?.payload as any).observation_content).toContain('Alice');
+
+      // Note: In async mode, checkForInteractionResponse() only deletes files, not directory
+      // Verify files were deleted but directory may still exist
+      const requestExists = await fs.access(path.join(interactionDir, 'request.json')).then(() => true).catch(() => false);
+      const responseExists = await fs.access(path.join(interactionDir, 'response.txt')).then(() => true).catch(() => false);
+      expect(requestExists).toBe(false);
+      expect(responseExists).toBe(false);
+    });
+
+    test('should handle async mode by creating request.json and pausing', async () => {
+      context.isInteractive = false; // Async mode
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      let callCount = 0;
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) {
+            return Promise.resolve({
+              content: 'Need input',
+              tool_calls: [
+                {
+                  id: 'call_1',
+                  type: 'function' as const,
+                  function: {
+                    name: 'ask_human',
+                    arguments: '{"prompt": "Enter value:", "sensitive": false}',
+                  },
+                },
+              ],
+            });
+          }
+          return Promise.resolve({ content: 'Done', tool_calls: undefined });
+        }),
+      };
+
+      const originalExit = process.exit;
+      let exitCode: number | undefined;
+      (process as any).exit = jest.fn((code: number) => {
+        exitCode = code;
+        throw new Error(`Exit ${code}`);
+      });
+
+      try {
+        await engine.run();
+      } catch (error: any) {
+        // Expected
+      } finally {
+        process.exit = originalExit;
+      }
+
+      // Verify exit code 101 (pause)
+      expect(exitCode).toBe(101);
+
+      // Verify interaction directory was created with request.json
+      const interactionDir = path.join(context.deltaDir, context.runId, 'interaction');
+      const requestFile = path.join(interactionDir, 'request.json');
+
+      const requestExists = await fs.access(requestFile).then(() => true).catch(() => false);
+      expect(requestExists).toBe(true);
+
+      const requestContent = JSON.parse(await fs.readFile(requestFile, 'utf-8'));
+      expect(requestContent.prompt).toBe('Enter value:');
+      expect(requestContent.request_id).toBeDefined(); // Uses request_id, not action_id
+      expect(requestContent.timestamp).toBeDefined();
+      expect(requestContent.input_type).toBe('text');
+    });
+
+    test('should delete interaction files after successful response (async mode)', async () => {
+      context.isInteractive = false;
+
+      // Pre-create interaction with response
+      const interactionDir = path.join(context.deltaDir, context.runId, 'interaction');
+      await fs.mkdir(interactionDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(interactionDir, 'request.json'),
+        JSON.stringify({
+          request_id: 'req_test',
+          timestamp: new Date().toISOString(),
+          prompt: 'Test?',
+          input_type: 'text',
+          sensitive: false,
+        }),
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(interactionDir, 'response.txt'),
+        'Test response',
+        'utf-8'
+      );
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      // Log pending ask_human
+      await context.journal.logActionRequest(
+        'call_1',
+        'ask_human',
+        { prompt: 'Test?', sensitive: false },
+        'ask_human'
+      );
+
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockResolvedValue({
+          content: 'Received: Test response',
+          tool_calls: undefined,
+        }),
+      };
+
+      await engine.run();
+
+      // Verify files were deleted (but directory may still exist in async mode)
+      const requestExists = await fs.access(path.join(interactionDir, 'request.json')).then(() => true).catch(() => false);
+      const responseExists = await fs.access(path.join(interactionDir, 'response.txt')).then(() => true).catch(() => false);
+      expect(requestExists).toBe(false);
+      expect(responseExists).toBe(false);
+    });
+
+    test('should handle missing response.txt gracefully', async () => {
+      context.isInteractive = false;
+
+      // Create interaction dir with request.json but NO response.txt
+      const interactionDir = path.join(context.deltaDir, context.runId, 'interaction');
+      await fs.mkdir(interactionDir, { recursive: true });
+
+      await fs.writeFile(
+        path.join(interactionDir, 'request.json'),
+        JSON.stringify({
+          request_id: 'req_wait',
+          timestamp: new Date().toISOString(),
+          prompt: 'Test?',
+          input_type: 'text',
+          sensitive: false,
+        }),
+        'utf-8'
+      );
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      // Log pending ask_human
+      await context.journal.logActionRequest(
+        'call_1',
+        'ask_human',
+        { prompt: 'Test?', sensitive: false },
+        'ask_human'
+      );
+
+      let callCount = 0;
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) {
+            // Still waiting for response
+            return Promise.resolve({
+              content: 'Asking again',
+              tool_calls: [
+                {
+                  id: 'call_2',
+                  type: 'function' as const,
+                  function: { name: 'ask_human', arguments: '{"prompt":"Still waiting?"}' },
+                },
+              ],
+            });
+          }
+          return Promise.resolve({ content: 'Done', tool_calls: undefined });
+        }),
+      };
+
+      const originalExit = process.exit;
+      (process as any).exit = jest.fn(() => { throw new Error('Exit'); });
+
+      try {
+        await engine.run();
+      } catch (e) {}
+
+      process.exit = originalExit;
+
+      // Should not have logged ACTION_RESULT for call_1 (no response found)
+      const events = await context.journal.readJournal();
+      const actionResults = events.filter(e => e.type === 'ACTION_RESULT');
+      const call1Result = actionResults.find(e => (e.payload as any).action_id === 'call_1');
+
+      expect(call1Result).toBeUndefined();
+    });
+
+    test('should include sensitive flag in request.json for async mode', async () => {
+      context.isInteractive = false;
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockResolvedValue({
+          content: 'Asking',
+          tool_calls: [
+            {
+              id: 'call_1',
+              type: 'function' as const,
+              function: {
+                name: 'ask_human',
+                arguments: '{"prompt": "Password:", "sensitive": true}',
+              },
+            },
+          ],
+        }),
+      };
+
+      const originalExit = process.exit;
+      (process as any).exit = jest.fn(() => { throw new Error('Exit'); });
+
+      try {
+        await engine.run();
+      } catch (e) {}
+
+      process.exit = originalExit;
+
+      // Verify request.json contains sensitive flag
+      const requestFile = path.join(
+        context.deltaDir,
+        context.runId,
+        'interaction',
+        'request.json'
+      );
+      const requestContent = JSON.parse(await fs.readFile(requestFile, 'utf-8'));
+
+      expect(requestContent.sensitive).toBe(true);
+    });
   });
 
   // ============================================
-  // 6. Boundary Cases & Error Handling (8 test cases)
+  // 6. on_error Hook Integration (5 test cases)
+  // ============================================
+
+  describe('on_error Hook Integration', () => {
+    test('should NOT trigger on_error for tool failures (only exceptions)', async () => {
+      // Note: on_error hook is only triggered when executeTool() throws exception,
+      // not when tool returns non-zero exit code (which is logged as FAILED status)
+
+      const hookScript = path.join(agentPath, 'on_error.sh');
+      await fs.writeFile(
+        hookScript,
+        `#!/bin/bash
+echo "on_error triggered" > "$DELTA_HOOK_IO_PATH/output/log.txt"
+exit 0
+`,
+        'utf-8'
+      );
+      await fs.chmod(hookScript, 0o755);
+
+      context.config.tools.push({
+        name: 'fail_tool',
+        command: ['bash', '-c', 'exit 1'],
+        parameters: [],
+      });
+
+      context.config.lifecycle_hooks = {
+        on_error: {
+          command: [hookScript],
+        },
+      };
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      let callCount = 0;
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) {
+            return Promise.resolve({
+              content: 'Calling tool',
+              tool_calls: [
+                {
+                  id: 'call_1',
+                  type: 'function' as const,
+                  function: { name: 'fail_tool', arguments: '{}' },
+                },
+              ],
+            });
+          }
+          return Promise.resolve({ content: 'Done', tool_calls: undefined });
+        }),
+      };
+
+      await engine.run();
+
+      // Verify on_error hook was NOT executed (tool failure != exception)
+      const events = await context.journal.readJournal();
+      const hookEvents = events.filter(e => e.type === 'HOOK_EXECUTION_AUDIT');
+      const onErrorHooks = hookEvents.filter(e => (e.payload as any).hook_name === 'on_error');
+
+      expect(onErrorHooks.length).toBe(0); // Not triggered for normal tool failures
+
+      // Verify tool failure was logged as FAILED
+      const actionResults = events.filter(e => e.type === 'ACTION_RESULT');
+      expect(actionResults[0].payload.status).toBe('FAILED');
+    });
+
+    test('should trigger on_error hook on fatal LLM error', async () => {
+      const hookScript = path.join(agentPath, 'on_error_fatal.sh');
+      await fs.writeFile(
+        hookScript,
+        `#!/bin/bash
+echo "Fatal error handled" > "$DELTA_HOOK_IO_PATH/output/log.txt"
+exit 0
+`,
+        'utf-8'
+      );
+      await fs.chmod(hookScript, 0o755);
+
+      context.config.lifecycle_hooks = {
+        on_error: {
+          command: [hookScript],
+        },
+      };
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      // Mock LLM to throw fatal error
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockRejectedValue(new Error('LLM API timeout')),
+      };
+
+      await expect(engine.run()).rejects.toThrow('LLM API timeout');
+
+      // Verify on_error hook was executed
+      const events = await context.journal.readJournal();
+      const hookEvents = events.filter(e => e.type === 'HOOK_EXECUTION_AUDIT');
+      const onErrorHooks = hookEvents.filter(e => (e.payload as any).hook_name === 'on_error');
+
+      expect(onErrorHooks.length).toBeGreaterThan(0);
+    });
+
+    test('should continue when on_error hook itself fails', async () => {
+      // Note: executeOnErrorHook() returns {success: false} for failures,
+      // it doesn't throw exceptions. Engine.ts doesn't check the return value,
+      // so hook failures are recorded in journal but not logged to engine.log.
+
+      const hookScript = path.join(agentPath, 'failing_on_error.sh');
+      await fs.writeFile(
+        hookScript,
+        `#!/bin/bash
+echo "Hook is failing" >&2
+exit 1
+`,
+        'utf-8'
+      );
+      await fs.chmod(hookScript, 0o755);
+
+      context.config.lifecycle_hooks = {
+        on_error: {
+          command: [hookScript],
+        },
+      };
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      // Mock LLM to throw fatal error (this WILL trigger on_error hook)
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockRejectedValue(new Error('Fatal LLM error')),
+      };
+
+      // Should throw LLM error and continue despite hook failure
+      await expect(engine.run()).rejects.toThrow('Fatal LLM error');
+
+      // Verify on_error hook was executed (even though it failed)
+      const events = await context.journal.readJournal();
+      const hookEvents = events.filter(e => e.type === 'HOOK_EXECUTION_AUDIT');
+      const onErrorHooks = hookEvents.filter(e => (e.payload as any).hook_name === 'on_error');
+
+      expect(onErrorHooks.length).toBeGreaterThan(0);
+      expect((onErrorHooks[0].payload as any).status).toBe('FAILED');
+    });
+
+    test('should provide error context to on_error hook for fatal errors', async () => {
+      const hookScript = path.join(agentPath, 'context_check.sh');
+      await fs.writeFile(
+        hookScript,
+        `#!/bin/bash
+# Verify context contains error details
+if [ -f "$DELTA_HOOK_IO_PATH/input/payload.json" ]; then
+  cat "$DELTA_HOOK_IO_PATH/input/payload.json" > "$DELTA_HOOK_IO_PATH/output/received_context.json"
+fi
+exit 0
+`,
+        'utf-8'
+      );
+      await fs.chmod(hookScript, 0o755);
+
+      context.config.lifecycle_hooks = {
+        on_error: {
+          command: [hookScript],
+        },
+      };
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      // Mock LLM to throw fatal error
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockRejectedValue(new Error('API timeout error')),
+      };
+
+      await expect(engine.run()).rejects.toThrow('API timeout error');
+
+      // Verify hook received context
+      const runDir = path.join(context.deltaDir, context.runId);
+      const hookDirs = await fs.readdir(path.join(runDir, 'io', 'hooks')).catch(() => []);
+      const onErrorDir = hookDirs.find(d => d.includes('on_error'));
+
+      expect(onErrorDir).toBeDefined();
+
+      if (onErrorDir) {
+        const contextPath = path.join(runDir, 'io', 'hooks', onErrorDir, 'output', 'received_context.json');
+        const contextExists = await fs.access(contextPath).then(() => true).catch(() => false);
+
+        if (contextExists) {
+          const errorContext = JSON.parse(await fs.readFile(contextPath, 'utf-8'));
+          expect(errorContext.error_type).toBe('FATAL_ERROR');
+          expect(errorContext.message).toContain('API timeout error');
+          expect(errorContext.context).toBeDefined();
+        }
+      }
+    });
+
+    test('should log on_error hook execution in journal', async () => {
+      const hookScript = path.join(agentPath, 'simple_on_error.sh');
+      await fs.writeFile(
+        hookScript,
+        `#!/bin/bash
+exit 0
+`,
+        'utf-8'
+      );
+      await fs.chmod(hookScript, 0o755);
+
+      context.config.lifecycle_hooks = {
+        on_error: {
+          command: [hookScript],
+        },
+      };
+
+      const engine = new Engine(context);
+      await engine.initialize();
+      await context.journal.initializeMetadata(agentPath, 'Test task');
+
+      // Mock LLM to throw error
+      (engine as any).llm = {
+        callWithRequest: jest.fn().mockRejectedValue(new Error('Test error')),
+      };
+
+      await expect(engine.run()).rejects.toThrow('Test error');
+
+      // Verify HOOK_EXECUTION_AUDIT event logged
+      const events = await context.journal.readJournal();
+      const hookAudits = events.filter(e => e.type === 'HOOK_EXECUTION_AUDIT');
+      const onErrorAudits = hookAudits.filter(e => (e.payload as any).hook_name === 'on_error');
+
+      expect(onErrorAudits.length).toBe(1);
+      expect((onErrorAudits[0].payload as any).status).toBe('SUCCESS');
+      expect((onErrorAudits[0].payload as any).io_path_ref).toBeDefined();
+    });
+  });
+
+  // ============================================
+  // 7. Boundary Cases & Error Handling (8 test cases)
   // ============================================
 
   describe('Boundary Cases & Error Handling', () => {

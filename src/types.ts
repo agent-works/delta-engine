@@ -115,7 +115,7 @@ export const AgentConfigSchema = z.object({
   llm: LLMConfigSchema,
   tools: z.array(ToolDefinitionSchema),
   lifecycle_hooks: LifecycleHooksSchema.optional(), // v1.1: Added lifecycle hooks
-  max_iterations: z.number().positive().default(10),
+  max_iterations: z.number().positive().default(30), // Per CLAUDE.md: DEFAULT_MAX_ITERATIONS = 30
   timeout_seconds: z.number().positive().optional(),
 });
 
