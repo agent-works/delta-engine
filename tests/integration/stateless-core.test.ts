@@ -7,9 +7,11 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { v4 as uuidv4 } from 'uuid';
 import { initializeContext } from '../../src/context.js';
 import { Engine } from '../../src/engine.js';
-import { createJournal } from '../../src/journal.js';
+import { createTestAgent } from '../fixtures/create-test-agent.js';
 
 async function testStatelessCore() {
   console.log('=== Testing Stateless Core Implementation ===\n');
@@ -17,12 +19,22 @@ async function testStatelessCore() {
   // Set a dummy API key for testing (won't make actual API calls)
   process.env.OPENAI_API_KEY = 'test-key-for-stateless-validation';
 
-  // Step 1: Initialize a new context
-  console.log('Step 1: Initializing context...');
-  const context = await initializeContext(
-    'examples/hello-agent',
-    'List the files in the current directory, then create a file named "stateless-test.txt" with content "Testing stateless core"'
-  );
+  // Step 0: Create test agent
+  const testAgentDir = path.join(os.tmpdir(), `delta-test-stateless-${uuidv4()}`);
+  await createTestAgent(testAgentDir, { name: 'test-stateless-agent' });
+
+  try {
+    // Step 1: Initialize a new context
+    console.log('Step 1: Initializing context...');
+    const context = await initializeContext(
+      testAgentDir,
+      'List the files in the current directory, then create a file named "stateless-test.txt" with content "Testing stateless core"',
+      undefined,
+      false,
+      undefined,
+      false,
+      true  // skipPrompt
+    );
 
   console.log(`✓ Context initialized: ${context.runId}`);
   console.log(`  Work directory: ${context.workDir}`);
@@ -83,8 +95,8 @@ async function testStatelessCore() {
   // Step 3: Read journal to verify events were written
   console.log('\nStep 3: Verifying journal persistence...');
 
-  const runDir = path.join(context.deltaDir, 'runs', context.runId);
-  const journalPath = path.join(runDir, 'execution', 'journal.jsonl');
+  const runDir = path.join(context.deltaDir, context.runId);
+  const journalPath = path.join(runDir, 'journal.jsonl');
 
   const journalContent = await fs.readFile(journalPath, 'utf-8');
   const events = journalContent.split('\n').filter(line => line.trim()).map(line => JSON.parse(line));
@@ -180,6 +192,12 @@ async function testStatelessCore() {
   console.log('  ✓ Journal is the single source of truth');
   console.log('  ✓ Execution can be resumed after interruption');
   console.log('  ✓ Events are immediately persisted to disk');
+
+  } finally {
+    // Cleanup
+    await fs.rm(testAgentDir, { recursive: true, force: true });
+    console.log('\n✓ Test agent cleaned up');
+  }
 }
 
 // Run the test

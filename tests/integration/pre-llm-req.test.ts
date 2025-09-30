@@ -98,7 +98,12 @@ fi
 
   const context = await initializeContext(
     testAgentDir,
-    'Test the pre_llm_req hook integration'
+    'Test the pre_llm_req hook integration',
+    undefined,
+    false,
+    undefined,
+    false,
+    true  // skipPrompt
   );
 
   const engine = new Engine(context);
@@ -129,7 +134,7 @@ fi
   // Step 4: Verify hook execution in audit trail
   console.log('\nStep 4: Verifying hook execution audit trail...');
 
-  const runDir = path.join(context.deltaDir, 'runs', context.runId);
+  const runDir = path.join(context.deltaDir, context.runId);
   const events = await journal.readJournal();
 
   const hookAuditEvents = events.filter(
@@ -145,7 +150,7 @@ fi
   // Step 5: Verify the hook I/O structure
   console.log('\nStep 5: Verifying hook I/O directory structure...');
 
-  const hooksDir = path.join(runDir, 'runtime_io', 'hooks');
+  const hooksDir = path.join(runDir, 'io', 'hooks');
 
   // Find the pre_llm_req hook directory
   const hookDirs = await fs.readdir(hooksDir).catch(() => []);
@@ -196,9 +201,9 @@ fi
   console.log(`  - hook_metadata.hook_version: ${finalPayload.hook_metadata.hook_version}`);
 
   // Step 6: Verify the modified payload would be saved to invocations
-  console.log('\nStep 6: Checking runtime_io/invocations structure...');
+  console.log('\nStep 6: Checking io/invocations structure...');
 
-  const invocationsDir = path.join(runDir, 'runtime_io', 'invocations');
+  const invocationsDir = path.join(runDir, 'io', 'invocations');
 
   try {
     const invocationDirs = await fs.readdir(invocationsDir);

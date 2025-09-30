@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Test script to verify I/O audit trail implementation
- * This script validates that runtime_io details are properly saved
+ * Test script to verify I/O audit trail implementation (v1.3)
+ * This script validates that io/ details are properly saved
  */
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { v4 as uuidv4 } from 'uuid';
 import { initializeContext } from '../../src/context.js';
 import { runEngine } from '../../src/engine.js';
+import { createTestAgent } from '../fixtures/create-test-agent.js';
 
 async function testIOAudit() {
   console.log('=== Testing I/O Audit Trail Implementation ===\n');
@@ -16,13 +19,23 @@ async function testIOAudit() {
   // Set API key for testing
   process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-key';
 
-  // Step 1: Run a simple task that involves tool execution
-  console.log('Step 1: Running engine with tool execution...');
+  // Step 0: Create test agent
+  const testAgentDir = path.join(os.tmpdir(), `delta-test-io-audit-${uuidv4()}`);
+  await createTestAgent(testAgentDir, { name: 'test-io-audit-agent' });
 
-  const context = await initializeContext(
-    'examples/hello-agent',
-    'Create a file named "audit-test.txt" with a long content (repeat "Hello World! " 500 times), then list the files'
-  );
+  try {
+    // Step 1: Run a simple task that involves tool execution
+    console.log('Step 1: Running engine with tool execution...');
+
+    const context = await initializeContext(
+      testAgentDir,
+      'Create a file named "audit-test.txt" with a long content (repeat "Hello World! " 500 times), then list the files',
+      undefined,
+      false,
+      undefined,
+      false,
+      true  // skipPrompt
+    );
 
   console.log(`✓ Context initialized: ${context.runId}`);
   console.log(`  Work directory: ${context.workDir}`);
@@ -39,9 +52,7 @@ async function testIOAudit() {
 
   const journalPath = path.join(
     context.deltaDir,
-    'runs',
     context.runId,
-    'execution',
     'journal.jsonl'
   );
 
@@ -69,9 +80,8 @@ async function testIOAudit() {
 
     const invocationDir = path.join(
       context.deltaDir,
-      'runs',
       context.runId,
-      'runtime_io',
+      'io',
       'invocations',
       invocationRef
     );
@@ -122,9 +132,8 @@ async function testIOAudit() {
 
     const executionDir = path.join(
       context.deltaDir,
-      'runs',
       context.runId,
-      'runtime_io',
+      'io',
       'tool_executions',
       executionRef
     );
@@ -182,9 +191,8 @@ async function testIOAudit() {
 
     const stdoutPath = path.join(
       context.deltaDir,
-      'runs',
       context.runId,
-      'runtime_io',
+      'io',
       'tool_executions',
       executionRef,
       'stdout.log'
@@ -237,6 +245,12 @@ async function testIOAudit() {
   console.log('  ✓ ACTION_RESULT events correctly reference execution_ref');
   console.log('  ✓ observation_content is distinct from full output');
   console.log('  ✓ All event linkages are properly maintained');
+
+  } finally {
+    // Cleanup
+    await fs.rm(testAgentDir, { recursive: true, force: true });
+    console.log('\n✓ Test agent cleaned up');
+  }
 }
 
 // Run the test

@@ -7,10 +7,13 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { v4 as uuidv4 } from 'uuid';
 import { initializeContext } from '../../src/context.js';
 import { createJournal } from '../../src/journal.js';
 import { createHookExecutor } from '../../src/hook-executor.js';
 import { HookDefinition } from '../../src/types.js';
+import { createTestAgent } from '../fixtures/create-test-agent.js';
 
 async function testHookProtocol() {
   console.log('=== Testing Hook Execution Protocol ===\n');
@@ -18,15 +21,25 @@ async function testHookProtocol() {
   // Set dummy API key
   process.env.OPENAI_API_KEY = 'test-key';
 
-  // Step 1: Create a test context
-  console.log('Step 1: Setting up test environment...');
+  // Step 0: Create test agent
+  const testAgentDir = path.join(os.tmpdir(), `delta-test-hooks-${uuidv4()}`);
+  await createTestAgent(testAgentDir, { name: 'test-hooks-agent' });
 
-  const context = await initializeContext(
-    'examples/hello-agent',
-    'Test task for hooks'
-  );
+  try {
+    // Step 1: Create a test context
+    console.log('Step 1: Setting up test environment...');
 
-  const runDir = path.join(context.deltaDir, 'runs', context.runId);
+    const context = await initializeContext(
+      testAgentDir,
+      'Test task for hooks',
+      undefined,
+      false,
+      undefined,
+      false,
+      true  // skipPrompt
+    );
+
+  const runDir = path.join(context.deltaDir, context.runId);
   const journal = createJournal(context.runId, runDir);
   await journal.initialize();
 
@@ -209,7 +222,7 @@ exit 42
   // Step 7: Verify I/O directory structure
   console.log('\nStep 7: Verifying I/O directory structure...');
 
-  const hooksIoDir = path.join(runDir, 'runtime_io', 'hooks');
+  const hooksIoDir = path.join(runDir, 'io', 'hooks');
   const hookDirs = await fs.readdir(hooksIoDir);
 
   console.log(`  Hook invocation directories: ${hookDirs.length}`);
@@ -270,6 +283,12 @@ exit 42
   console.log('  ✓ Audit events recorded in journal');
   console.log('  ✓ Payload modification works (pre_llm_req)');
   console.log('  ✓ Failure handling works');
+
+  } finally {
+    // Cleanup
+    await fs.rm(testAgentDir, { recursive: true, force: true });
+    console.log('\n✓ Test agent cleaned up');
+  }
 }
 
 // Run the test
