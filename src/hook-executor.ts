@@ -27,9 +27,8 @@ export class HookExecutor {
     this.runtimeIoDir = path.join(
       workDir,
       '.delta',
-      'runs',
       runId,
-      'runtime_io'
+      'io'
     );
   }
 
@@ -58,7 +57,7 @@ export class HookExecutor {
     // Create hook invocation directory name
     const hookDirName = `${String(this.stepCounter).padStart(3, '0')}_${hookName}`;
     const hookPath = path.join(this.runtimeIoDir, 'hooks', hookDirName);
-    const ioPathRef = `runtime_io/hooks/${hookDirName}/`;
+    const ioPathRef = `io/hooks/${hookDirName}/`;
 
     try {
       // ============================================

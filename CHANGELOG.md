@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.0] - 2025-09-30
 
+### Added
+- **`delta init` Command** - Initialize new agents from built-in templates
+  - 4 templates: minimal, hello-world, file-ops, api-tester
+  - Interactive template selection by default
+  - `-y` flag for silent mode (uses minimal template)
+  - `-t <template>` flag to specify template directly
+  - Empty directory validation (allows empty, rejects non-empty)
+  - Automatic agent name substitution in config
+
+### Improved
+- **Interactive Mode Resume for `ask_human`** - Enhanced human-in-the-loop workflow
+  - Resume paused runs with `-i` flag to provide input directly in terminal
+  - No need to manually edit `response.txt` file
+  - Automatically cleans up interaction directory after response
+  - Seamless transition from async mode to interactive mode
+
 ### Changed - Directory Structure Simplification
 
 **Major refactoring for better UX and maintainability:**

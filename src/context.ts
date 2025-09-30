@@ -356,8 +356,8 @@ export async function checkForResumableRun(workDir: string): Promise<string | nu
 export async function resumeContext(workDir: string, runDir: string, isInteractive?: boolean): Promise<EngineContext> {
   const deltaDir = path.join(workDir, '.delta');
 
-  // Load metadata from the run
-  const metadataPath = path.join(runDir, 'execution', 'metadata.json');
+  // Load metadata from the run (v1.3: directly in run root)
+  const metadataPath = path.join(runDir, 'metadata.json');
   const metadataContent = await fs.readFile(metadataPath, 'utf-8');
   const metadata: DeltaRunMetadata = JSON.parse(metadataContent);
 
@@ -374,7 +374,7 @@ export async function resumeContext(workDir: string, runDir: string, isInteracti
   });
 
   // Update LATEST file to point to this run
-  const latestFile = path.join(deltaDir, 'runs', 'LATEST');
+  const latestFile = path.join(deltaDir, 'LATEST');
   await fs.writeFile(latestFile, metadata.run_id, 'utf-8');
 
   // Count existing journal events to determine current step

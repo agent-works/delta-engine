@@ -1,6 +1,7 @@
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'node:path';
+import { promises as fs } from 'node:fs';
 import { EngineContext } from './types.js';
 import { LLMAdapter, parseToolCalls, hasToolCalls } from './llm.js';
 import { Journal } from './journal.js';
@@ -140,7 +141,7 @@ export class Engine {
     }
 
     // Check if there's a response
-    const pendingResponse = await checkForInteractionResponse(this.context.workDir);
+    const pendingResponse = await checkForInteractionResponse(this.context.workDir, this.context.runId);
 
     if (pendingResponse !== null) {
       console.log('📨 Found user response, processing...');
@@ -165,13 +166,56 @@ export class Engine {
       // Continue execution
       return true;
     } else {
-      // No response yet, we need to pause again
+      // No response yet
+
+      // Check if we're in interactive mode
+      const isInteractive = this.context.isInteractive || false;
+
+      if (isInteractive) {
+        // Interactive mode: prompt user for input directly
+        console.log('📨 Interactive mode: Prompting for input...');
+
+        const { handleAskHumanInteractive } = await import('./ask-human.js');
+        const response = await handleAskHumanInteractive({
+          prompt: pendingPrompt,
+        });
+
+        // Log the action result for ask_human
+        await this.journal.logActionResult(
+          pendingActionId,
+          'SUCCESS',
+          response,
+          pendingActionId
+        );
+
+        // Save a fake execution record for consistency
+        await this.journal.saveToolExecution(pendingActionId, {
+          command: 'ask_human',
+          stdout: response,
+          stderr: '',
+          exit_code: 0,
+          duration_ms: 0,
+        });
+
+        // Clean up interaction directory
+        const interactionDir = path.join(this.context.workDir, '.delta', this.context.runId, 'interaction');
+        try {
+          await fs.rm(interactionDir, { recursive: true, force: true });
+        } catch {
+          // Ignore errors if directory doesn't exist
+        }
+
+        // Continue execution
+        return true;
+      }
+
+      // Non-interactive mode: need to pause again and wait for response.txt
       console.log('\n' + '─'.repeat(60));
       console.log('🔔 Agent is still waiting for your input.');
       console.log('─'.repeat(60));
       console.log(`\nPrompt: ${pendingPrompt}\n`);
       console.log('Action required:');
-      console.log(`1. Provide your response in: ${path.join(this.context.workDir, '.delta', 'interaction', 'response.txt')}`);
+      console.log(`1. Provide your response in: ${path.join(this.context.workDir, '.delta', this.context.runId, 'interaction', 'response.txt')}`);
       console.log(`2. Run 'delta run --work-dir ${this.context.workDir}' to continue.`);
       console.log('─'.repeat(60) + '\n');
 
@@ -373,8 +417,8 @@ export class Engine {
           status: 'SUCCESS',
         };
 
-        // CRITICAL: Save the finalRequest (not baselineRequest) to runtime_io
-        // This ensures runtime_io/invocations/<ID>/request.json contains the actual payload sent to LLM
+        // CRITICAL: Save the finalRequest (not baselineRequest) to io
+        // This ensures io/invocations/<ID>/request.json contains the actual payload sent to LLM
         await this.journal.saveLLMInvocation(
           invocationId,
           finalRequest,  // Use finalRequest, not a variable that doesn't exist

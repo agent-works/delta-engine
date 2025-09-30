@@ -29,11 +29,17 @@ No in-memory state - everything is persisted to disk immediately, enabling perfe
 ```bash
 npm install delta-engine -g
 
-# Run the hello-world example (interactive workspace selection)
-delta run --agent examples/hello-world --task "Create a greeting file"
+# Initialize a new agent (v1.3)
+delta init my-agent                     # Interactive template selection
+delta init my-agent -y                  # Use minimal template
+delta init my-agent -t hello-world      # Specify template
 
-# Silent mode - auto-create workspace (v1.2.1)
-delta run -y --agent examples/hello-world --task "Quick task"
+# Run your agent
+cd my-agent
+delta run -y --agent . --task "Create a greeting file"
+
+# Or run the hello-world example directly
+delta run --agent examples/hello-world --task "Create a greeting file"
 ```
 
 
@@ -86,6 +92,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## Version
 
-Current: **v1.2** - Human-in-the-loop interaction support
+Current: **v1.3** - Directory structure simplification and `delta init` command
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.

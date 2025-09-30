@@ -22,72 +22,48 @@ npm link
 ### 1. Run an Example Agent
 
 ```bash
-npx delta run --agent examples/hello-agent --task "List files in current directory"
+delta run --agent examples/hello-world --task "Create a greeting file"
 ```
 
-### 2. Create Your First Agent
+### 2. Create Your First Agent (v1.3)
 
-Create a new directory for your agent:
+Use the `delta init` command to quickly scaffold a new agent:
 
 ```bash
-mkdir my-agent
-cd my-agent
+# Initialize with interactive template selection
+delta init my-agent
+
+# Or use silent mode with minimal template
+delta init my-agent -y
+
+# Or specify a template directly
+delta init my-agent -t hello-world
 ```
 
-Create `config.yaml`:
-
-```yaml
-name: my-agent
-version: 1.0.0
-description: My first Delta Engine agent
-
-llm:
-  model: gpt-4
-  temperature: 0.7
-  max_tokens: 2000
-
-tools:
-  - name: list_files
-    command: [ls, -la]
-    parameters: []
-
-  - name: read_file
-    command: [cat]
-    parameters:
-      - name: filename
-        type: string
-        description: File to read
-        inject_as: argument
-
-  # Human interaction tool (v1.2)
-  - name: ask_human
-    # Built-in tool for requesting user input
-```
-
-Create `system_prompt.md`:
-
-```markdown
-# System Prompt
-
-You are a helpful file system assistant.
-
-## Guidelines
-- Be concise and clear
-- Use tools to complete tasks
-- Provide feedback on completion
-```
+**Available templates:**
+- `minimal` - Basic echo and file operations
+- `hello-world` - Friendly agent with common tools
+- `file-ops` - File management and organization
+- `api-tester` - REST API testing tools
 
 ### 3. Run Your Agent
 
 ```bash
-# Interactive mode - select or create workspace
-npx delta run --agent . --task "Your task here"
+cd my-agent
+delta run -y --agent . --task "Your task here"
+```
 
-# Silent mode - auto-create new workspace (W001, W002, etc.)
-npx delta run -y --agent . --task "Your task here"
+**Advanced options:**
+
+```bash
+# Interactive workspace selection (choose from existing or create new)
+delta run --agent . --task "Your task here"
 
 # Custom workspace location
-npx delta run --agent . --task "Your task here" --work-dir ./my-workspace
+delta run --agent . --task "Your task here" --work-dir ./my-workspace
+
+# Interactive mode for human-in-the-loop
+delta run -i --agent . --task "Your task here"
 ```
 
 ## Understanding the Output
@@ -95,17 +71,25 @@ npx delta run --agent . --task "Your task here" --work-dir ./my-workspace
 After running, you'll find:
 
 ```
-workspaces/
-├── LAST_USED       # Tracks last used workspace
-├── W001/                 # First workspace (sequential naming)
-│   └── .delta/
-│       └── runs/
-│           └── {run_id}/
-│               ├── execution/
-│               │   ├── journal.jsonl  # Execution log
-│               │   └── metadata.json  # Run metadata
-│               └── io/       # Detailed I/O logs
-└── W002/                 # Additional workspaces
+my-agent/
+├── config.yaml              # Agent configuration
+├── system_prompt.md         # Agent instructions
+└── workspaces/              # Execution workspaces (v1.3)
+    ├── LAST_USED            # Tracks last used workspace
+    ├── W001/                # First workspace
+    │   └── .delta/
+    │       ├── VERSION      # Schema version
+    │       ├── LATEST       # Latest run ID
+    │       └── {run_id}/
+    │           ├── journal.jsonl  # Execution log
+    │           ├── metadata.json  # Run metadata
+    │           ├── engine.log     # Engine debug log
+    │           ├── io/            # I/O details (v1.3 renamed)
+    │           │   ├── invocations/
+    │           │   ├── tool_executions/
+    │           │   └── hooks/
+    │           └── interaction/   # Human-in-the-loop (v1.2)
+    └── W002/                # Additional workspaces
 ```
 
 **Workspace Selection**: When you run without `--work-dir`, Delta Engine shows an interactive menu to select an existing workspace or create a new one. The last-used workspace is highlighted as the default.
@@ -169,8 +153,11 @@ export OPENAI_API_URL="https://your-endpoint.com/v1"
 
 ### Debug Mode
 ```bash
-# View detailed logs
-cat workspaces/workspace_*/delta/runs/*/journal.jsonl | jq
+# View latest journal
+cat workspaces/W001/.delta/$(cat workspaces/W001/.delta/LATEST)/journal.jsonl | jq
+
+# Or use verbose mode
+delta run -v --agent . --task "Your task"
 ```
 
 ## Getting Help

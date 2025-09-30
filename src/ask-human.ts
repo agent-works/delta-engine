@@ -41,8 +41,8 @@ export async function handleAskHumanAsync(
   context: EngineContext,
   params: AskHumanParams
 ): Promise<void> {
-  // Create interaction directory if it doesn't exist
-  const interactionDir = path.join(context.workDir, '.delta', 'interaction');
+  // Create interaction directory if it doesn't exist (v1.3: workDir/.delta/{runId}/interaction)
+  const interactionDir = path.join(context.workDir, '.delta', context.runId, 'interaction');
   await fs.mkdir(interactionDir, { recursive: true });
 
   // Create request object
@@ -77,8 +77,8 @@ export async function handleAskHumanAsync(
 /**
  * Check if there's a pending interaction response
  */
-export async function checkForInteractionResponse(workDir: string): Promise<string | null> {
-  const interactionDir = path.join(workDir, '.delta', 'interaction');
+export async function checkForInteractionResponse(workDir: string, runId: string): Promise<string | null> {
+  const interactionDir = path.join(workDir, '.delta', runId, 'interaction');
   const requestPath = path.join(interactionDir, 'request.json');
   const responsePath = path.join(interactionDir, 'response.txt');
 

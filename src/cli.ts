@@ -5,6 +5,7 @@ import { initializeContext, checkForResumableRun, resumeContext } from './contex
 import { EngineContext } from './types.js';
 import { Engine } from './engine.js';
 import { RunStatus } from './journal-types.js';
+import { handleInitCommand } from './commands/init.js';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +41,22 @@ async function handleRunCommand(options: {
   yes?: boolean;
 }) {
   try {
+    // Check if OpenAI API key is configured early
+    if (!process.env.OPENAI_API_KEY) {
+      logger.divider();
+      logger.error('OpenAI API key not found!');
+      logger.divider();
+      logger.info('Please set the required environment variables:');
+      logger.info('');
+      logger.info('  export OPENAI_API_KEY="your-api-key-here"');
+      logger.info('');
+      logger.info('Optional: Configure custom API endpoint:');
+      logger.info('');
+      logger.info('  export OPENAI_BASE_URL="https://your-endpoint.com/v1"');
+      logger.divider();
+      process.exit(1);
+    }
+
     logger.divider();
     logger.info('Starting Delta Engine...');
     logger.info(`Agent Path: ${options.agent}`);
@@ -129,15 +146,6 @@ async function handleRunCommand(options: {
 
     logger.divider();
 
-    // Check if OpenAI API key is configured
-    if (!process.env.OPENAI_API_KEY) {
-      logger.error('OpenAI API key not found!');
-      logger.info('Please set the OPENAI_API_KEY environment variable:');
-      logger.info('  export OPENAI_API_KEY="your-api-key-here"');
-      logger.divider();
-      process.exit(1);
-    }
-
     // Initialize and run the engine
     logger.info('🚀 Starting Delta Engine...');
     logger.divider();
@@ -195,7 +203,7 @@ async function handleRunCommand(options: {
 
       logger.divider();
       logger.info(`Work directory: ${context.workDir}`);
-      logger.info(`Journal log: ${path.join(context.deltaDir, 'runs', context.runId, 'execution', 'journal.jsonl')}`);
+      logger.info(`Journal log: ${path.join(context.deltaDir, context.runId, 'journal.jsonl')}`);
 
       if (options.verbose) {
         logger.divider();
@@ -230,7 +238,7 @@ async function handleRunCommand(options: {
         logger.info('Partial Execution Summary:');
         logger.info(`  • Iterations before failure: ${metadata.iterations_completed}`);
         logger.info(`  • Events logged: ${events.length}`);
-        logger.info(`Check journal log for details: ${path.join(context.deltaDir, 'runs', context.runId, 'execution', 'journal.jsonl')}`);
+        logger.info(`Check journal log for details: ${path.join(context.deltaDir, context.runId, 'journal.jsonl')}`);
       } catch {
         // Ignore errors when trying to print journal
       }
@@ -269,6 +277,21 @@ export function createProgram(): Command {
     .name('delta-engine')
     .description('Delta Engine - A minimalist platform for AI Agent prototype iteration')
     .version(packageJson.version);
+
+  // Define the init command
+  program
+    .command('init [name]')
+    .description('Initialize a new Delta Engine agent from a template')
+    .option(
+      '-t, --template <name>',
+      'Template to use (minimal, hello-world, file-ops, api-tester)'
+    )
+    .option(
+      '-y, --yes',
+      'Use minimal template without prompting',
+      false
+    )
+    .action(handleInitCommand);
 
   // Define the run command as per TSD 4.1
   program
