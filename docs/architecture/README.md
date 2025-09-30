@@ -4,17 +4,19 @@
 
 Delta Engine is a minimalist platform for AI Agent development, following Unix philosophy and emphasizing simplicity, transparency, and composability.
 
-## Current Version: v1.1
+## Current Version: v1.2
 
-The v1.1 architecture implements three core principles:
+The current architecture implements these core principles:
 
 1. **Stateless Core** - No in-memory conversation state
 2. **Environment as Interface** - CWD as the physical embodiment
 3. **I/O Separation** - Clear separation between execution flow and I/O details
+4. **Human-in-the-Loop** - Interactive and asynchronous user input support (v1.2)
 
 ## Architecture Documents
 
-- [v1.1 Design Specification (中文)](./v1.1-design-zh.md) - Complete v1.1 architecture design
+- [v1.1 Design Specification](./v1.1-design.md) - Complete v1.1 architecture design
+- [v1.2 Human Interaction Specification](./v1.2-human-interaction.md) - Human-in-the-loop feature specification
 - [Migration Guide](../migration/v1.0-to-v1.1.md) - Migration from v1.0 to v1.1
 
 ## Key Components
@@ -50,7 +52,8 @@ Complexity emerges through composing simple Agents (processes).
 ## Evolution
 
 - **v1.0** (MVP) - Basic Think-Act-Observe loop with trace.jsonl
-- **v1.1** (Current) - Stateless core with journal.jsonl and runtime I/O separation
+- **v1.1** - Stateless core with journal.jsonl and runtime I/O separation
+- **v1.2** (Current) - Human-in-the-loop interaction support
 - **v2.0** (Future) - Multi-agent orchestration and distributed execution
 
 ## See Also

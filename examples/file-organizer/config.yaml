@@ -1,0 +1,93 @@
+name: file-organizer
+version: 1.0.0
+description: Intelligently organizes files and directories based on type, date, or custom rules
+
+llm:
+  model: gpt-4o
+  temperature: 0.3
+  max_tokens: 2000
+
+tools:
+  - name: list_files
+    command: [ls, -la]
+    parameters: []
+    description: List all files in current directory
+
+  - name: find_by_extension
+    command: [bash, -c]
+    parameters:
+      - name: command
+        type: string
+        description: Find command with extension
+        inject_as: argument
+
+  - name: find_old_files
+    command: [find, ., -maxdepth, "1", -type, f, -mtime, "+30"]
+    parameters: []
+
+  - name: check_file_size
+    command: [bash, -c, "du -sh *"]
+    parameters: []
+
+  - name: create_directory
+    command: [mkdir, -p]
+    parameters:
+      - name: dirname
+        type: string
+        description: Directory name to create
+        inject_as: argument
+
+  - name: move_file
+    command: [mv]
+    parameters:
+      - name: source
+        type: string
+        description: Source file
+        inject_as: argument
+      - name: destination
+        type: string
+        description: Destination path
+        inject_as: argument
+
+  - name: copy_file
+    command: [cp, -r]
+    parameters:
+      - name: source
+        type: string
+        description: Source file
+        inject_as: argument
+      - name: destination
+        type: string
+        description: Destination path
+        inject_as: argument
+
+  - name: create_archive
+    command: [tar, -czf]
+    parameters:
+      - name: archive_name
+        type: string
+        description: Archive filename
+        inject_as: argument
+      - name: files
+        type: string
+        description: Files to archive
+        inject_as: argument
+
+  - name: count_files
+    command: [bash, -c, "ls -1 | wc -l"]
+    parameters: []
+    description: Count files in current directory
+
+  - name: find_duplicates
+    command: [bash, -c, "find . -maxdepth 1 -type f -exec md5sum {} \\; | sort | uniq -D -w 32"]
+    parameters: []
+    description: Find duplicate files by checksum
+
+  - name: create_report
+    command: [tee, "organization-report.txt"]
+    parameters:
+      - name: content
+        type: string
+        description: Report content
+        inject_as: stdin
+

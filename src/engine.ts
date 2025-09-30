@@ -22,9 +22,10 @@ import {
 } from './journal-types.js';
 
 /**
- * Maximum number of iterations to prevent infinite loops
+ * Default maximum number of iterations to prevent infinite loops
+ * Can be overridden via config.yaml or --max-iterations CLI option
  */
-const MAX_ITERATIONS = 30;
+const DEFAULT_MAX_ITERATIONS = 30;
 
 /**
  * Core engine that orchestrates the Think-Act-Observe loop
@@ -198,13 +199,16 @@ export class Engine {
     let iteration = 0;
     let finalResponse = '';
 
+    // Get max iterations from config, fallback to default
+    const maxIterations = this.context.config.max_iterations || DEFAULT_MAX_ITERATIONS;
+
     try {
       // Main loop
-      while (iteration < MAX_ITERATIONS) {
+      while (iteration < maxIterations) {
         iteration++;
         this.context.currentStep++;
 
-        console.log(`\n[Iteration ${iteration}/${MAX_ITERATIONS}]`);
+        console.log(`\n[Iteration ${iteration}/${maxIterations}]`);
         await this.journal.writeEngineLog(`Starting iteration ${iteration}`);
 
         // Check if we're resuming with a pending ask_human
@@ -675,12 +679,12 @@ export class Engine {
       }
 
       // Check if we hit max iterations
-      if (iteration >= MAX_ITERATIONS && !finalResponse) {
+      if (iteration >= maxIterations && !finalResponse) {
         finalResponse = 'Maximum iterations reached. Task may be incomplete.';
-        console.warn(`⚠️  Maximum iterations (${MAX_ITERATIONS}) reached`);
+        console.warn(`⚠️  Maximum iterations (${maxIterations}) reached`);
         await this.journal.logSystemMessage(
           'WARN',
-          `Maximum iterations (${MAX_ITERATIONS}) reached`
+          `Maximum iterations (${maxIterations}) reached`
         );
       }
 

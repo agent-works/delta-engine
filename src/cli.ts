@@ -34,6 +34,7 @@ async function handleRunCommand(options: {
   agent: string;
   task: string;
   workDir?: string;
+  maxIterations?: number;
   verbose?: boolean;
   interactive?: boolean;
 }) {
@@ -71,7 +72,8 @@ async function handleRunCommand(options: {
           options.agent,
           options.task,
           options.workDir,
-          options.interactive
+          options.interactive,
+          options.maxIterations
         );
       }
     } else {
@@ -81,7 +83,8 @@ async function handleRunCommand(options: {
         options.agent,
         options.task,
         options.workDir,
-        options.interactive
+        options.interactive,
+        options.maxIterations
       );
     }
 
@@ -267,16 +270,27 @@ export function createProgram(): Command {
     .command('run')
     .description('Execute an AI agent with a specified task')
     .requiredOption(
-      '--agent <path>',
+      '-a, --agent <path>',
       'Path to the agent directory containing config.yaml and system_prompt.txt'
     )
     .requiredOption(
-      '--task <description>',
+      '-t, --task <description>',
       'Task description for the agent to execute'
     )
     .option(
-      '--work-dir <path>',
+      '-w, --work-dir <path>',
       'Custom work directory path (defaults to auto-generated under agent/work_runs/)'
+    )
+    .option(
+      '--max-iterations <number>',
+      'Maximum Think-Act-Observe iterations (overrides config.yaml)',
+      (value) => {
+        const parsed = parseInt(value, 10);
+        if (isNaN(parsed) || parsed < 1) {
+          throw new Error('max-iterations must be a positive integer');
+        }
+        return parsed;
+      }
     )
     .option(
       '-v, --verbose',

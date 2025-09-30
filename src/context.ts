@@ -87,7 +87,8 @@ export async function initializeContext(
   agentPathInput: string,
   task: string,
   workDirInput?: string,
-  isInteractive?: boolean
+  isInteractive?: boolean,
+  maxIterations?: number
 ): Promise<EngineContext> {
   // Generate run ID according to v1.1 spec
   const runId = generateRunId();
@@ -145,6 +146,11 @@ export async function initializeContext(
 
   // Load and validate agent configuration
   const { config, systemPrompt } = await loadAndValidateAgent(agentPath);
+
+  // Override max_iterations if provided via CLI
+  if (maxIterations !== undefined) {
+    config.max_iterations = maxIterations;
+  }
 
   // v1.1: Initialize Journal and run directory structure
   const journal = createJournal(runId, runDir);

@@ -1,0 +1,96 @@
+name: api-tester
+version: 1.0.0
+description: Interactive API testing client with support for REST APIs
+
+llm:
+  model: gpt-4o
+  temperature: 0.2
+  max_tokens: 3000
+
+tools:
+  - name: curl_get
+    command: [curl, -X, GET]
+    parameters:
+      - name: url
+        type: string
+        description: API endpoint URL
+        inject_as: argument
+
+  - name: curl_post
+    command: [curl, -X, POST, -H, "Content-Type: application/json"]
+    parameters:
+      - name: url
+        type: string
+        description: API endpoint URL
+        inject_as: argument
+      - name: data
+        type: string
+        description: JSON data to send
+        inject_as: option
+        option_name: -d
+
+  - name: curl_put
+    command: [curl, -X, PUT, -H, "Content-Type: application/json"]
+    parameters:
+      - name: url
+        type: string
+        description: API endpoint URL
+        inject_as: argument
+      - name: data
+        type: string
+        description: JSON data to send
+        inject_as: option
+        option_name: -d
+
+  - name: curl_delete
+    command: [curl, -X, DELETE]
+    parameters:
+      - name: url
+        type: string
+        description: API endpoint URL
+        inject_as: argument
+
+  - name: test_response_time
+    command: [curl, -o, /dev/null, -s, -w, "%{time_total}\\n"]
+    parameters:
+      - name: url
+        type: string
+        description: URL to test
+        inject_as: argument
+
+  - name: check_status
+    command: [curl, -o, /dev/null, -s, -w, "%{http_code}\\n"]
+    parameters:
+      - name: url
+        type: string
+        description: URL to check
+        inject_as: argument
+
+  - name: format_json
+    command: [python3, -m, json.tool]
+    parameters:
+      - name: json_data
+        type: string
+        description: JSON to format
+        inject_as: stdin
+
+  - name: save_response
+    command: [tee]
+    parameters:
+      - name: filename
+        type: string
+        description: File to save response
+        inject_as: argument
+      - name: content
+        type: string
+        description: Response content
+        inject_as: stdin
+
+  - name: create_test_suite
+    command: [tee, "api-tests.json"]
+    parameters:
+      - name: content
+        type: string
+        description: Test definitions
+        inject_as: stdin
+

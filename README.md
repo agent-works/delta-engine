@@ -29,14 +29,8 @@ No in-memory state - everything is persisted to disk immediately, enabling perfe
 ```bash
 npm install delta-engine -g
 
-# Run example agent
-delta run --agent examples/hello-agent --task "Just create a test file"
-
-# Run with interactive mode (v1.2) - synchronous CLI interaction
-delta run -i --agent examples/interactive-agent --task "Get user preferences"
-
-# Run with async mode (v1.2) - file-based interaction for automation
-delta run --agent examples/interactive-agent --task "Process with user confirmation"
+# Run the hello-world example
+delta run --agent examples/hello-world --task "Create a greeting file"
 ```
 
 

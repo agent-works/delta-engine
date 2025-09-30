@@ -55,7 +55,8 @@ delta run --agent <path> --task <description> [options]
 
 - `--max-iterations <number>`
   - Maximum Think-Act-Observe iterations
-  - Default: 30
+  - Overrides `max_iterations` setting in `config.yaml`
+  - Must be a positive integer
   - Prevents infinite loops
 
 - `--verbose`, `-v`
@@ -71,7 +72,7 @@ delta run --agent <path> --task <description> [options]
 # Basic usage
 delta run --agent ./my-agent --task "List all Python files"
 
-# Short form
+# Short form with options
 delta run -a ./my-agent -t "Create a README file"
 
 # Interactive mode (v1.2) - synchronous CLI interaction
@@ -84,8 +85,8 @@ delta run --agent ./my-agent --task "Deploy after confirmation"
 # After providing response in .delta/interaction/response.txt
 delta run --agent ./my-agent
 
-# Custom working directory
-delta run --agent ./my-agent --task "Continue analysis" --work-dir ./workspace
+# Custom working directory with short option
+delta run -a ./my-agent -t "Continue analysis" -w ./workspace
 
 # Limit iterations
 delta run --agent ./my-agent --task "Complex task" --max-iterations 10
@@ -94,13 +95,16 @@ delta run --agent ./my-agent --task "Complex task" --max-iterations 10
 delta run --agent ./my-agent --task "Debug this" --verbose
 ```
 
-### `version`
+### Version Information
 
-Display Delta Engine version.
+Display Delta Engine version using the `--version` or `-V` flag.
 
 ```bash
-delta version
-# Output: Delta Engine v1.2.0
+delta --version
+# Output: 0.0.7
+
+delta -V
+# Output: 0.0.7
 ```
 
 ### `help`
@@ -178,7 +182,7 @@ $AGENT_HOME/work_runs/workspace_<timestamp>/
 │       │   └── configuration/
 │       │       ├── resolved_config.yaml
 │       │       └── system_prompt.md
-│       └── LATEST -> <run_id>       # Symlink to latest run
+│       └── LATEST                   # Text file containing latest run ID
 └── [workspace files]          # Files created by agent
 ```
 
@@ -234,14 +238,10 @@ Task completed successfully. Created 3 files.
 
 ### Exit Codes
 
-- `0` - Success
-- `1` - General error
-- `2` - Invalid arguments
-- `3` - Agent not found
-- `4` - Configuration error
-- `5` - LLM API error
+- `0` - Success (agent completed task)
+- `1` - General error (initialization failure, engine error, missing API key, etc.)
 - `101` - Waiting for user input (v1.2, async mode only)
-- `130` - Interrupted (Ctrl+C)
+- `130` - Interrupted (Ctrl+C or SIGTERM)
 
 ## Debugging
 
@@ -448,7 +448,7 @@ Error: OpenAI API error: 429 Rate limit exceeded
 ```
 Warning: Maximum iterations (30) reached
 ```
-**Solution:** Increase `--max-iterations` or improve agent efficiency
+**Solution:** Increase `--max-iterations` CLI option or `max_iterations` in `config.yaml`, or improve agent efficiency
 
 ## Tips and Tricks
 

@@ -4,7 +4,8 @@
 
 ### [Architecture](./architecture/)
 - [Architecture Overview](./architecture/README.md) - System design and principles
-- [v1.1 Design Specification (中文)](./architecture/v1.1-design-zh.md) - Complete v1.1 architecture
+- [v1.1 Design Specification](./architecture/v1.1-design.md) - Complete v1.1 architecture
+- [v1.2 Human Interaction Specification](./architecture/v1.2-human-interaction.md) - Human-in-the-loop feature
 
 ### [Guides](./guides/)
 - [Getting Started](./guides/getting-started.md) - Quick start guide ✅
@@ -54,7 +55,6 @@ When adding documentation:
 ## 🌐 Language Support
 
 - **English**: Primary documentation language
-- **中文**: Architecture specification available
 - **Future**: Community translations welcome
 
 ## 📖 Reading Order for New Users
@@ -73,12 +73,13 @@ When adding documentation:
 
 ## 📊 Documentation Status
 
-| Document | Status | Language | Last Updated |
-|----------|--------|----------|--------------|
-| Architecture Overview | ✅ Complete | EN | 2024-09-26 |
-| v1.1 Design Spec | ✅ Complete | ZH | 2024-09-26 |
-| Getting Started | ✅ Complete | EN | 2024-09-26 |
-| Migration Guide | ✅ Complete | EN | 2024-09-26 |
-| Agent Development | 🚧 Planned | EN | - |
-| Hooks Guide | 🚧 Planned | EN | - |
-| CLI Reference | 🚧 Planned | EN | - |
+| Document | Status | Last Updated |
+|----------|--------|--------------|
+| Architecture Overview | ✅ Complete | 2024-09-26 |
+| v1.1 Design Spec | ✅ Complete | 2024-09-26 |
+| v1.2 Human Interaction Spec | ✅ Complete | 2024-09-26 |
+| Getting Started | ✅ Complete | 2024-09-26 |
+| Migration Guide | ✅ Complete | 2024-09-26 |
+| Agent Development | ✅ Complete | 2024-09-26 |
+| Hooks Guide | ✅ Complete | 2024-09-26 |
+| CLI Reference | ✅ Complete | 2024-09-26 |
