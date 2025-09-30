@@ -35,25 +35,25 @@ delta --version            # Show version
 
 ```bash
 # Get the latest run ID (LATEST is a text file, not a symlink)
-RUN_ID=$(cat .delta/runs/LATEST)
+RUN_ID=$(cat .delta/LATEST)
 
 # View recent journal events
-tail -20 .delta/runs/$RUN_ID/execution/journal.jsonl
+tail -20 .delta/$RUN_ID/journal.jsonl
 
-# Check run status (see context.ts:183 for LATEST file implementation)
-cat .delta/runs/$RUN_ID/execution/metadata.json
+# Check run status (see context.ts for LATEST file implementation)
+cat .delta/$RUN_ID/metadata.json
 
 # View LLM invocations
-ls -lht .delta/runs/$RUN_ID/runtime_io/invocations/ | head -5
+ls -lht .delta/$RUN_ID/io/invocations/ | head -5
 
 # Check for pending human interaction
 ls -la .delta/interaction/
 
 # View tool execution logs
-ls -lht .delta/runs/$RUN_ID/runtime_io/tool_executions/ | head -5
+ls -lht .delta/$RUN_ID/io/tool_executions/ | head -5
 
 # One-liner alternatives (bash/zsh)
-tail -20 .delta/runs/$(cat .delta/runs/LATEST)/execution/journal.jsonl
+tail -20 .delta/$(cat .delta/LATEST)/journal.jsonl
 ```
 
 ## Architecture Overview
@@ -69,22 +69,23 @@ Delta Engine follows Unix philosophy applied to AI agents. The core design is **
 ### Control Plane Structure (`.delta/`)
 
 ```
-<AGENT_HOME>/work_runs/
-├── .last_workspace          # v1.2.1: Tracks last used workspace
+<AGENT_HOME>/workspaces/
+├── LAST_USED                # v1.3: Tracks last used workspace
 ├── W001/                    # v1.2.1: Sequential workspace naming
 │   └── .delta/
-│       └── runs/
-│           └── {run_id}/
-│               ├── execution/           # High-level execution flow
-│               │   ├── journal.jsonl    # Core execution log (SSOT)
-│               │   └── metadata.json    # Run metadata (status field)
-│               ├── runtime_io/          # Low-level I/O details
-│               │   ├── invocations/     # LLM invocation records
-│               │   ├── tool_executions/ # Tool execution details
-│               │   └── hooks/           # Hook execution records
-│               └── interaction/         # v1.2 human interaction (async mode)
-│                   ├── request.json     # Interaction request
-│                   └── response.txt     # User response
+│       ├── VERSION          # v1.3: Schema version (was schema_version.txt)
+│       ├── LATEST           # Latest run ID
+│       └── {run_id}/
+│           ├── journal.jsonl      # Core execution log (SSOT)
+│           ├── metadata.json      # Run metadata (status field)
+│           ├── engine.log         # Engine process logs
+│           ├── io/                # I/O audit logs
+│           │   ├── invocations/   # LLM invocation records
+│           │   ├── tool_executions/  # Tool execution details
+│           │   └── hooks/         # Hook execution records
+│           └── interaction/       # v1.2 human interaction (async mode)
+│               ├── request.json   # Interaction request
+│               └── response.txt   # User response
 └── W002/                    # Additional workspaces
 ```
 
@@ -205,7 +206,7 @@ const handle = await fs.open(path);
 ### Error Handling
 - Tool failures don't break the loop - errors become observations
 - All async operations wrapped in try-catch
-- Errors logged to both journal and runtime_io
+- Errors logged to both journal and io/
 
 ### Stateless Core Implementation
 - Never store state in memory between iterations
@@ -340,8 +341,8 @@ When modifying core behaviors, check if CLAUDE.md needs updates:
 Instead of hardcoding file paths, use pattern references:
 ```markdown
 # ✅ Pattern-based (resilient)
-.delta/runs/{run_id}/execution/journal.jsonl
+.delta/{run_id}/journal.jsonl
 
 # ❌ Example-based (can confuse)
-.delta/runs/20250930_112833_ddbdb0/execution/journal.jsonl
+.delta/20250930_112833_ddbdb0/journal.jsonl
 ```
