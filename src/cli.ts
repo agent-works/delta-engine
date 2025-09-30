@@ -284,7 +284,7 @@ export function createProgram(): Command {
     )
     .option(
       '-w, --work-dir <path>',
-      'Custom work directory path (defaults to auto-generated under agent/work_runs/)'
+      'Custom work directory path (defaults to auto-generated under agent/workspaces/)'
     )
     .option(
       '--max-iterations <number>',

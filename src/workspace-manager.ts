@@ -7,7 +7,7 @@ import { stdin as input, stdout as output } from 'node:process';
  * Pattern for workspace IDs: W001, W002, etc.
  */
 const WORKSPACE_ID_PATTERN = /^W(\d{3})$/;
-const LAST_WORKSPACE_FILE = '.last_workspace';
+const LAST_WORKSPACE_FILE = 'LAST_USED';
 
 /**
  * Workspace info structure
@@ -19,8 +19,8 @@ export interface WorkspaceInfo {
 }
 
 /**
- * List all existing workspaces in the work_runs directory
- * @param workRunsDir - Path to the work_runs directory
+ * List all existing workspaces in the workspaces directory
+ * @param workRunsDir - Path to the workspaces directory
  * @returns Array of workspace information
  */
 export async function listExistingWorkspaces(workRunsDir: string): Promise<WorkspaceInfo[]> {
@@ -69,7 +69,7 @@ export async function listExistingWorkspaces(workRunsDir: string): Promise<Works
 
 /**
  * Generate the next available workspace ID (W001, W002, etc.)
- * @param workRunsDir - Path to the work_runs directory
+ * @param workRunsDir - Path to the workspaces directory
  * @returns Next workspace ID
  */
 export async function generateNextWorkspaceId(workRunsDir: string): Promise<string> {
@@ -93,8 +93,8 @@ export async function generateNextWorkspaceId(workRunsDir: string): Promise<stri
 }
 
 /**
- * Load the last used workspace name from .last_workspace file
- * @param workRunsDir - Path to the work_runs directory
+ * Load the last used workspace name from LAST_USED file
+ * @param workRunsDir - Path to the workspaces directory
  * @returns Last workspace name, or null if not found
  */
 export async function loadLastUsedWorkspace(workRunsDir: string): Promise<string | null> {
@@ -123,8 +123,8 @@ export async function loadLastUsedWorkspace(workRunsDir: string): Promise<string
 }
 
 /**
- * Save the last used workspace name to .last_workspace file
- * @param workRunsDir - Path to the work_runs directory
+ * Save the last used workspace name to LAST_USED file
+ * @param workRunsDir - Path to the workspaces directory
  * @param workspaceName - Workspace name to save
  */
 export async function saveLastUsedWorkspace(
@@ -134,7 +134,7 @@ export async function saveLastUsedWorkspace(
   const lastWorkspaceFile = path.join(workRunsDir, LAST_WORKSPACE_FILE);
 
   try {
-    // Ensure work_runs directory exists
+    // Ensure workspaces directory exists
     await fs.mkdir(workRunsDir, { recursive: true });
     await fs.writeFile(lastWorkspaceFile, workspaceName, 'utf-8');
   } catch (error) {
@@ -147,7 +147,7 @@ export async function saveLastUsedWorkspace(
 
 /**
  * Prompt user to select a workspace interactively
- * @param workRunsDir - Path to the work_runs directory
+ * @param workRunsDir - Path to the workspaces directory
  * @returns Selected workspace name (could be existing or new)
  */
 export async function promptUserForWorkspace(workRunsDir: string): Promise<string> {
@@ -223,7 +223,7 @@ export async function promptUserForWorkspace(workRunsDir: string): Promise<strin
 
 /**
  * Create a new workspace directory
- * @param workRunsDir - Path to the work_runs directory
+ * @param workRunsDir - Path to the workspaces directory
  * @param workspaceName - Name of the workspace to create
  * @returns Absolute path to the created workspace
  */

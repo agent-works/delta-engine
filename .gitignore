@@ -32,10 +32,13 @@ coverage/
 .DS_Store
 
 # Agent work directories
-work_runs/
-*/work_runs/
+workspaces/
+*/workspaces/
 .work/
 tmp/
+
+# Delta Engine control plane
+.delta/
 
 # Trace and log files
 *.jsonl

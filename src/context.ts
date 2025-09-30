@@ -131,7 +131,7 @@ export async function initializeContext(
     }
   } else {
     // No work directory specified - use workspace selection logic
-    const workRunsDir = path.join(agentPath, 'work_runs');
+    const workRunsDir = path.join(agentPath, 'workspaces');
     await ensureDirectory(workRunsDir);
 
     if (skipPrompt) {
@@ -152,13 +152,12 @@ export async function initializeContext(
     await saveLastUsedWorkspace(workRunsDir, workspaceName);
   }
 
-  // v1.1: Create .delta control plane directory structure
+  // v1.3: Create .delta control plane directory structure (simplified)
   const deltaDir = path.join(workDir, '.delta');
-  const runDir = path.join(deltaDir, 'runs', runId);
+  const runDir = path.join(deltaDir, runId);
 
   await ensureDirectory(deltaDir);
-  await fs.writeFile(path.join(deltaDir, 'schema_version.txt'), '1.1\n', 'utf-8');
-  await ensureDirectory(path.join(deltaDir, 'runs'));
+  await fs.writeFile(path.join(deltaDir, 'VERSION'), '1.2\n', 'utf-8');
 
   // Try to load .env file from agent directory if it exists
   const agentEnvPath = path.join(agentPath, '.env');
@@ -178,40 +177,13 @@ export async function initializeContext(
     config.max_iterations = maxIterations;
   }
 
-  // v1.1: Initialize Journal and run directory structure
+  // v1.3: Initialize Journal and run directory structure
   const journal = createJournal(runId, runDir);
   await journal.initialize();
   await journal.initializeMetadata(agentPath, task);
 
-  // v1.1: Copy configuration snapshot
-  const configDir = path.join(runDir, 'configuration');
-  await ensureDirectory(configDir);
-
-  await fs.copyFile(
-    path.join(agentPath, 'config.yaml'),
-    path.join(configDir, 'resolved_config.yaml')
-  );
-
-  // Copy system prompt (support both .md and .txt)
-  const systemPromptMd = path.join(agentPath, 'system_prompt.md');
-  const systemPromptTxt = path.join(agentPath, 'system_prompt.txt');
-
-  try {
-    await fs.access(systemPromptMd);
-    await fs.copyFile(
-      systemPromptMd,
-      path.join(configDir, 'system_prompt.md')
-    );
-  } catch {
-    // Fallback to .txt if .md doesn't exist
-    await fs.copyFile(
-      systemPromptTxt,
-      path.join(configDir, 'system_prompt.txt')
-    );
-  }
-
   // Create LATEST file containing the run ID
-  const latestFile = path.join(deltaDir, 'runs', 'LATEST');
+  const latestFile = path.join(deltaDir, 'LATEST');
   await fs.writeFile(latestFile, runId, 'utf-8');
 
   // Build and return EngineContext with shared journal instance
@@ -237,12 +209,12 @@ export async function initializeContext(
  * @returns Engine context
  */
 export async function loadExistingContext(workDir: string): Promise<EngineContext> {
-  // v1.1: Check for .delta directory
+  // v1.3: Check for .delta directory
   const deltaDir = path.join(workDir, '.delta');
 
   try {
-    const schemaVersion = await fs.readFile(path.join(deltaDir, 'schema_version.txt'), 'utf-8');
-    if (!schemaVersion.trim().startsWith('1.1')) {
+    const schemaVersion = await fs.readFile(path.join(deltaDir, 'VERSION'), 'utf-8');
+    if (!schemaVersion.trim().startsWith('1.')) {
       throw new Error(`Unsupported schema version: ${schemaVersion.trim()}`);
     }
   } catch (error) {
@@ -250,7 +222,7 @@ export async function loadExistingContext(workDir: string): Promise<EngineContex
   }
 
   // Find the latest run
-  const latestFile = path.join(deltaDir, 'runs', 'LATEST');
+  const latestFile = path.join(deltaDir, 'LATEST');
   let runId: string;
   let runDir: string;
 
@@ -263,15 +235,14 @@ export async function loadExistingContext(workDir: string): Promise<EngineContex
       throw new Error('LATEST file is empty');
     }
 
-    runDir = path.join(deltaDir, 'runs', runId);
+    runDir = path.join(deltaDir, runId);
   } catch {
     // No LATEST file or it's empty, find the most recent run
-    const runsDir = path.join(deltaDir, 'runs');
-    const runs = await fs.readdir(runsDir);
-    const validRuns = runs.filter(r => r !== 'LATEST').sort();
+    const runs = await fs.readdir(deltaDir);
+    const validRuns = runs.filter(r => r !== 'LATEST' && r !== 'VERSION' && !r.startsWith('.')).sort();
 
     if (validRuns.length === 0) {
-      throw new Error('No runs found in .delta/runs/');
+      throw new Error('No runs found in .delta/');
     }
 
     const lastRun = validRuns[validRuns.length - 1];
@@ -280,11 +251,11 @@ export async function loadExistingContext(workDir: string): Promise<EngineContex
     }
 
     runId = lastRun;
-    runDir = path.join(runsDir, lastRun);
+    runDir = path.join(deltaDir, lastRun);
   }
 
   // Load metadata from the run
-  const metadataPath = path.join(runDir, 'execution', 'metadata.json');
+  const metadataPath = path.join(runDir, 'metadata.json');
 
   try {
     const metadataContent = await fs.readFile(metadataPath, 'utf-8');
@@ -334,7 +305,7 @@ export async function checkForResumableRun(workDir: string): Promise<string | nu
     await fs.access(deltaDir);
 
     // Check for LATEST file
-    const latestFile = path.join(deltaDir, 'runs', 'LATEST');
+    const latestFile = path.join(deltaDir, 'LATEST');
     let runId: string;
 
     try {
@@ -351,10 +322,10 @@ export async function checkForResumableRun(workDir: string): Promise<string | nu
     }
 
     // Construct the run directory path
-    const runDir = path.join(deltaDir, 'runs', runId);
+    const runDir = path.join(deltaDir, runId);
 
     // Read metadata to check status
-    const metadataPath = path.join(runDir, 'execution', 'metadata.json');
+    const metadataPath = path.join(runDir, 'metadata.json');
     try {
       const metadataContent = await fs.readFile(metadataPath, 'utf-8');
       const metadata: DeltaRunMetadata = JSON.parse(metadataContent);

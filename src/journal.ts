@@ -35,26 +35,25 @@ export class Journal {
   /**
    * Initialize the Journal service
    * @param runId - Unique run identifier
-   * @param runDir - .delta/runs/<RUN_ID>/ directory path
+   * @param runDir - .delta/<RUN_ID>/ directory path
    */
   constructor(runId: string, runDir: string) {
     this.runId = runId;
     this.runDir = runDir;
 
-    // Setup paths according to v1.1 spec (Section 5.4)
-    this.journalPath = path.join(runDir, 'execution', 'journal.jsonl');
-    this.metadataPath = path.join(runDir, 'execution', 'metadata.json');
-    this.engineLogPath = path.join(runDir, 'execution', 'engine.log');
-    this.runtimeIoDir = path.join(runDir, 'runtime_io');
+    // Setup paths according to v1.3 spec (simplified structure)
+    this.journalPath = path.join(runDir, 'journal.jsonl');
+    this.metadataPath = path.join(runDir, 'metadata.json');
+    this.engineLogPath = path.join(runDir, 'engine.log');
+    this.runtimeIoDir = path.join(runDir, 'io');
   }
 
   /**
    * Initialize the run directory structure and load existing sequence number
    */
   async initialize(): Promise<void> {
-    // Create directory structure according to Section 5.4
-    await fs.mkdir(path.join(this.runDir, 'execution'), { recursive: true });
-    await fs.mkdir(path.join(this.runDir, 'configuration'), { recursive: true });
+    // Create directory structure (v1.3 simplified structure)
+    await fs.mkdir(this.runDir, { recursive: true });
     await fs.mkdir(path.join(this.runtimeIoDir, 'hooks'), { recursive: true });
     await fs.mkdir(path.join(this.runtimeIoDir, 'invocations'), { recursive: true });
     await fs.mkdir(path.join(this.runtimeIoDir, 'tool_executions'), { recursive: true });
