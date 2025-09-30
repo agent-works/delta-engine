@@ -80,7 +80,7 @@ export interface ToolExecutionResult {
 delta-engine run --agent <agent_path> --task "<task_description>" [--work-dir <path_to_work_dir>]
 ```
 
-- **Default `--work-dir`:** If not provided, create a new directory in `<agent_path>/work_runs/` with format `<YYYYMMDD_HHmmss>_<uuid_short>`.
+- **Default `--work-dir`:** If not provided, create a new directory in `<agent_path>/workspaces/` with format `<YYYYMMDD_HHmmss>_<uuid_short>`.
 
 ### 4.2 Tool Execution Specification (Critical)
 

@@ -73,7 +73,7 @@ Delta Engine follows Unix philosophy applied to AI agents. The core design is **
 ├── LAST_USED                # v1.3: Tracks last used workspace
 ├── W001/                    # v1.2.1: Sequential workspace naming
 │   └── .delta/
-│       ├── VERSION          # v1.3: Schema version (was schema_version.txt)
+│       ├── VERSION          # v1.3: Schema version (was VERSION)
 │       ├── LATEST           # Latest run ID
 │       └── {run_id}/
 │           ├── journal.jsonl      # Core execution log (SSOT)
@@ -315,7 +315,7 @@ LATEST is a symlink to the latest run
 Document **what** (API contracts) over **how** (implementation):
 ```markdown
 # ✅ Stable: Interface-level
-.delta/runs/LATEST contains the latest run ID
+.delta/LATEST contains the latest run ID
 
 # ❌ Fragile: Implementation-level
 LATEST is created via fs.writeFile() with utf-8 encoding

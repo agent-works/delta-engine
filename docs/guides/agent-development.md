@@ -276,19 +276,19 @@ done < test-tasks.txt
 ### View Execution Journal
 ```bash
 # Pretty print journal (adjust path for workspace naming: W001, W002, etc.)
-cat work_runs/W*/delta/runs/*/execution/journal.jsonl | jq
+cat workspaces/W*/delta/runs/*/journal.jsonl | jq
 
 # Filter specific events
-cat work_runs/W*/delta/runs/*/execution/journal.jsonl | jq 'select(.type == "ACTION_REQUEST")'
+cat workspaces/W*/delta/runs/*/journal.jsonl | jq 'select(.type == "ACTION_REQUEST")'
 
 # Legacy workspace format also supported
-cat work_runs/workspace_*/delta/runs/*/execution/journal.jsonl | jq
+cat workspaces/workspace_*/delta/runs/*/journal.jsonl | jq
 ```
 
 ### Check Tool Execution
 ```bash
 # View tool outputs
-ls -la work_runs/W*/delta/runs/*/runtime_io/tool_executions/
+ls -la workspaces/W*/delta/runs/*/io/tool_executions/
 ```
 
 ### Common Issues

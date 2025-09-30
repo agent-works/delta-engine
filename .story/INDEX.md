@@ -62,7 +62,7 @@
 **Decision**: Plain text file (stores run ID string)
 **Reasons**:
   1. Cross-platform compatibility (Windows symlink requires admin)
-  2. Simplicity first (`cat .delta/runs/LATEST` to read)
+  2. Simplicity first (`cat .delta/LATEST` to read)
   3. Atomic write (`fs.writeFile` single operation)
 **Implementation**: `context.ts:183` - `await fs.writeFile(latestFile, runId, 'utf-8')`
 **Status**: ✅ Active

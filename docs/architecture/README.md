@@ -29,7 +29,7 @@ The current architecture implements these core principles:
         ├── execution/      # High-level execution flow
         │   ├── journal.jsonl
         │   └── metadata.json
-        └── runtime_io/     # Low-level I/O details
+        └── io/     # Low-level I/O details
             ├── invocations/
             ├── tool_executions/
             └── hooks/

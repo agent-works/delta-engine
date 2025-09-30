@@ -174,11 +174,11 @@ export TMPDIR=/custom/tmp
 Each workspace has the following structure:
 
 ```
-$AGENT_HOME/work_runs/
-├── .last_workspace           # v1.2.1: Tracks last used workspace
+$AGENT_HOME/workspaces/
+├── LAST_USED           # v1.2.1: Tracks last used workspace
 ├── W001/                     # v1.2.1: Sequential workspace naming
 │   ├── .delta/              # Control plane
-│   │   ├── schema_version.txt    # v1.2
+│   │   ├── VERSION    # v1.2
 │   │   ├── interaction/          # v1.2: Human interaction directory
 │   │   │   ├── request.json     # Pending interaction request
 │   │   │   └── response.txt     # User's response
@@ -188,7 +188,7 @@ $AGENT_HOME/work_runs/
 │   │       │   │   ├── journal.jsonl    # Execution log
 │   │       │   │   ├── metadata.json    # Run metadata
 │   │       │   │   └── engine.log       # Engine diagnostics
-│   │       │   ├── runtime_io/
+│   │       │   ├── io/
 │   │       │   │   ├── invocations/     # LLM I/O
 │   │       │   │   ├── tool_executions/ # Tool I/O
 │   │       │   │   └── hooks/           # Hook I/O
@@ -282,46 +282,46 @@ Task completed successfully. Created 3 files.
 
 ```bash
 # Pretty print journal
-cat work_runs/*/delta/runs/*/execution/journal.jsonl | jq
+cat workspaces/*/delta/runs/*/journal.jsonl | jq
 
 # Filter by event type
-cat work_runs/*/delta/runs/*/execution/journal.jsonl | jq 'select(.type == "THOUGHT")'
+cat workspaces/*/delta/runs/*/journal.jsonl | jq 'select(.type == "THOUGHT")'
 
 # View only tool executions
-cat work_runs/*/delta/runs/*/execution/journal.jsonl | jq 'select(.type == "ACTION_REQUEST")'
+cat workspaces/*/delta/runs/*/journal.jsonl | jq 'select(.type == "ACTION_REQUEST")'
 ```
 
 ### View Tool Outputs
 
 ```bash
 # List all tool executions
-ls -la work_runs/*/delta/runs/*/runtime_io/tool_executions/
+ls -la workspaces/*/delta/runs/*/io/tool_executions/
 
 # View specific tool output
-cat work_runs/*/delta/runs/*/runtime_io/tool_executions/*/stdout.log
+cat workspaces/*/delta/runs/*/io/tool_executions/*/stdout.log
 ```
 
 ### View LLM Interactions
 
 ```bash
 # List all LLM invocations
-ls -la work_runs/*/delta/runs/*/runtime_io/invocations/
+ls -la workspaces/*/delta/runs/*/io/invocations/
 
 # View LLM request
-cat work_runs/*/delta/runs/*/runtime_io/invocations/*/request.json | jq
+cat workspaces/*/delta/runs/*/io/invocations/*/request.json | jq
 
 # View LLM response
-cat work_runs/*/delta/runs/*/runtime_io/invocations/*/response.json | jq
+cat workspaces/*/delta/runs/*/io/invocations/*/response.json | jq
 ```
 
 ### View Hook Executions
 
 ```bash
 # List all hook executions
-ls -la work_runs/*/delta/runs/*/runtime_io/hooks/
+ls -la workspaces/*/delta/runs/*/io/hooks/
 
 # View hook output
-cat work_runs/*/delta/runs/*/runtime_io/hooks/*/execution_meta/stdout.log
+cat workspaces/*/delta/runs/*/io/hooks/*/execution_meta/stdout.log
 ```
 
 ## Human-in-the-Loop Interaction (v1.2)
@@ -356,7 +356,7 @@ delta run --agent ./my-agent --task "Deploy application"
 # }
 
 # Step 2: Provide response
-echo "yes" > work_runs/workspace_*/delta/interaction/response.txt
+echo "yes" > workspaces/workspace_*/delta/interaction/response.txt
 
 # Step 3: Resume execution
 delta run --agent ./my-agent
@@ -539,7 +539,7 @@ my-agent "Do something"
 ```bash
 # Extract structured data from journal
 delta run --agent ./my-agent --task "Task" 2>/dev/null
-cat work_runs/*/delta/runs/*/execution/journal.jsonl |
+cat workspaces/*/delta/runs/*/journal.jsonl |
   jq -c 'select(.type == "ACTION_RESULT") | {tool: .payload.tool_name, status: .payload.status}'
 ```
 

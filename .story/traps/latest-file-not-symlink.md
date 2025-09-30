@@ -11,11 +11,11 @@
 
 ### Wrong Assumption
 
-When writing CLAUDE.md debug commands, assumed `.delta/runs/LATEST` was a symbolic link:
+When writing CLAUDE.md debug commands, assumed `.delta/LATEST` was a symbolic link:
 
 ```bash
 # ❌ Wrong command (based on wrong assumption)
-cat .delta/runs/$(readlink .delta/runs/LATEST)/execution/journal.jsonl
+cat .delta/$(readlink .delta/LATEST)/journal.jsonl
                   ^^^^^^^^ assumes LATEST is symlink
 ```
 
@@ -23,7 +23,7 @@ cat .delta/runs/$(readlink .delta/runs/LATEST)/execution/journal.jsonl
 
 ### Actual Implementation
 
-`.delta/runs/LATEST` is a **plain text file** containing latest run ID string:
+`.delta/LATEST` is a **plain text file** containing latest run ID string:
 
 ```typescript
 // src/context.ts:183
@@ -33,7 +33,7 @@ await fs.writeFile(latestFile, runId, 'utf-8');
 
 **File content**:
 ```bash
-$ cat .delta/runs/LATEST
+$ cat .delta/LATEST
 20250930_112833_ddbdb0
 ```
 
@@ -62,11 +62,11 @@ So assuming `LATEST` is symlink **looks reasonable**.
 
 ```bash
 # Method 1: Using variable (recommended, readable)
-RUN_ID=$(cat .delta/runs/LATEST)
-tail -20 .delta/runs/$RUN_ID/execution/journal.jsonl
+RUN_ID=$(cat .delta/LATEST)
+tail -20 .delta/$RUN_ID/journal.jsonl
 
 # Method 2: One-liner (bash/zsh)
-tail -20 .delta/runs/$(cat .delta/runs/LATEST)/execution/journal.jsonl
+tail -20 .delta/$(cat .delta/LATEST)/journal.jsonl
                       ^^^ Note: cat, not readlink
 ```
 
@@ -83,7 +83,7 @@ not a symbolic link
 
 **Verify**:
 ```bash
-file .delta/runs/LATEST
+file .delta/LATEST
 # Output: ASCII text, with no line terminators
 ```
 

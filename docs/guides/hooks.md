@@ -62,7 +62,7 @@ lifecycle_hooks:
 When a hook is executed, Delta Engine creates:
 
 ```
-runtime_io/hooks/{sequence}_{hook_name}/
+io/hooks/{sequence}_{hook_name}/
 ├── input/              # Input data for hook
 │   ├── context.json   # Execution context
 │   └── payload.json   # Hook-specific data
@@ -479,10 +479,10 @@ Send notifications on errors or specific events.
 ### View Hook Execution
 ```bash
 # List all hook executions
-ls -la work_runs/workspace_*/delta/runs/*/runtime_io/hooks/
+ls -la workspaces/workspace_*/delta/runs/*/io/hooks/
 
 # Check specific hook output
-cat work_runs/workspace_*/delta/runs/*/runtime_io/hooks/*/execution_meta/stdout.log
+cat workspaces/workspace_*/delta/runs/*/io/hooks/*/execution_meta/stdout.log
 ```
 
 ## Next Steps

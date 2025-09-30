@@ -5,6 +5,67 @@ All notable changes to Delta Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-09-30
+
+### Changed - Directory Structure Simplification
+
+**Major refactoring for better UX and maintainability:**
+
+- **Directories Renamed:**
+  - `work_runs/` → `workspaces/` (semantic clarity)
+  - `runtime_io/` → `io/` (shorter, context-implicit)
+
+- **Metadata Files Renamed:**
+  - `.last_workspace` → `LAST_USED` (consistent with LATEST/VERSION)
+  - `schema_version.txt` → `VERSION` (Unix-style, no extension)
+
+- **Directory Structure Simplified:**
+  - Removed `runs/` directory (unnecessary nesting: `.delta/runs/{id}` → `.delta/{id}`)
+  - Removed `execution/` directory (files moved to run root)
+  - Removed `configuration/` directory (unused config snapshots)
+
+**New Structure:**
+```
+workspaces/
+├── LAST_USED
+└── W001/
+    └── .delta/
+        ├── VERSION
+        ├── LATEST
+        └── {run_id}/
+            ├── journal.jsonl
+            ├── metadata.json
+            ├── engine.log
+            ├── io/
+            │   ├── invocations/
+            │   ├── tool_executions/
+            │   └── hooks/
+            └── interaction/
+```
+
+**Benefits:**
+- Reduced path depth: 5 layers → 3 layers
+- Consistent metadata naming (all uppercase, no extension)
+- Removed redundant directories
+- Better semantic alignment
+
+### Breaking Changes
+- Schema version: 1.1 → 1.2
+- **No backward compatibility** with v1.2.x directory structures
+- All existing workspaces need migration (suitable for pre-release)
+
+## [1.2.1] - 2025-09-27
+
+### Added
+- **Interactive Workspace Selection** - Prompts user to select or create workspaces
+- **Silent Mode (`-y`)** - Auto-create new workspace without prompts
+- **Sequential Workspace Naming** - W001, W002, W003 format instead of timestamps
+- **Workspace Tracking** - `.last_workspace` file remembers last used workspace
+
+### Changed
+- Default behavior now shows interactive workspace selector
+- Workspace IDs changed from timestamp format to W### format
+
 ## [1.2.0]
 
 ### Added

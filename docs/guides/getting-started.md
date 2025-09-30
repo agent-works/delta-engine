@@ -95,8 +95,8 @@ npx delta run --agent . --task "Your task here" --work-dir ./my-workspace
 After running, you'll find:
 
 ```
-work_runs/
-├── .last_workspace       # Tracks last used workspace
+workspaces/
+├── LAST_USED       # Tracks last used workspace
 ├── W001/                 # First workspace (sequential naming)
 │   └── .delta/
 │       └── runs/
@@ -104,7 +104,7 @@ work_runs/
 │               ├── execution/
 │               │   ├── journal.jsonl  # Execution log
 │               │   └── metadata.json  # Run metadata
-│               └── runtime_io/       # Detailed I/O logs
+│               └── io/       # Detailed I/O logs
 └── W002/                 # Additional workspaces
 ```
 
@@ -170,7 +170,7 @@ export OPENAI_API_URL="https://your-endpoint.com/v1"
 ### Debug Mode
 ```bash
 # View detailed logs
-cat work_runs/workspace_*/delta/runs/*/execution/journal.jsonl | jq
+cat workspaces/workspace_*/delta/runs/*/journal.jsonl | jq
 ```
 
 ## Getting Help

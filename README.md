@@ -43,10 +43,10 @@ delta run -y --agent examples/hello-world --task "Quick task"
 my-agent/
 ├── config.yaml         # Agent configuration
 ├── system_prompt.md    # System prompt (supports .txt)
-└── work_runs/         # Execution workspaces
-    ├── .last_workspace # v1.2.1: Tracks last used workspace
-    ├── W001/          # v1.2.1: Sequential naming (W001, W002, etc.)
-    │   └── .delta/    # Control plane (logs, I/O)
+└── workspaces/         # Execution workspaces (v1.3)
+    ├── LAST_USED       # v1.3: Tracks last used workspace
+    ├── W001/           # v1.2.1: Sequential naming (W001, W002, etc.)
+    │   └── .delta/     # Control plane (logs, I/O)
     └── W002/
 ```
 
