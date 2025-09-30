@@ -275,17 +275,20 @@ done < test-tasks.txt
 
 ### View Execution Journal
 ```bash
-# Pretty print journal
-cat work_runs/workspace_*/delta/runs/*/execution/journal.jsonl | jq
+# Pretty print journal (adjust path for workspace naming: W001, W002, etc.)
+cat work_runs/W*/delta/runs/*/execution/journal.jsonl | jq
 
 # Filter specific events
-cat work_runs/workspace_*/delta/runs/*/execution/journal.jsonl | jq 'select(.type == "ACTION_REQUEST")'
+cat work_runs/W*/delta/runs/*/execution/journal.jsonl | jq 'select(.type == "ACTION_REQUEST")'
+
+# Legacy workspace format also supported
+cat work_runs/workspace_*/delta/runs/*/execution/journal.jsonl | jq
 ```
 
 ### Check Tool Execution
 ```bash
 # View tool outputs
-ls -la work_runs/workspace_*/delta/runs/*/runtime_io/tool_executions/
+ls -la work_runs/W*/delta/runs/*/runtime_io/tool_executions/
 ```
 
 ### Common Issues
@@ -453,8 +456,14 @@ Since Delta Engine is stateless, use files for state:
 - Provide clear completion criteria
 
 ### Workspace Management
-```yaml
-# Reuse workspace for related tasks
+```bash
+# Interactive workspace selection (default)
+npx tsx src/index.ts run --agent ./my-agent
+
+# Silent mode - auto-create new workspace
+npx tsx src/index.ts run -y --agent ./my-agent
+
+# Explicit workspace for related tasks
 npx tsx src/index.ts run --agent ./my-agent --work-dir ./persistent-workspace
 ```
 

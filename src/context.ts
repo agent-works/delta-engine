@@ -6,6 +6,11 @@ import { EngineContext } from './types.js';
 import { loadAndValidateAgent } from './config.js';
 import { createJournal } from './journal.js';
 import { DeltaRunMetadata, RunStatus } from './journal-types.js';
+import {
+  generateNextWorkspaceId,
+  promptUserForWorkspace,
+  saveLastUsedWorkspace,
+} from './workspace-manager.js';
 
 /**
  * Format current timestamp as YYYYMMDD_HHmmss
@@ -41,15 +46,6 @@ function generateRunId(): string {
   return `${timestamp}_${shortUuid}`;
 }
 
-/**
- * Generate workspace ID with prefix: workspace_<YYYYMMDD_HHMMSS>_<ShortUUID>
- * @returns Workspace ID string
- */
-function generateWorkspaceId(): string {
-  const timestamp = formatTimestamp();
-  const shortUuid = generateShortUuid();
-  return `workspace_${timestamp}_${shortUuid}`;
-}
 
 /**
  * Ensure a directory exists, creating it if necessary
@@ -81,6 +77,10 @@ function toAbsolutePath(inputPath: string): string {
  * @param agentPathInput - Path to the agent directory (can be relative or absolute)
  * @param task - Initial task description
  * @param workDirInput - Optional work directory path (can be relative or absolute)
+ * @param isInteractive - Enable interactive mode for ask_human tool
+ * @param maxIterations - Override max iterations from config
+ * @param explicitWorkDir - True if workDirInput was explicitly provided by user
+ * @param skipPrompt - True to skip workspace selection prompt (auto-create new)
  * @returns Initialized engine context
  */
 export async function initializeContext(
@@ -88,7 +88,9 @@ export async function initializeContext(
   task: string,
   workDirInput?: string,
   isInteractive?: boolean,
-  maxIterations?: number
+  maxIterations?: number,
+  explicitWorkDir: boolean = false,
+  skipPrompt: boolean = false
 ): Promise<EngineContext> {
   // Generate run ID according to v1.1 spec
   const runId = generateRunId();
@@ -111,20 +113,44 @@ export async function initializeContext(
 
   // Determine work directory (CWD in v1.1 terminology)
   let workDir: string;
+  let workspaceName: string | null = null; // Track for saving to .last_workspace
+
   if (workDirInput) {
-    // Use provided work directory (convert to absolute)
+    // User provided explicit work directory
     workDir = toAbsolutePath(workDirInput);
+
+    // Check if it exists
+    try {
+      await fs.access(workDir);
+    } catch {
+      // Directory doesn't exist - create it
+      await ensureDirectory(workDir);
+      if (explicitWorkDir) {
+        console.log(`[INFO] Created work directory: ${workDir}`);
+      }
+    }
   } else {
-    // Default: Create a workspace directory under $AGENT_HOME/work_runs/
-    // Each workspace has a unique ID to distinguish it from run IDs
+    // No work directory specified - use workspace selection logic
     const workRunsDir = path.join(agentPath, 'work_runs');
     await ensureDirectory(workRunsDir);
-    const workspaceId = generateWorkspaceId();
-    workDir = path.join(workRunsDir, workspaceId);
-  }
 
-  // Ensure work directory exists
-  await ensureDirectory(workDir);
+    if (skipPrompt) {
+      // Auto-create new workspace (silent mode with -y flag)
+      workspaceName = await generateNextWorkspaceId(workRunsDir);
+      console.log(`[INFO] Auto-creating new workspace: ${workspaceName}`);
+    } else {
+      // Interactive workspace selection
+      workspaceName = await promptUserForWorkspace(workRunsDir);
+    }
+
+    workDir = path.join(workRunsDir, workspaceName);
+
+    // Ensure workspace directory exists
+    await ensureDirectory(workDir);
+
+    // Save as last used workspace
+    await saveLastUsedWorkspace(workRunsDir, workspaceName);
+  }
 
   // v1.1: Create .delta control plane directory structure
   const deltaDir = path.join(workDir, '.delta');

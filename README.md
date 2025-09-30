@@ -29,8 +29,11 @@ No in-memory state - everything is persisted to disk immediately, enabling perfe
 ```bash
 npm install delta-engine -g
 
-# Run the hello-world example
+# Run the hello-world example (interactive workspace selection)
 delta run --agent examples/hello-world --task "Create a greeting file"
+
+# Silent mode - auto-create workspace (v1.2.1)
+delta run -y --agent examples/hello-world --task "Quick task"
 ```
 
 
@@ -41,8 +44,10 @@ my-agent/
 ├── config.yaml         # Agent configuration
 ├── system_prompt.md    # System prompt (supports .txt)
 └── work_runs/         # Execution workspaces
-    └── workspace_*/
-        └── .delta/    # Control plane (logs, I/O)
+    ├── .last_workspace # v1.2.1: Tracks last used workspace
+    ├── W001/          # v1.2.1: Sequential naming (W001, W002, etc.)
+    │   └── .delta/    # Control plane (logs, I/O)
+    └── W002/
 ```
 
 ## Documentation

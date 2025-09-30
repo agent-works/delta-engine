@@ -49,9 +49,17 @@ delta run --agent <path> --task <description> [options]
   - Default: false (async mode with file-based interaction)
 
 - `--work-dir <path>`, `-w <path>`
-  - Custom working directory
-  - Default: `$AGENT_HOME/work_runs/workspace_<timestamp>`
+  - Custom working directory path
+  - If specified: uses the provided path (creates if doesn't exist)
+  - If not specified: prompts for workspace selection (existing or new)
+  - Default workspace naming: W001, W002, W003, etc.
   - Use to resume or share workspace between runs
+
+- `--yes`, `-y` **(v1.2.1)**
+  - Skip interactive workspace selection
+  - Auto-creates new workspace with sequential naming (W001, W002, etc.)
+  - Useful for CI/CD and automated workflows
+  - Default: false (shows interactive selection)
 
 - `--max-iterations <number>`
   - Maximum Think-Act-Observe iterations
@@ -69,11 +77,14 @@ delta run --agent <path> --task <description> [options]
 #### Examples
 
 ```bash
-# Basic usage
+# Basic usage - prompts for workspace selection
 delta run --agent ./my-agent --task "List all Python files"
 
 # Short form with options
 delta run -a ./my-agent -t "Create a README file"
+
+# Silent mode - auto-creates new workspace W001, W002, etc.
+delta run -y --agent ./my-agent --task "Quick task"
 
 # Interactive mode (v1.2) - synchronous CLI interaction
 delta run -i --agent ./my-agent --task "Get user preferences"
@@ -160,31 +171,53 @@ export TMPDIR=/custom/tmp
 
 ## Working Directory Structure
 
-Each run creates a workspace with the following structure:
+Each workspace has the following structure:
 
 ```
-$AGENT_HOME/work_runs/workspace_<timestamp>/
-├── .delta/                    # Control plane
-│   ├── schema_version.txt    # v1.2
-│   ├── interaction/          # v1.2: Human interaction directory
-│   │   ├── request.json     # Pending interaction request
-│   │   └── response.txt     # User's response
-│   └── runs/
-│       ├── <run_id>/         # Single run data
-│       │   ├── execution/
-│       │   │   ├── journal.jsonl    # Execution log
-│       │   │   ├── metadata.json    # Run metadata
-│       │   │   └── engine.log       # Engine diagnostics
-│       │   ├── runtime_io/
-│       │   │   ├── invocations/     # LLM I/O
-│       │   │   ├── tool_executions/ # Tool I/O
-│       │   │   └── hooks/           # Hook I/O
-│       │   └── configuration/
-│       │       ├── resolved_config.yaml
-│       │       └── system_prompt.md
-│       └── LATEST                   # Text file containing latest run ID
-└── [workspace files]          # Files created by agent
+$AGENT_HOME/work_runs/
+├── .last_workspace           # v1.2.1: Tracks last used workspace
+├── W001/                     # v1.2.1: Sequential workspace naming
+│   ├── .delta/              # Control plane
+│   │   ├── schema_version.txt    # v1.2
+│   │   ├── interaction/          # v1.2: Human interaction directory
+│   │   │   ├── request.json     # Pending interaction request
+│   │   │   └── response.txt     # User's response
+│   │   └── runs/
+│   │       ├── <run_id>/         # Single run data
+│   │       │   ├── execution/
+│   │       │   │   ├── journal.jsonl    # Execution log
+│   │       │   │   ├── metadata.json    # Run metadata
+│   │       │   │   └── engine.log       # Engine diagnostics
+│   │       │   ├── runtime_io/
+│   │       │   │   ├── invocations/     # LLM I/O
+│   │       │   │   ├── tool_executions/ # Tool I/O
+│   │       │   │   └── hooks/           # Hook I/O
+│   │       │   └── configuration/
+│   │       │       ├── resolved_config.yaml
+│   │       │       └── system_prompt.md
+│   │       └── LATEST                   # Text file containing latest run ID
+│   └── [workspace files]          # Files created by agent
+├── W002/                     # Additional workspace
+└── workspace_20250930_123456/ # Legacy format (still supported)
 ```
+
+### Workspace Selection (v1.2.1)
+
+When no `--work-dir` is specified:
+
+1. **Interactive Mode (default)**: Shows a selection menu
+   - Lists all existing workspaces (W001, W002, etc.)
+   - Highlights last-used workspace
+   - Options to select existing or create new workspace
+
+2. **Silent Mode (`-y` flag)**: Auto-creates next sequential workspace
+   - Automatically generates W001, W002, W003, etc.
+   - No user interaction required
+   - Ideal for automation and CI/CD
+
+3. **Explicit Path (`--work-dir`)**: Uses specified directory
+   - Creates directory if it doesn't exist
+   - Logs creation action explicitly
 
 ## Output Format
 
@@ -362,14 +395,20 @@ fi
 ### Workspace Reuse
 
 ```bash
-# First run - creates workspace
+# First run - interactive workspace selection
 delta run --agent ./my-agent --task "Create files"
+# User selects "Create new" → W001 is created
 
-# Find workspace path from output
-WORKSPACE="/path/to/work_runs/workspace_xyz"
+# Second run - automatically suggests W001 (last used)
+delta run --agent ./my-agent --task "Modify files"
+# User presses Enter to use W001, or selects different workspace
 
-# Continue in same workspace
-delta run --agent ./my-agent --task "Modify files" --work-dir "$WORKSPACE"
+# Silent mode - always creates new workspace
+delta run -y --agent ./my-agent --task "Another task"
+# Auto-creates W002
+
+# Explicit workspace path
+delta run --agent ./my-agent --task "Specific workspace" --work-dir ./my-workspace
 ```
 
 ### Batch Processing

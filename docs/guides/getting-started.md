@@ -80,7 +80,14 @@ You are a helpful file system assistant.
 ### 3. Run Your Agent
 
 ```bash
+# Interactive mode - select or create workspace
 npx delta run --agent . --task "Your task here"
+
+# Silent mode - auto-create new workspace (W001, W002, etc.)
+npx delta run -y --agent . --task "Your task here"
+
+# Custom workspace location
+npx delta run --agent . --task "Your task here" --work-dir ./my-workspace
 ```
 
 ## Understanding the Output
@@ -89,15 +96,19 @@ After running, you'll find:
 
 ```
 work_runs/
-└── workspace_{timestamp}/
-    └── .delta/
-        └── runs/
-            └── {run_id}/
-                ├── execution/
-                │   ├── journal.jsonl  # Execution log
-                │   └── metadata.json  # Run metadata
-                └── runtime_io/       # Detailed I/O logs
+├── .last_workspace       # Tracks last used workspace
+├── W001/                 # First workspace (sequential naming)
+│   └── .delta/
+│       └── runs/
+│           └── {run_id}/
+│               ├── execution/
+│               │   ├── journal.jsonl  # Execution log
+│               │   └── metadata.json  # Run metadata
+│               └── runtime_io/       # Detailed I/O logs
+└── W002/                 # Additional workspaces
 ```
+
+**Workspace Selection**: When you run without `--work-dir`, Delta Engine shows an interactive menu to select an existing workspace or create a new one. The last-used workspace is highlighted as the default.
 
 ## Key Concepts
 

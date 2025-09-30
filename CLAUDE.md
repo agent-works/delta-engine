@@ -27,6 +27,7 @@ node dist/index.js run --agent <path> --task "Task description"
 # or after build/link:
 delta run --agent <path> --task "Task description"
 delta run -i --agent <path> --task "Task"  # Interactive mode (v1.2)
+delta run -y --agent <path> --task "Task"  # Silent mode - auto-create workspace (v1.2.1)
 delta --version            # Show version
 ```
 
@@ -68,19 +69,23 @@ Delta Engine follows Unix philosophy applied to AI agents. The core design is **
 ### Control Plane Structure (`.delta/`)
 
 ```
-<CWD>/.delta/
-└── runs/
-    └── {run_id}/
-        ├── execution/           # High-level execution flow
-        │   ├── journal.jsonl    # Core execution log (SSOT)
-        │   └── metadata.json    # Run metadata (status field)
-        ├── runtime_io/          # Low-level I/O details
-        │   ├── invocations/     # LLM invocation records
-        │   ├── tool_executions/ # Tool execution details
-        │   └── hooks/           # Hook execution records
-        └── interaction/         # v1.2 human interaction (async mode)
-            ├── request.json     # Interaction request
-            └── response.txt     # User response
+<AGENT_HOME>/work_runs/
+├── .last_workspace          # v1.2.1: Tracks last used workspace
+├── W001/                    # v1.2.1: Sequential workspace naming
+│   └── .delta/
+│       └── runs/
+│           └── {run_id}/
+│               ├── execution/           # High-level execution flow
+│               │   ├── journal.jsonl    # Core execution log (SSOT)
+│               │   └── metadata.json    # Run metadata (status field)
+│               ├── runtime_io/          # Low-level I/O details
+│               │   ├── invocations/     # LLM invocation records
+│               │   ├── tool_executions/ # Tool execution details
+│               │   └── hooks/           # Hook execution records
+│               └── interaction/         # v1.2 human interaction (async mode)
+│                   ├── request.json     # Interaction request
+│                   └── response.txt     # User response
+└── W002/                    # Additional workspaces
 ```
 
 ### Key Components
@@ -90,6 +95,7 @@ Delta Engine follows Unix philosophy applied to AI agents. The core design is **
 - **executor.ts** - Tool execution with three injection modes: `argument`, `stdin`, `option`
 - **ask-human.ts** - v1.2 human-in-the-loop support (two modes: `-i` CLI sync, async file-based)
 - **hook-executor.ts** - Lifecycle hooks: `pre_llm_req`, `post_llm_resp`, `pre_tool_exec`, `post_tool_exec`, `on_llm_response`
+- **workspace-manager.ts** - v1.2.1 workspace selection and management (interactive/silent modes)
 - **types.ts** - Zod schemas for all configs and types (strict validation)
 
 ### Run States (metadata.json status field)
@@ -240,10 +246,11 @@ When modifying core features:
 
 ## Version Context
 
-Current: **v1.2** (Human-in-the-Loop)
+Current: **v1.2.1** (Workspace Management Enhancement)
 - v1.0: MVP with basic Think-Act-Observe
 - v1.1: Stateless core + journal.jsonl + I/O separation
 - v1.2: Human interaction (`ask_human` tool, interactive/async modes)
+- v1.2.1: Interactive workspace selection with W001-style naming, `-y` silent mode
 - v2.0 (planned): Multi-agent orchestration
 
 ## Key Documentation Locations

@@ -37,6 +37,7 @@ async function handleRunCommand(options: {
   maxIterations?: number;
   verbose?: boolean;
   interactive?: boolean;
+  yes?: boolean;
 }) {
   try {
     logger.divider();
@@ -73,7 +74,9 @@ async function handleRunCommand(options: {
           options.task,
           options.workDir,
           options.interactive,
-          options.maxIterations
+          options.maxIterations,
+          true, // explicitWorkDir = true
+          options.yes
         );
       }
     } else {
@@ -84,7 +87,9 @@ async function handleRunCommand(options: {
         options.task,
         options.workDir,
         options.interactive,
-        options.maxIterations
+        options.maxIterations,
+        false, // explicitWorkDir = false
+        options.yes
       );
     }
 
@@ -300,6 +305,11 @@ export function createProgram(): Command {
     .option(
       '-i, --interactive',
       'Enable interactive mode for ask_human tool',
+      false
+    )
+    .option(
+      '-y, --yes',
+      'Skip workspace selection prompt and auto-create new workspace',
       false
     )
     .action(handleRunCommand);
