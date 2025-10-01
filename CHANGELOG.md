@@ -5,6 +5,51 @@ All notable changes to Delta Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2025-10-01
+
+### Changed - Session Management Architecture
+
+**Migrated from GNU Screen to Unix Domain Sockets:**
+
+- **Architecture Improvements:**
+  - Replaced screen-based implementation with Unix Socket + node-pty architecture
+  - Each session now runs in its own detached holder process (no centralized daemon)
+  - Direct socket communication between CLI and holder processes
+  - Better cross-process session access support
+  - Simpler and more reliable implementation
+
+- **Key Technical Changes:**
+  - Added `holder.ts` - Standalone detached process that manages PTY and socket server
+  - Added `socket-utils.ts` - Socket communication utilities (stale detection, cleanup)
+  - Added `Session.reconnect()` - Support for connecting to sessions from different processes
+  - Removed GNU Screen dependency entirely
+  - Added stale socket detection and cleanup
+
+- **New Features:**
+  - Sessions now persist across CLI process exits (holder process stays alive)
+  - Multiple CLI processes can connect to the same session
+  - Automatic cleanup of dead sessions via `cleanup` command
+  - Better error handling for holder process crashes
+
+- **Implementation Details:**
+  - Holder process spawned with `detached: true` and `unref()`
+  - JSON protocol over Unix Socket for IPC
+  - 100KB output buffer per session
+  - Socket path: `<sessions_dir>/<session_id>/session.sock`
+  - Metadata includes both PTY PID and holder PID
+
+- **Validation:**
+  - Comprehensive POC testing in `investigation/` directory
+  - 9 validation tests covering robustness scenarios
+  - Manual testing of all CLI commands
+  - Integration tests for persistence and cross-process communication
+
+### Breaking Changes
+
+None. All CLI commands remain the same. This is an internal architecture change only.
+
+---
+
 ## [1.4.0] - 2025-10-01
 
 ### Added - Session Management

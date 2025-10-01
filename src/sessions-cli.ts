@@ -82,7 +82,7 @@ EXAMPLES:
  */
 function printVersion(): void {
   // TODO: Get version from package.json
-  console.log('delta-sessions v1.4.0');
+  console.log('delta-sessions v1.4.2');
 }
 
 /**
@@ -126,7 +126,7 @@ async function handleWrite(manager: SessionManager, sessionId: string): Promise<
   const rawInput = await readStdin();
   const processedInput = parseEscapeSequences(rawInput);
 
-  session.write(processedInput);
+  await session.write(processedInput);
 
   return {
     status: 'sent',
@@ -157,7 +157,7 @@ async function handleWriteKey(
   }
 
   const keyCode = getKeyCode(keyName);
-  session.write(keyCode);
+  await session.write(keyCode);
 
   return {
     status: 'sent',
@@ -207,7 +207,7 @@ async function handleRead(
   }
 
   // Immediate read
-  let output = session.read();
+  let output = await session.read();
 
   if (options.lines) {
     const lines = output.split('\n');

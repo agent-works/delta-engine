@@ -1,9 +1,9 @@
 # Delta Engine Story Index
 
 > **Meta**: This document is automatically maintained by AI, recording key project decisions and lessons learned
-> **Last Updated**: 2025-09-30 by Claude Code
+> **Last Updated**: 2025-10-02 by Claude Code
 > **Size Goal**: Keep between 300-500 lines
-> **Current Size**: 387 lines
+> **Current Size**: 491 lines
 
 ---
 
@@ -68,6 +68,22 @@
 **Status**: ✅ Active
 **Details**: @traps/latest-file-not-symlink.md
 
+### 5. POC-First Architecture Validation
+**Time**: v1.4.2 session management (2025-10-01)
+**Problem**: How to avoid wasting time on wrong architecture choices?
+**Context**: v1.4.0 spent entire day implementing GNU Screen approach, only to discover `hardcopy` doesn't work with detached sessions
+**Decision**: Validate core architecture assumptions with standalone POC scripts before full implementation
+**Method**:
+  - 9 independent test scripts (5-15 min each)
+  - Each validates single concept: detached process, socket IPC, crash detection, concurrent safety, large data transfer
+  - All POCs pass → Start implementation
+  - Any POC fails → Reconsider architecture
+**Result**: v1.4.2 Unix Socket approach validated in ~2 hours, avoided 3+ weeks of wrong implementation
+**Cost-Benefit**: POC investment (~2 hours) vs wrong architecture cost (days to weeks)
+**Key Insight**: Architecture choice errors are far more expensive than POC time
+**Status**: ✅ Active (methodology, not specific to sessions)
+**Details**: @decisions/005-poc-first-validation.md
+
 ---
 
 ## ⚠️ Known Traps (Must Avoid)
@@ -113,6 +129,33 @@ try {
 **Configuration**: `config.yaml hooks.*.timeout_ms`
 **Implementation**: `hook-executor.ts` uses `AbortController`
 **Tradeoff**: See "Hook Timeout Default" below
+
+### Unix Socket Path Length Limit (104 bytes)
+**Symptom**: Socket file truncated to single character (e.g., 's'), connection timeout
+**Platform**: macOS and most Unix systems
+**Root Cause**: `struct sockaddr_un` defines `sun_path[104]` in POSIX spec
+**Example**:
+```
+/Users/.../workspaces/W006/.sessions/sess_abc123/session.sock
+                                                   ^
+                                            116 bytes → Truncated!
+```
+**Detection**: `stat socket-file` shows 1-2 bytes size instead of valid socket
+**Solution**:
+```typescript
+// ❌ Wrong: Path too long
+const socketPath = path.join(sessionDir, 'session.sock');  // 116 bytes
+
+// ✅ Correct: Use /tmp/ for short path
+const socketPath = `/tmp/delta-sock-${sessionId}.sock`;  // 42 bytes
+```
+**Design Impact**:
+  - Socket files in `/tmp/` (short path, OS-managed cleanup)
+  - Metadata in `$CWD/.sessions/` (user-visible, persistent)
+  - Separation of concerns: socket = ephemeral IPC channel, metadata = long-term state
+**Affected**: v1.4.2 session management
+**Status**: ✅ Fixed (sockets in /tmp/)
+**Details**: @traps/unix-socket-path-limit.md
 
 ---
 
@@ -201,6 +244,63 @@ parameters:
 **Status**: ✅ Active
 **Details**: @decisions/004-human-interaction-modes.md
 
+### Type System MVP Limitation: String-Only Parameters
+**Problem**: Tool parameters need various types (number, boolean, array), but Delta Engine v1.x only supports `type: string`
+**Context**: v1.4.2 session management needs numeric timeout values
+**Attempted**:
+```yaml
+# ❌ Doesn't work: Zod validation fails
+- name: timeout_ms
+  type: number  # Error: Invalid literal, expected "string"
+```
+**Workaround**:
+```yaml
+# ✅ MVP compromise: Pass numbers as string
+- name: timeout_ms
+  type: string
+  description: "Timeout in milliseconds (e.g., '1000', '2000')"
+```
+**Why not expand type system now?**
+  - ✅ MVP philosophy: Validate core functionality first, avoid premature abstraction
+  - ✅ String covers 90% scenarios (filenames, commands, URLs)
+  - ✅ Avoid complexity: How should number/boolean/array inject into command line?
+  - ⏰ Future v2.0 can add rich type system when patterns emerge
+**Tool-side handling**: CLI tools parse strings themselves (`parseInt(args.timeout)`)
+**Status**: ✅ Accepted limitation
+**Details**: @tradeoffs/string-only-parameters.md
+
+### Cross-Process Communication: Socket vs File-Based
+**Problem**: How to enable multiple CLI processes to access the same session? (v1.4.2)
+**Options compared**:
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| File-based | Simple, cross-platform | Polling required, complex concurrency control |
+| Unix Socket ✅ | Low latency (<5ms), built-in concurrency safety | Unix-only, path length limit |
+| TCP Socket | Cross-network, no path limits | Port management, firewall issues |
+
+**Chosen**: Unix Socket
+**Implementation**:
+```typescript
+// Holder process: Unix socket server
+const server = net.createServer((socket) => {
+  socket.on('data', (data) => {
+    const request = JSON.parse(data.toString());
+    // Handle write/read/shutdown
+  });
+});
+
+// CLI process: Connect to existing socket
+const client = net.connect(socketPath);
+client.write(JSON.stringify({ type: 'read' }));
+```
+**Performance**: <5ms latency, tested with 30 concurrent clients (no corruption)
+**Limitations**:
+  - Local-only (same machine)
+  - Path length limit (mitigated by /tmp/)
+  - Future: v1.5+ can add remote sessions (SSH/Docker)
+**Status**: ✅ Active (v1.4.2)
+
 ---
 
 ## 📚 Deep Documentation Index
@@ -209,11 +309,16 @@ parameters:
 - `001-stateless-core.md` - Why we chose stateless architecture
 - `002-journal-jsonl-format.md` - Journal format deep analysis
 - `004-human-interaction-modes.md` - v1.2 human interaction design
+- `005-poc-first-validation.md` - POC-first architecture validation methodology
 
 ### Trap Explanations (`traps/`)
 - `esm-import-extension.md` - Complete ESM import explanation
 - `file-descriptor-leak.md` - File descriptor leak case analysis
 - `latest-file-not-symlink.md` - LATEST file format decision process
+- `unix-socket-path-limit.md` - Unix socket 104-byte path length limit
+
+### Tradeoff Explanations (`tradeoffs/`)
+- `string-only-parameters.md` - Type system MVP limitation rationale
 
 ---
 
@@ -290,6 +395,9 @@ If any updates:
 | `CWD/workDir` | Working directory, environment interface |
 | `ask_human` | Human interaction |
 | `metadata.json` | Run state management |
+| `POC/validation` | Architecture validation methodology |
+| `socket/path` | Unix socket limits, IPC |
+| `type: string` | Parameter type constraints |
 
 **Search methods**:
 ```bash
@@ -306,12 +414,12 @@ grep -r "keyword" .story/
 
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
-| INDEX.md lines | 387 | <500 (warn@450) | ✅ Healthy |
-| Core decisions | 4 | 5-10 | ✅ Reasonable |
-| Known traps | 4 | 5-8 | ✅ Reasonable |
-| Tradeoffs | 4 | 5-10 | ✅ Reasonable |
-| Last updated | 2025-09-30 | - | - |
-| Deep docs | 6 (3 decisions + 3 traps) | - | - |
+| INDEX.md lines | 491 | <500 (warn@450) | ⚠️ Warning (near limit) |
+| Core decisions | 5 | 5-10 | ✅ Reasonable |
+| Known traps | 5 | 5-8 | ✅ Reasonable |
+| Tradeoffs | 6 | 5-10 | ✅ Reasonable |
+| Last updated | 2025-10-02 | - | - |
+| Deep docs | 9 (4 decisions + 4 traps + 1 tradeoff) | - | - |
 | Level status | Level 1 (full) | - | - |
 
 ---

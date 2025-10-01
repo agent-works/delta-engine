@@ -7,37 +7,20 @@ export type SessionStatus = 'running' | 'dead';
 
 /**
  * Session metadata schema
- * Contains all information needed to manage and reconnect to a session
+ * Contains all information needed to manage a session
  */
 export const SessionMetadataSchema = z.object({
   session_id: z.string(),
   command: z.array(z.string()),
-  pid: z.number().int().positive(),
+  pid: z.number().int().positive(), // PTY process PID
+  holder_pid: z.number().int().positive(), // Holder process PID
   created_at: z.string(),
   last_accessed_at: z.string(),
   status: z.enum(['running', 'dead']),
-  sessions_dir: z.string(),
+  exit_code: z.number().int().optional(), // PTY exit code when dead
 });
 
 export type SessionMetadata = z.infer<typeof SessionMetadataSchema>;
-
-/**
- * Session index schema
- * Stores a registry of all sessions in a sessions directory
- */
-export const SessionIndexSchema = z.object({
-  sessions: z.array(
-    z.object({
-      session_id: z.string(),
-      command: z.string(),
-      status: z.enum(['running', 'dead']),
-      created_at: z.string(),
-    })
-  ),
-  last_cleanup_at: z.string().optional(),
-});
-
-export type SessionIndex = z.infer<typeof SessionIndexSchema>;
 
 /**
  * Session configuration
@@ -53,6 +36,19 @@ export interface ReadOptions {
   timeout?: number; // Milliseconds to wait for output (0 = immediate)
   lines?: number;   // Return only last N lines
 }
+
+/**
+ * Socket protocol types
+ */
+export type SocketRequest =
+  | { type: 'write'; data: string }
+  | { type: 'read' }
+  | { type: 'peek' }
+  | { type: 'shutdown' };
+
+export type SocketResponse =
+  | { status: 'ok'; bytes?: number; output?: string }
+  | { status: 'error'; message: string };
 
 /**
  * CLI command result types
@@ -85,6 +81,7 @@ export interface StatusResult {
   session_id: string;
   status: SessionStatus;
   pid: number;
+  holder_pid: number;
   alive: boolean;
   uptime_seconds: number;
   command: string[];
@@ -100,6 +97,7 @@ export interface ListSessionInfo {
   command: string;
   status: SessionStatus;
   pid: number;
+  holder_pid: number;
   created_at: string;
   last_accessed_at: string;
 }
@@ -121,9 +119,9 @@ export class SessionDeadError extends Error {
   }
 }
 
-export class InvalidKeyError extends Error {
-  constructor(keyName: string) {
-    super(`Invalid key name: ${keyName}`);
-    this.name = 'InvalidKeyError';
+export class SessionAlreadyExistsError extends Error {
+  constructor(sessionId: string) {
+    super(`Session ${sessionId} already exists`);
+    this.name = 'SessionAlreadyExistsError';
   }
 }

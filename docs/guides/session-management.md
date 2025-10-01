@@ -121,8 +121,8 @@ tools:
         description: "Session ID"
         inject_as: argument
       - name: timeout_ms
-        type: number
-        description: "Timeout in milliseconds"
+        type: string
+        description: "Timeout in milliseconds (e.g., '1000', '2000')"
         inject_as: option
         option_name: --timeout
 
@@ -284,7 +284,8 @@ tools:
         type: string
         inject_as: argument
       - name: timeout_ms
-        type: number
+        type: string
+        description: "Timeout in milliseconds (e.g., '3000')"
         inject_as: option
         option_name: --timeout
 ```
@@ -340,7 +341,8 @@ tools:
         type: string
         inject_as: argument
       - name: timeout_ms
-        type: number
+        type: string
+        description: "Timeout in milliseconds (e.g., '1000', '5000')"
         inject_as: option
         option_name: --timeout
 ```
@@ -398,7 +400,8 @@ tools:
         type: string
         inject_as: argument
       - name: timeout_ms
-        type: number
+        type: string
+        description: "Timeout in milliseconds (e.g., '2000')"
         inject_as: option
         option_name: --timeout
 ```
@@ -994,5 +997,5 @@ A: Partially. `node-pty` has limited Windows support. WSL recommended.
 
 ---
 
-**Last Updated**: v1.4.0
+**Last Updated**: v1.4.2
 **See Also**: [API Reference](../api/delta-sessions.md) | [Architecture Design](../architecture/v1.4-sessions-design.md)

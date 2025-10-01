@@ -1054,5 +1054,7 @@ delta-sessions write-key $SESSION arrow_up
 
 ---
 
-**Version**: 1.4.0
+**Version**: 1.4.2
 **Last Updated**: 2025-10-01
+
+**Architecture Note**: v1.4.2 uses Unix Domain Sockets for inter-process communication, replacing the screen-based approach in v1.4.0. This provides better reliability, cross-process session access, and simpler implementation.

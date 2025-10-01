@@ -60,7 +60,7 @@ tools:
         inject_as: argument
       - name: timeout_ms
         type: string
-        description: "Wait timeout in milliseconds (0 = immediate, 2000 = 2 seconds)"
+        description: "Wait timeout in milliseconds (e.g., '0' = immediate, '2000' = 2 seconds)"
         inject_as: option
         option_name: --timeout
 
