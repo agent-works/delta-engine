@@ -1,35 +1,30 @@
-import * as pty from 'node-pty';
+import { execa } from 'execa';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import type { SessionMetadata, ReadOptions } from './types.js';
-import { loadMetadata, updateMetadata } from './storage.js';
-
-/**
- * Maximum in-memory buffer size (1MB)
- */
-const MAX_BUFFER_SIZE = 1024 * 1024;
+import { updateMetadata } from './storage.js';
 
 /**
  * Session class
- * Manages a single PTY-based interactive process session
+ * Manages a single interactive process session via GNU screen
+ *
+ * Note: v1.4.1 switched from node-pty to screen to fix session persistence.
+ * Screen daemon holds the PTY Master FDs, allowing sessions to survive
+ * CLI process exits.
  */
 export class Session {
-  private outputBuffer: string = '';
   private outputLog: fs.FileHandle | null = null;
   private inputLog: fs.FileHandle | null = null;
 
   private constructor(
-    private sessionId: string,
+    _sessionId: string,
     private sessionDir: string,
-    private ptyProcess: pty.IPty,
+    private screenSessionName: string,
     private metadata: SessionMetadata
-  ) {
-    // Set up output buffering and logging
-    this.setupOutputHandling();
-  }
+  ) {}
 
   /**
-   * Create a new session by starting a PTY process
+   * Create a new session by starting a process in screen
    */
   static async create(
     sessionId: string,
@@ -37,32 +32,58 @@ export class Session {
     command: string[],
     sessionsDir: string
   ): Promise<Session> {
-    const [cmd, ...args] = command;
-
-    if (!cmd) {
+    if (command.length === 0) {
       throw new Error('Command cannot be empty');
     }
 
-    // Start PTY process
-    const ptyProcess = pty.spawn(cmd, args, {
-      name: 'xterm-color',
-      cols: 120,
-      rows: 30,
-      cwd: process.cwd(),
-      env: process.env as { [key: string]: string },
-    });
+    // Ensure session directory exists
+    await fs.mkdir(sessionDir, { recursive: true });
+
+    // Use session ID as screen session name
+    const screenSessionName = sessionId;
+
+    // Prepare screen log file
+    const screenLogFile = path.join(sessionDir, 'screenlog.txt');
+
+    // Start process in detached screen session with logging enabled
+    // -d: detached mode (don't attach to current terminal)
+    // -m: force creation of new session
+    // -L: enable logging
+    // -Logfile: specify log file path
+    // -S: session name
+    const screenArgs = [
+      '-dmLS',
+      screenSessionName,
+      '-Logfile',
+      screenLogFile,
+      ...command
+    ];
+
+    try {
+      await execa('screen', screenArgs);
+    } catch (error) {
+      throw new Error(`Failed to start screen session: ${(error as Error).message}`);
+    }
+
+    // Get the PID of the started process
+    // We need to extract it from screen -ls output
+    const pid = await Session.getScreenSessionPid(screenSessionName);
+
+    if (!pid) {
+      throw new Error('Failed to get PID from screen session');
+    }
 
     const metadata: SessionMetadata = {
       session_id: sessionId,
       command,
-      pid: ptyProcess.pid,
+      pid,
       created_at: new Date().toISOString(),
       last_accessed_at: new Date().toISOString(),
       status: 'running',
       sessions_dir: sessionsDir,
     };
 
-    const session = new Session(sessionId, sessionDir, ptyProcess, metadata);
+    const session = new Session(sessionId, sessionDir, screenSessionName, metadata);
 
     // Initialize log files
     await session.initializeLogs();
@@ -71,58 +92,24 @@ export class Session {
   }
 
   /**
-   * Restore a session from existing metadata
-   * Note: This doesn't restart the process, just reconnects to existing PTY
-   * (Not fully implemented - for future enhancement)
+   * Get PID of a screen session
    */
-  static async restore(sessionDir: string): Promise<Session | null> {
-    const metadata = await loadMetadata(sessionDir);
+  private static async getScreenSessionPid(sessionName: string): Promise<number | null> {
+    try {
+      // screen -ls returns non-zero and writes to stderr even on success
+      const result = await execa('screen', ['-ls', sessionName], { reject: false });
+      const output = result.stdout + result.stderr;
 
-    // Check if process is still alive
-    if (!Session.isProcessAlive(metadata.pid)) {
-      // Process is dead, update metadata and return null
-      await updateMetadata(sessionDir, { status: 'dead' });
-      return null;
+      // Output format: "12345.session_name	(...)"
+      // Extract the PID (number before the dot)
+      const match = output.match(/(\d+)\.\S+/);
+      if (match && match[1]) {
+        return parseInt(match[1], 10);
+      }
+    } catch (error) {
+      console.error(`Failed to get screen PID: ${(error as Error).message}`);
     }
-
-    // TODO: Reconnect to existing PTY
-    // This is complex and not critical for v1.4
-    // For now, we create new sessions each time
-    throw new Error('Session restoration not yet implemented');
-  }
-
-  /**
-   * Set up output handling (buffering and logging)
-   */
-  private setupOutputHandling(): void {
-    this.ptyProcess.onData((data: string) => {
-      // Add to buffer
-      this.outputBuffer += data;
-
-      // Limit buffer size
-      if (this.outputBuffer.length > MAX_BUFFER_SIZE) {
-        this.outputBuffer = this.outputBuffer.slice(-MAX_BUFFER_SIZE);
-      }
-
-      // Write to log file (async, don't wait)
-      if (this.outputLog) {
-        this.outputLog.write(Buffer.from(data, 'utf-8')).catch((err: Error) => {
-          console.error(`Failed to write to output log: ${err.message}`);
-        });
-      }
-    });
-
-    // Handle process exit
-    this.ptyProcess.onExit(({ exitCode, signal }) => {
-      console.log(`Session ${this.sessionId} exited with code ${exitCode}, signal ${signal}`);
-      this.metadata.status = 'dead';
-      // Update metadata on disk
-      updateMetadata(this.sessionDir, { status: 'dead' }).catch((err) => {
-        console.error(`Failed to update metadata on exit: ${err.message}`);
-      });
-      // Close log files
-      this.closeLogs();
-    });
+    return null;
   }
 
   /**
@@ -160,121 +147,165 @@ export class Session {
 
   /**
    * Write input to the session
+   * Uses screen's "stuff" command to send input
    */
-  write(input: string): void {
-    this.ptyProcess.write(input);
+  async write(input: string): Promise<void> {
+    try {
+      // screen -S <name> -X stuff "<input>"
+      await execa('screen', ['-S', this.screenSessionName, '-X', 'stuff', input]);
 
-    // Log input (async, don't wait)
-    if (this.inputLog) {
-      this.inputLog.write(Buffer.from(input, 'utf-8')).catch((err: Error) => {
-        console.error(`Failed to write to input log: ${err.message}`);
+      // Log input
+      if (this.inputLog) {
+        await this.inputLog.write(Buffer.from(input, 'utf-8')).catch((err: Error) => {
+          console.error(`Failed to write to input log: ${err.message}`);
+        });
+      }
+
+      // Update last accessed time
+      this.metadata.last_accessed_at = new Date().toISOString();
+      await updateMetadata(this.sessionDir, {
+        last_accessed_at: this.metadata.last_accessed_at,
+      }).catch((err) => {
+        console.error(`Failed to update last_accessed_at: ${err.message}`);
       });
+    } catch (error) {
+      throw new Error(`Failed to write to screen session: ${(error as Error).message}`);
     }
-
-    // Update last accessed time
-    this.metadata.last_accessed_at = new Date().toISOString();
-    updateMetadata(this.sessionDir, {
-      last_accessed_at: this.metadata.last_accessed_at,
-    }).catch((err) => {
-      console.error(`Failed to update last_accessed_at: ${err.message}`);
-    });
   }
 
   /**
-   * Read output and clear buffer
+   * Read output from the session
+   * Reads from screen's log file instead of using hardcopy
    */
-  read(): string {
-    const output = this.outputBuffer;
-    this.outputBuffer = '';
+  async read(): Promise<string> {
+    const screenLogFile = path.join(this.sessionDir, 'screenlog.txt');
 
-    // Update last accessed time
-    this.metadata.last_accessed_at = new Date().toISOString();
-    updateMetadata(this.sessionDir, {
-      last_accessed_at: this.metadata.last_accessed_at,
-    }).catch((err) => {
-      console.error(`Failed to update last_accessed_at: ${err.message}`);
-    });
+    try {
+      // Read the log file
+      let output = '';
+      try {
+        output = await fs.readFile(screenLogFile, 'utf-8');
+      } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === 'ENOENT') {
+          // Log file doesn't exist yet
+          return '';
+        }
+        throw error;
+      }
 
-    return output;
+      // Log output
+      if (this.outputLog && output) {
+        await this.outputLog.write(Buffer.from(output, 'utf-8')).catch((err: Error) => {
+          console.error(`Failed to write to output log: ${err.message}`);
+        });
+      }
+
+      // Update last accessed time
+      this.metadata.last_accessed_at = new Date().toISOString();
+      await updateMetadata(this.sessionDir, {
+        last_accessed_at: this.metadata.last_accessed_at,
+      }).catch((err) => {
+        console.error(`Failed to update last_accessed_at: ${err.message}`);
+      });
+
+      return output;
+    } catch (error) {
+      throw new Error(`Failed to read from screen session: ${(error as Error).message}`);
+    }
   }
 
   /**
-   * Read output without clearing buffer (peek)
+   * Read output without clearing (peek)
+   * Note: With screen, read doesn't clear anyway, so this is the same as read()
    */
-  peek(): string {
-    return this.outputBuffer;
+  async peek(): Promise<string> {
+    return this.read();
   }
 
   /**
    * Read output with timeout
-   * Waits for up to `timeoutMs` milliseconds for new output
+   * Waits for up to `timeoutMs` milliseconds, polling for output
    */
   async readWithTimeout(timeoutMs: number, options?: ReadOptions): Promise<string> {
-    const startLength = this.outputBuffer.length;
     const startTime = Date.now();
+    let lastOutput = '';
 
-    return new Promise((resolve) => {
-      const checkInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
+    // Poll every 200ms
+    while (Date.now() - startTime < timeoutMs) {
+      const output = await this.read();
 
-        // Check if we have new output
-        if (this.outputBuffer.length > startLength) {
-          clearInterval(checkInterval);
-          let output = this.outputBuffer.slice(startLength);
-          this.outputBuffer = '';
+      // If output changed, wait a bit more for it to stabilize
+      if (output !== lastOutput) {
+        lastOutput = output;
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        continue;
+      }
 
-          // Apply line limit if specified
-          if (options?.lines) {
-            const lines = output.split('\n');
-            output = lines.slice(-options.lines).join('\n');
-          }
-
-          resolve(output);
+      // Output stable, return it
+      if (output) {
+        // Apply line limit if specified
+        if (options?.lines) {
+          const lines = output.split('\n');
+          return lines.slice(-options.lines).join('\n');
         }
+        return output;
+      }
 
-        // Check timeout
-        if (elapsed >= timeoutMs) {
-          clearInterval(checkInterval);
-          let output = this.outputBuffer.slice(startLength);
-          this.outputBuffer = '';
+      // Wait before next poll
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
 
-          // Apply line limit if specified
-          if (options?.lines) {
-            const lines = output.split('\n');
-            output = lines.slice(-options.lines).join('\n');
-          }
-
-          resolve(output);
-        }
-      }, 100); // Check every 100ms
-    });
+    // Timeout reached, return whatever we have
+    const output = await this.read();
+    if (options?.lines) {
+      const lines = output.split('\n');
+      return lines.slice(-options.lines).join('\n');
+    }
+    return output;
   }
 
   /**
    * Stream output continuously (for --follow mode)
+   * Note: With screen's hardcopy, this is approximate
    */
   async *streamOutput(): AsyncGenerator<string> {
-    while (true) {
-      if (this.outputBuffer.length > 0) {
-        const output = this.outputBuffer;
-        this.outputBuffer = '';
-        yield output;
-      }
-      // Wait a bit before checking again
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    let lastOutput = '';
 
-      // Stop if process is dead
-      if (!this.isAlive()) {
-        break;
+    while (this.isAlive()) {
+      const output = await this.read();
+
+      // Only yield if output changed
+      if (output !== lastOutput) {
+        yield output.slice(lastOutput.length); // Only new content
+        lastOutput = output;
       }
+
+      // Wait before next poll
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 
   /**
-   * Check if the process is alive
+   * Check if the session is alive
+   * Checks both the process and screen session existence
    */
   isAlive(): boolean {
-    return Session.isProcessAlive(this.metadata.pid);
+    // First check if process exists
+    if (!Session.isProcessAlive(this.metadata.pid)) {
+      return false;
+    }
+
+    // Also verify screen session exists
+    try {
+      const { stdout } = require('child_process').execSync(`screen -ls ${this.screenSessionName}`, {
+        encoding: 'utf-8'
+      });
+      return stdout.includes(this.screenSessionName);
+    } catch {
+      // screen -ls returns non-zero if no matching session
+      return false;
+    }
   }
 
   /**
@@ -315,7 +346,7 @@ export class Session {
 
   /**
    * Terminate the session
-   * Sends SIGTERM, waits, then sends SIGKILL if needed
+   * Sends quit command to screen, which terminates the process
    */
   async terminate(): Promise<void> {
     if (!this.isAlive()) {
@@ -324,22 +355,24 @@ export class Session {
       return;
     }
 
-    // Send SIGTERM
-    this.ptyProcess.kill('SIGTERM');
+    try {
+      // screen -S <name> -X quit
+      await execa('screen', ['-S', this.screenSessionName, '-X', 'quit']);
 
-    // Wait up to 5 seconds for graceful shutdown
-    const maxWait = 5000;
-    const startTime = Date.now();
-
-    while (this.isAlive() && Date.now() - startTime < maxWait) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait a bit for process to die
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (error) {
+      // May fail if session already dead
+      console.error(`Failed to quit screen session: ${(error as Error).message}`);
     }
 
-    // If still alive, force kill
+    // If process still alive, force kill
     if (this.isAlive()) {
-      this.ptyProcess.kill('SIGKILL');
-      // Wait a bit for kill to take effect
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      try {
+        process.kill(this.metadata.pid, 'SIGKILL');
+      } catch {
+        // Ignore errors
+      }
     }
 
     // Close logs
@@ -348,5 +381,23 @@ export class Session {
     // Update metadata
     this.metadata.status = 'dead';
     await updateMetadata(this.sessionDir, { status: 'dead' });
+  }
+
+  /**
+   * Check if screen is available on the system
+   */
+  static async checkScreenAvailable(): Promise<void> {
+    try {
+      await execa('which', ['screen']);
+    } catch {
+      throw new Error(
+        'GNU screen is not installed. Session management requires screen.\n\n' +
+          'Installation instructions:\n' +
+          '  macOS:          brew install screen\n' +
+          '  Ubuntu/Debian:  sudo apt install screen\n' +
+          '  Fedora/RHEL:    sudo yum install screen\n\n' +
+          'Verify installation with: which screen'
+      );
+    }
   }
 }

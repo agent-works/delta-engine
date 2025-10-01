@@ -31,7 +31,8 @@ Sessions bridge the gap by managing these stateful processes **outside** the eng
 ### Key Characteristics
 
 - **Process-Agnostic**: Support any interactive CLI program
-- **PTY-Based**: Real terminal emulation via pseudo-terminals
+- **PTY-Based**: Real terminal emulation via GNU screen
+- **Persistent**: Sessions survive CLI process exits via screen daemon
 - **Read/Write Separation**: Asynchronous interactions (write → wait → read)
 - **Manual Lifecycle**: Agent controls when to start/end sessions
 - **Independent Storage**: Sessions live in `.sessions/`, separate from `.delta/`
@@ -68,7 +69,25 @@ Sessions bridge the gap by managing these stateful processes **outside** the eng
 
 ## Quick Start
 
-### 1. Install Delta Engine
+### 1. Prerequisites
+
+Session management requires **GNU screen** to be installed:
+
+```bash
+# macOS
+brew install screen
+
+# Ubuntu/Debian
+sudo apt install screen
+
+# Fedora/RHEL
+sudo yum install screen
+
+# Verify installation
+which screen
+```
+
+### 2. Install Delta Engine
 
 ```bash
 npm install -g delta-engine

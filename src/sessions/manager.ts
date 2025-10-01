@@ -21,10 +21,12 @@ import {
 /**
  * SessionManager
  * High-level API for managing multiple sessions
+ *
+ * Note: v1.4.1 - With screen, sessions are managed by screen daemon,
+ * not by this manager's in-memory state. Each CLI invocation creates
+ * a fresh manager instance.
  */
 export class SessionManager {
-  private sessions: Map<string, Session> = new Map();
-
   constructor(private config: SessionConfig) {}
 
   /**
@@ -35,7 +37,7 @@ export class SessionManager {
     const sessionId = `sess_${uuidv4().replace(/-/g, '').slice(0, 12)}`;
     const sessionDir = path.join(this.config.sessions_dir, sessionId);
 
-    // Create session
+    // Create session via screen
     const session = await Session.create(
       sessionId,
       sessionDir,
@@ -54,36 +56,17 @@ export class SessionManager {
       created_at: session.getMetadata().created_at,
     });
 
-    // Store in memory
-    this.sessions.set(sessionId, session);
-
     return sessionId;
   }
 
   /**
    * Get a session by ID
    * Returns null if session doesn't exist or is dead
+   *
+   * Note: With screen, we can always "reconnect" to a session by
+   * creating a new Session wrapper around the screen session name.
    */
   async getSession(sessionId: string): Promise<Session | null> {
-    // Check in-memory cache first
-    if (this.sessions.has(sessionId)) {
-      const session = this.sessions.get(sessionId)!;
-
-      // Verify session is still alive
-      if (!session.isAlive()) {
-        // Process died, update status
-        await updateMetadata(
-          path.join(this.config.sessions_dir, sessionId),
-          { status: 'dead' }
-        );
-        await updateIndexEntry(this.config.sessions_dir, sessionId, { status: 'dead' });
-        this.sessions.delete(sessionId);
-        return null;
-      }
-
-      return session;
-    }
-
     // Check if session exists on disk
     const sessionDir = path.join(this.config.sessions_dir, sessionId);
     const exists = await sessionExists(this.config.sessions_dir, sessionId);
@@ -103,10 +86,9 @@ export class SessionManager {
       return null;
     }
 
-    // TODO: Restore session from metadata
-    // For now, we don't support reconnecting to existing PTY
-    // Sessions are only accessible during the same process lifetime
-    return null;
+    // Create a Session wrapper (doesn't start new process, just wraps existing screen session)
+    // This is a lightweight object for interacting with the screen session
+    return new (Session as any)(sessionId, sessionDir, sessionId, metadata);
   }
 
   /**
@@ -162,43 +144,12 @@ export class SessionManager {
       throw new SessionNotFoundError(sessionId);
     }
 
-    // Get session from memory
-    let session = this.sessions.get(sessionId);
+    // Get session (creates wrapper if exists)
+    const session = await this.getSession(sessionId);
 
-    if (session) {
-      // Terminate the process
+    if (session && session.isAlive()) {
+      // Terminate the process via screen
       await session.terminate();
-      this.sessions.delete(sessionId);
-    } else {
-      // Session not in memory, check if process is alive
-      const sessionDir = path.join(this.config.sessions_dir, sessionId);
-      const metadata = await loadMetadata(sessionDir);
-
-      if (Session.isProcessAlive(metadata.pid)) {
-        // Process is still alive, kill it
-        try {
-          process.kill(metadata.pid, 'SIGTERM');
-
-          // Wait up to 5 seconds
-          const maxWait = 5000;
-          const startTime = Date.now();
-
-          while (Session.isProcessAlive(metadata.pid) && Date.now() - startTime < maxWait) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-
-          // Force kill if still alive
-          if (Session.isProcessAlive(metadata.pid)) {
-            process.kill(metadata.pid, 'SIGKILL');
-          }
-        } catch (error) {
-          // Process might already be dead
-          console.error(`Failed to kill process ${metadata.pid}: ${(error as Error).message}`);
-        }
-
-        // Update metadata
-        await updateMetadata(sessionDir, { status: 'dead' });
-      }
     }
 
     // Remove from index and delete directory
@@ -225,7 +176,6 @@ export class SessionManager {
           // Remove session
           await removeFromIndex(this.config.sessions_dir, sessionId);
           await removeSessionDir(this.config.sessions_dir, sessionId);
-          this.sessions.delete(sessionId);
           cleaned.push(sessionId);
         }
       } catch (error) {
@@ -233,7 +183,6 @@ export class SessionManager {
         console.error(`Failed to check session ${sessionId}, cleaning up: ${(error as Error).message}`);
         await removeFromIndex(this.config.sessions_dir, sessionId);
         await removeSessionDir(this.config.sessions_dir, sessionId);
-        this.sessions.delete(sessionId);
         cleaned.push(sessionId);
       }
     }

@@ -5,6 +5,50 @@ All notable changes to Delta Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2025-10-01
+
+### Fixed - Critical Session Persistence Bug
+
+**Problem**: Sessions were immediately dying when CLI process exited due to PTY Master FD lifecycle issue.
+
+**Root Cause**: When using node-pty directly, the PTY Master file descriptor is owned by the parent process. When CLI exits, Master FD closes, kernel sends SIGHUP to child process, causing immediate termination.
+
+**Solution**: Switched from node-pty to GNU screen wrapper architecture:
+- Screen daemon holds PTY Master FDs persistently
+- CLI process only sends commands to screen (via `screen -X stuff`, `screen -X hardcopy`)
+- Sessions now correctly survive CLI process exits
+
+### Changed
+
+- **Architecture**: Replaced node-pty with GNU screen for PTY management
+- **Dependency**: Removed `node-pty` from package.json, added screen as system requirement
+- **Session class**: Complete rewrite to use `execa` + screen commands instead of PTY bindings
+- **SessionManager**: Removed in-memory session cache (now stateless, screen daemon manages state)
+- **CLI**: Added screen availability check on startup with installation instructions
+
+### Added
+
+- `Session.checkScreenAvailable()` static method with helpful error messages
+- Screen installation instructions in error messages and documentation
+- Persistence tests in `tests/integration/sessions/persistence.test.ts`
+- Manual test script `tests/manual/test-persistence.ts`
+
+### Documentation
+
+- Updated `docs/guides/session-management.md` with screen prerequisite
+- Added screen installation instructions for macOS, Ubuntu, Fedora
+- Updated architecture notes to reflect screen-based implementation
+
+### Testing
+
+New persistence tests that verify:
+- Sessions survive 10+ seconds after CLI exit
+- Cross-process interactions (write/read from different CLI invocations)
+- Long-term stability (60+ seconds)
+- Concurrent sessions
+
+**Lessons Learned**: Documented in `.story/` for future reference on testing async/stateful systems.
+
 ## [1.4.0] - 2025-10-01
 
 ### Added - Session Management

@@ -1,9 +1,9 @@
 # Delta Engine Story Index
 
 > **Meta**: This document is automatically maintained by AI, recording key project decisions and lessons learned
-> **Last Updated**: 2025-09-30 by Claude Code
+> **Last Updated**: 2025-10-01 by Claude Code (v1.4.1 PTY persistence trap)
 > **Size Goal**: Keep between 300-500 lines
-> **Current Size**: 387 lines
+> **Current Size**: 402 lines
 
 ---
 
@@ -114,6 +114,16 @@ try {
 **Implementation**: `hook-executor.ts` uses `AbortController`
 **Tradeoff**: See "Hook Timeout Default" below
 
+### PTY Master FD Lifecycle (v1.4.1)
+**Symptom**: Sessions die 3-5 seconds after CLI exits, even with `detached: true`
+**Root Cause**: PTY Master FD is owned by parent process. When parent exits, Master FD closes, kernel sends SIGHUP to slave processes
+**Solution**: Use GNU screen wrapper instead of node-pty. Screen daemon holds Master FD persistently
+**Testing Gap**: Tests validated immediate success, not delayed persistence (needed 10+ second delay)
+**Fix**: `v1.4.1` - Complete rewrite to screen-based architecture
+**Implementation**: `session.ts` uses `execa` + screen commands
+**Prevention**: Always test async/stateful features with delayed verification (10+ seconds)
+**Details**: @traps/pty-master-fd-lifecycle.md
+
 ---
 
 ## 🔄 Tradeoffs (Why We Chose This Way)
@@ -214,6 +224,7 @@ parameters:
 - `esm-import-extension.md` - Complete ESM import explanation
 - `file-descriptor-leak.md` - File descriptor leak case analysis
 - `latest-file-not-symlink.md` - LATEST file format decision process
+- `pty-master-fd-lifecycle.md` - v1.4.1 PTY persistence bug and testing methodology improvements
 
 ---
 
@@ -290,6 +301,8 @@ If any updates:
 | `CWD/workDir` | Working directory, environment interface |
 | `ask_human` | Human interaction |
 | `metadata.json` | Run state management |
+| `PTY/session/screen` | Session management, process lifecycle |
+| `SIGHUP` | PTY Master FD lifecycle trap |
 
 **Search methods**:
 ```bash
@@ -306,12 +319,12 @@ grep -r "keyword" .story/
 
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
-| INDEX.md lines | 387 | <500 (warn@450) | ✅ Healthy |
+| INDEX.md lines | 402 | <500 (warn@450) | ✅ Healthy |
 | Core decisions | 4 | 5-10 | ✅ Reasonable |
-| Known traps | 4 | 5-8 | ✅ Reasonable |
+| Known traps | 5 | 5-8 | ✅ Reasonable |
 | Tradeoffs | 4 | 5-10 | ✅ Reasonable |
-| Last updated | 2025-09-30 | - | - |
-| Deep docs | 6 (3 decisions + 3 traps) | - | - |
+| Last updated | 2025-10-01 | - | - |
+| Deep docs | 7 (3 decisions + 4 traps) | - | - |
 | Level status | Level 1 (full) | - | - |
 
 ---

@@ -2,6 +2,7 @@
 
 import * as path from 'node:path';
 import { SessionManager } from './sessions/manager.js';
+import { Session } from './sessions/session.js';
 import { parseEscapeSequences } from './sessions/escape-parser.js';
 import { getKeyCode, isValidKey } from './sessions/key-codes.js';
 import type {
@@ -82,7 +83,7 @@ EXAMPLES:
  */
 function printVersion(): void {
   // TODO: Get version from package.json
-  console.log('delta-sessions v1.4.0');
+  console.log('delta-sessions v1.4.1');
 }
 
 /**
@@ -207,7 +208,7 @@ async function handleRead(
   }
 
   // Immediate read
-  let output = session.read();
+  let output = await session.read();
 
   if (options.lines) {
     const lines = output.split('\n');
@@ -341,6 +342,16 @@ async function main() {
     }
 
     const { command, commandArgs, sessionsDir, options } = parseArgs(args);
+
+    // Check for screen availability before any commands that need it
+    if (command && command !== 'help' && command !== 'version') {
+      try {
+        await Session.checkScreenAvailable();
+      } catch (error) {
+        console.error((error as Error).message);
+        process.exit(1);
+      }
+    }
 
     if (!command) {
       throw new Error('No command specified');
