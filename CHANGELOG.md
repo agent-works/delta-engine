@@ -5,6 +5,37 @@ All notable changes to Delta Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2025-10-02
+
+### Improved - CLI Output Visibility
+
+**Enhanced iteration output with detailed information:**
+
+- **LLM Thinking Display:**
+  - Show LLM reasoning content when present (💭 prefix)
+  - Multi-line content automatically indented for readability
+  - Helps users understand agent's decision-making process
+
+- **Tool Parameter Display:**
+  - Show actual parameters passed to tools: `tool_name(param1="value", param2=123)`
+  - Long string values truncated to 40 characters with "..." suffix
+  - Makes it immediately clear what the agent is doing
+
+- **Output Preview:**
+  - Display first 80 characters of tool output
+  - Show total character count: `(120 chars, exit 0)`
+  - Clean ANSI escape codes and compress whitespace
+  - Users can quickly see results without checking journal
+
+- **Before:** `→ Executing: shell_read` / `✓ Success (exit code: 0)`
+- **After:** `→ shell_read(session_id="sess_abc", timeout_ms=1000)` / `✓ Output: "pwd\n/tmp/test\nbash-3.2$" (45 chars, exit 0)`
+
+### Technical Changes
+
+- Added `formatOutputPreview()` method in `engine.ts` for output summarization
+- Modified tool execution display logic (engine.ts:480, 658-665)
+- Added LLM content display after thought logging (engine.ts:436-441)
+
 ## [1.4.2] - 2025-10-01
 
 ### Changed - Session Management Architecture

@@ -433,6 +433,13 @@ export class Engine {
           response.tool_calls  // Pass the original tool_calls from LLM
         );
 
+        // Display LLM thinking content if present
+        if (response.content && response.content.trim()) {
+          const indentedContent = response.content.trim().split('\n').join('\n   ');
+          console.log(`💭 ${indentedContent}`);
+          console.log(); // Empty line for separation
+        }
+
         // ============================================
         // HOOK: Execute post_llm_resp hook if configured
         // ============================================
@@ -477,7 +484,16 @@ export class Engine {
         const parsedToolCalls = parseToolCalls(response);
 
         for (const toolCall of parsedToolCalls) {
-          console.log(`  → Executing: ${toolCall.name}`);
+          // Format parameters for display
+          const argsStr = Object.entries(toolCall.arguments)
+            .map(([k, v]) => {
+              const valStr = typeof v === 'string'
+                ? (v.length > 40 ? `"${v.slice(0, 37)}..."` : `"${v}"`)
+                : JSON.stringify(v);
+              return `${k}=${valStr}`;
+            })
+            .join(', ');
+          console.log(`  → ${toolCall.name}(${argsStr})`);
 
           // Check if this is the built-in ask_human tool
           if (isAskHumanTool(toolCall.name)) {
@@ -645,10 +661,14 @@ export class Engine {
               actionId // execution_ref points to the tool_executions directory
             );
 
+            // Get output preview and character count
+            const outputPreview = this.formatOutputPreview(result.stdout, result.stderr);
+            const charCount = result.stdout.length + result.stderr.length;
+
             if (result.success) {
-              console.log(`  ✓ Success (exit code: ${result.exitCode})`);
+              console.log(`  ✓ Output: ${outputPreview} (${charCount} chars, exit ${result.exitCode})`);
             } else {
-              console.log(`  ✗ Failed (exit code: ${result.exitCode})`);
+              console.log(`  ✗ Failed: ${outputPreview} (exit ${result.exitCode})`);
             }
 
             // ============================================
@@ -826,6 +846,28 @@ export class Engine {
     }
 
     return lines.join('\n');
+  }
+
+  /**
+   * Format output preview for CLI display (first 80 chars)
+   * @param stdout - Standard output
+   * @param stderr - Standard error
+   * @returns Formatted preview string
+   */
+  private formatOutputPreview(stdout: string, stderr: string): string {
+    const output = stdout || stderr;
+    if (!output) return '(no output)';
+
+    // Clean output: remove ANSI escape codes, compress whitespace
+    const cleaned = output
+      .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '') // Remove ANSI codes
+      .replace(/\r\n/g, '\n')
+      .replace(/\n+/g, ' ') // Compress multiple newlines to space
+      .trim();
+
+    return cleaned.length > 80
+      ? `"${cleaned.slice(0, 77)}..."`
+      : `"${cleaned}"`;
   }
 
   /**
