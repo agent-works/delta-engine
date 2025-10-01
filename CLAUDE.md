@@ -29,6 +29,16 @@ delta run --agent <path> --task "Task description"
 delta run -i --agent <path> --task "Task"  # Interactive mode (v1.2)
 delta run -y --agent <path> --task "Task"  # Silent mode - auto-create workspace (v1.2.1)
 delta --version            # Show version
+
+# Session management (v1.4)
+delta-sessions start <command> [args...]    # Start PTY session
+delta-sessions write <session_id>          # Send input (from stdin)
+delta-sessions write-key <session_id> <key> # Send semantic key
+delta-sessions read <session_id> [--timeout N] # Read output
+delta-sessions end <session_id>            # Terminate session
+delta-sessions list                        # List all sessions
+delta-sessions status <session_id>         # Check session health
+delta-sessions cleanup                     # Remove dead sessions
 ```
 
 ## Quick Debug Commands
@@ -54,6 +64,12 @@ ls -lht .delta/$RUN_ID/io/tool_executions/ | head -5
 
 # One-liner alternatives (bash/zsh)
 tail -20 .delta/$(cat .delta/LATEST)/journal.jsonl
+
+# Session debugging (v1.4)
+delta-sessions list                         # List all sessions
+cat ~/.sessions/sess_abc123/metadata.json   # Inspect session metadata
+cat ~/.sessions/sess_abc123/output.log      # View session output
+cat ~/.sessions/sess_abc123/input.log       # View session input
 ```
 
 ## Architecture Overview
@@ -98,6 +114,13 @@ Delta Engine follows Unix philosophy applied to AI agents. The core design is **
 - **hook-executor.ts** - Lifecycle hooks: `pre_llm_req`, `post_llm_resp`, `pre_tool_exec`, `post_tool_exec`, `on_llm_response`
 - **workspace-manager.ts** - v1.2.1 workspace selection and management (interactive/silent modes)
 - **types.ts** - Zod schemas for all configs and types (strict validation)
+- **sessions/** - v1.4 session management (PTY-based persistent processes):
+  - **session.ts** - Core Session class (PTY process, I/O buffering)
+  - **manager.ts** - SessionManager API (CRUD, cleanup)
+  - **storage.ts** - Metadata persistence (`.sessions/` directory)
+  - **key-codes.ts** - Semantic key mappings (50+ keys)
+  - **escape-parser.ts** - Escape sequence parsing
+- **sessions-cli.ts** - v1.4 delta-sessions CLI tool (8 commands)
 
 ### Run States (metadata.json status field)
 
@@ -213,6 +236,15 @@ const handle = await fs.open(path);
 - Always rebuild from journal via `rebuildConversationFromJournal()`
 - Journal is Single Source of Truth (SSOT)
 
+### Session Management (v1.4)
+- **Separation of concerns**: Sessions stored in `~/.sessions/`, separate from `.delta/`
+- **Process-agnostic design**: Support ANY interactive CLI (bash, Python, psql, ssh, etc.)
+- **PTY-based**: Real terminal emulation via node-pty
+- **Read/write separation**: Asynchronous interaction patterns
+- **Dual interface**: `write-key` (semantic) + `write` (escape sequences)
+- **Lazy cleanup**: No automatic session termination
+- **Non-persistent**: Sessions don't survive process restarts (by design)
+
 ## Adding New Features
 
 ### Adding Tool Parameter Type
@@ -247,18 +279,23 @@ When modifying core features:
 
 ## Version Context
 
-Current: **v1.2.1** (Workspace Management Enhancement)
+Current: **v1.4** (Session Management)
 - v1.0: MVP with basic Think-Act-Observe
 - v1.1: Stateless core + journal.jsonl + I/O separation
 - v1.2: Human interaction (`ask_human` tool, interactive/async modes)
 - v1.2.1: Interactive workspace selection with W001-style naming, `-y` silent mode
+- v1.3: Directory structure simplification and `delta init` command
+- v1.4: Session management for persistent PTY interactions (bash, Python, psql, ssh, etc.)
 - v2.0 (planned): Multi-agent orchestration
 
 ## Key Documentation Locations
 
 - **Architecture Design**: `docs/architecture/v1.1-design.md`
 - **v1.2 Specification**: `docs/architecture/v1.2-human-interaction.md`
+- **v1.4 Session Design**: `docs/architecture/v1.4-sessions-design.md`
 - **Agent Development**: `docs/guides/agent-development.md`
+- **Session Management Guide**: `docs/guides/session-management.md`
+- **API Reference (delta-sessions)**: `docs/api/delta-sessions.md`
 - **Migration Guide**: `docs/migration/v1.0-to-v1.1.md`
 
 ## Environment Variables
@@ -272,6 +309,8 @@ OPENAI_BASE_URL=<optional>  # Custom API endpoint
 
 Located in `examples/` - each demonstrates different capabilities:
 - `hello-world/` - Basic example
+- `interactive-shell/` - **v1.4** Persistent bash shell with session management
+- `python-repl/` - **v1.4** Python REPL with multi-line code support
 - `file-organizer/` - File operations
 - `test-runner/` - Test automation
 - `doc-generator/` - Documentation generation

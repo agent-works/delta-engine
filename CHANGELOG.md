@@ -5,6 +5,88 @@ All notable changes to Delta Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-10-01
+
+### Added - Session Management
+
+**New `delta-sessions` CLI tool for persistent PTY interactions:**
+
+- **Core Features:**
+  - Manage persistent, stateful command-line sessions (bash, Python, psql, ssh, etc.)
+  - Real PTY (pseudo-terminal) support via node-pty
+  - Process-agnostic design - support ANY interactive CLI program
+  - Sessions stored in `~/.sessions/`, separate from `.delta/`
+  - Non-persistent by design (sessions don't survive process restarts)
+
+- **8 CLI Commands:**
+  - `start <command> [args...]` - Start new session
+  - `write <session_id>` - Send input (from stdin)
+  - `write-key <session_id> <key>` - Send semantic keyboard keys
+  - `read <session_id> [options]` - Read output (with timeout, wait, follow, lines modes)
+  - `end <session_id>` - Terminate session
+  - `list` - List all sessions
+  - `status <session_id>` - Check session health
+  - `cleanup` - Remove dead sessions
+
+- **Read/Write Separation:**
+  - Asynchronous interaction patterns (write → wait → read)
+  - Multiple read modes: immediate, timeout, wait, follow (streaming), limited lines
+  - Prompt detection for automatic completion (shell, Python, psql prompts)
+
+- **Dual Interface:**
+  - `write-key` command for semantic clarity (50+ supported keys: arrows, ctrl+c, function keys, etc.)
+  - `write` command with escape sequence support (`\n`, `\t`, `\xNN`, `\uNNNN`)
+  - Balance between LLM capability and journal readability
+
+- **Session Features:**
+  - I/O buffering (1MB in-memory)
+  - Output/input logging (`output.log`, `input.log`)
+  - Dead session detection
+  - Lazy cleanup strategy (manual control)
+  - Metadata persistence (JSON)
+
+- **New Example Agents:**
+  - `examples/interactive-shell/` - Persistent bash shell with multi-command execution
+  - `examples/python-repl/` - Python REPL with multi-line code, state persistence, error handling
+
+- **Comprehensive Documentation:**
+  - `docs/guides/session-management.md` - 500+ line user guide with patterns and troubleshooting
+  - `docs/api/delta-sessions.md` - Complete CLI reference with examples
+  - `docs/architecture/v1.4-sessions-design.md` - Technical design document
+  - Updated README.md and CLAUDE.md
+
+- **Testing:**
+  - Unit tests for escape parser, storage, key codes
+  - Integration tests for full workflow
+
+### Technical Implementation
+
+- **New Source Files:**
+  - `src/sessions/session.ts` - Core Session class (PTY process, I/O handling)
+  - `src/sessions/manager.ts` - SessionManager API (CRUD operations)
+  - `src/sessions/storage.ts` - Metadata persistence
+  - `src/sessions/key-codes.ts` - 50+ semantic key mappings
+  - `src/sessions/escape-parser.ts` - Escape sequence parsing
+  - `src/sessions/types.ts` - Type definitions and Zod schemas
+  - `src/sessions-cli.ts` - CLI entry point (8 commands)
+
+- **New Dependencies:**
+  - `node-pty@^1.0.0` - PTY (pseudo-terminal) support
+  - `@types/node-pty` (dev) - TypeScript definitions
+
+- **Key Design Decisions:**
+  - Separation of concerns: sessions completely independent from engine core
+  - "Everything is a Command" principle maintained
+  - Stateless engine core preserved (sessions managed externally)
+  - Process-agnostic: no hardcoded session types
+  - Lazy cleanup: no automatic session termination
+
+### Breaking Changes
+
+None. This is an additive feature. Existing agents work unchanged.
+
+---
+
 ## [1.3.0] - 2025-09-30
 
 ### Added

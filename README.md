@@ -10,6 +10,7 @@
 - 📦 **Portable** - Single directory contains everything
 - 🔄 **Stateless** - Resumable from any interruption
 - 👥 **Interactive** - Human-in-the-loop support for user input (v1.2)
+- 🖥️ **Session Management** - Persistent PTY sessions for stateful interactions (v1.4)
 
 
 ## Core Concepts
@@ -58,10 +59,21 @@ my-agent/
 
 ## Documentation
 
+### Guides
 - **[Getting Started](docs/guides/getting-started.md)** - Quick start guide
-- **[Architecture](docs/architecture/README.md)** - System design and principles
 - **[Agent Development](docs/guides/agent-development.md)** - Build your own agents
-- **[Migration Guide](docs/migration/v1.0-to-v1.1.md)** - Upgrade from v1.0
+- **[Session Management](docs/guides/session-management.md)** - Using persistent sessions (v1.4)
+
+### Architecture
+- **[Architecture Overview](docs/architecture/README.md)** - System design and principles
+- **[Session Management Design](docs/architecture/v1.4-sessions-design.md)** - Session system design (v1.4)
+
+### API Reference
+- **[delta CLI](docs/api/delta.md)** - Main CLI commands
+- **[delta-sessions CLI](docs/api/delta-sessions.md)** - Session management CLI (v1.4)
+
+### Migration
+- **[v1.0 to v1.1 Migration](docs/migration/v1.0-to-v1.1.md)** - Upgrade guide
 
 ## Development
 
@@ -92,6 +104,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## Version
 
-Current: **v1.3** - Directory structure simplification and `delta init` command
+Current: **v1.4** - Session management for persistent PTY interactions
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## Examples
+
+- **[hello-world](examples/hello-world/)** - Basic agent example
+- **[interactive-shell](examples/interactive-shell/)** - Persistent bash shell (v1.4)
+- **[python-repl](examples/python-repl/)** - Python REPL session (v1.4)
+- **[file-organizer](examples/file-organizer/)** - File operations
+- **[test-runner](examples/test-runner/)** - Test automation
+- **[doc-generator](examples/doc-generator/)** - Documentation generation
