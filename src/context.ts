@@ -2,6 +2,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { EngineContext } from './types.js';
 import { loadAndValidateAgent } from './config.js';
 import { createJournal } from './journal.js';
@@ -11,6 +13,8 @@ import {
   promptUserForWorkspace,
   saveLastUsedWorkspace,
 } from './workspace-manager.js';
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Format current timestamp as YYYYMMDD_HHmmss
@@ -406,5 +410,73 @@ export async function cleanupWorkDirectory(workDir: string): Promise<void> {
     throw new Error(
       `Failed to cleanup work directory: ${error instanceof Error ? error.message : String(error)}`
     );
+  }
+}
+
+/**
+ * Clean up all active sessions in a workspace
+ * This should be called when a delta run completes (successfully or with failure)
+ * to prevent session resource leaks.
+ *
+ * @param workDir - Path to the work directory containing .sessions/
+ * @returns Number of sessions cleaned up
+ */
+export async function cleanupWorkspaceSessions(workDir: string): Promise<number> {
+  const sessionsDir = path.join(workDir, '.sessions');
+
+  try {
+    // Check if .sessions directory exists
+    try {
+      await fs.access(sessionsDir);
+    } catch {
+      // No .sessions directory, nothing to clean up
+      return 0;
+    }
+
+    // Get list of sessions using delta-sessions CLI
+    const { stdout } = await execFileAsync('delta-sessions', [
+      'list',
+      '--sessions-dir',
+      sessionsDir,
+    ]);
+
+    // Parse session list (JSON array)
+    const sessions: Array<{ session_id: string; status: string }> = JSON.parse(stdout);
+
+    if (sessions.length === 0) {
+      return 0;
+    }
+
+    // Terminate each session
+    let cleanedCount = 0;
+    for (const session of sessions) {
+      try {
+        await execFileAsync('delta-sessions', [
+          'end',
+          session.session_id,
+          '--sessions-dir',
+          sessionsDir,
+        ]);
+        cleanedCount++;
+      } catch (error) {
+        // Log error but continue with other sessions
+        console.error(
+          `[WARN] Failed to terminate session ${session.session_id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
+
+    return cleanedCount;
+  } catch (error) {
+    // If we can't list or clean up sessions, log warning but don't throw
+    // This shouldn't break the main flow
+    console.error(
+      `[WARN] Failed to cleanup workspace sessions: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+    return 0;
   }
 }

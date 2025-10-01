@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { initializeContext, checkForResumableRun, resumeContext } from './context.js';
+import { initializeContext, checkForResumableRun, resumeContext, cleanupWorkspaceSessions } from './context.js';
 import { EngineContext } from './types.js';
 import { Engine } from './engine.js';
 import { RunStatus } from './journal-types.js';
@@ -164,6 +164,13 @@ async function handleRunCommand(options: {
         await journal.flush();
         await journal.close();
         logger.info('Run marked as INTERRUPTED. You can resume by running the same command again.');
+
+        // Clean up sessions on interrupt
+        logger.info('Cleaning up sessions...');
+        const cleanedCount = await cleanupWorkspaceSessions(context.workDir);
+        if (cleanedCount > 0) {
+          logger.info(`  • Cleaned up ${cleanedCount} session(s)`);
+        }
       } catch (error) {
         logger.error('Failed to mark run as interrupted: ' + error);
       }
@@ -213,6 +220,13 @@ async function handleRunCommand(options: {
         });
       }
 
+      // Clean up sessions after successful completion
+      logger.info('Cleaning up sessions...');
+      const cleanedCount = await cleanupWorkspaceSessions(context.workDir);
+      if (cleanedCount > 0) {
+        logger.info(`  • Cleaned up ${cleanedCount} session(s)`);
+      }
+
     } catch (engineError) {
       logger.divider();
       logger.error('Engine execution failed!');
@@ -239,8 +253,17 @@ async function handleRunCommand(options: {
         logger.info(`  • Iterations before failure: ${metadata.iterations_completed}`);
         logger.info(`  • Events logged: ${events.length}`);
         logger.info(`Check journal log for details: ${path.join(context.deltaDir, context.runId, 'journal.jsonl')}`);
+
+        // Clean up sessions after failure (unless waiting for input)
+        if (metadata.status !== RunStatus.WAITING_FOR_INPUT) {
+          logger.info('Cleaning up sessions...');
+          const cleanedCount = await cleanupWorkspaceSessions(context.workDir);
+          if (cleanedCount > 0) {
+            logger.info(`  • Cleaned up ${cleanedCount} session(s)`);
+          }
+        }
       } catch {
-        // Ignore errors when trying to print journal
+        // Ignore errors when trying to print journal or cleanup
       }
 
       logger.divider();
