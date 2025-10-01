@@ -59,7 +59,7 @@ tools:
         description: "Session ID"
         inject_as: argument
       - name: timeout_ms
-        type: number
+        type: string
         description: "Wait timeout in milliseconds (0 = immediate, 2000 = 2 seconds)"
         inject_as: option
         option_name: --timeout
