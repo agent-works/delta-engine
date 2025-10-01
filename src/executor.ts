@@ -23,23 +23,26 @@ export function buildCommandAndStdin(
       continue;
     }
 
+    // Convert value to string to handle numbers, booleans, etc.
+    const stringValue = String(value);
+
     switch (paramDef.inject_as) {
       case InjectionType.Argument:
         // Append value as command line argument at the end
-        args.push(value);
+        args.push(stringValue);
         break;
 
       case InjectionType.Option:
         // Append as --option-name value
         if (paramDef.option_name) {
           args.push(paramDef.option_name);
-          args.push(value);
+          args.push(stringValue);
         }
         break;
 
       case InjectionType.Stdin:
         // Set as stdin input (only one stdin parameter allowed per Zod validation)
-        stdinInput = value;
+        stdinInput = stringValue;
         break;
     }
   }
@@ -55,8 +58,10 @@ export function buildCommandAndStdin(
  */
 export function replaceVariables(items: string[], agentPath: string): string[] {
   return items.map(item => {
+    // Convert to string first (handles numbers, booleans, etc.)
+    const str = String(item);
     // Replace all occurrences of ${AGENT_HOME} with agentPath
-    return item.replace(/\$\{AGENT_HOME\}/g, agentPath);
+    return str.replace(/\$\{AGENT_HOME\}/g, agentPath);
   });
 }
 

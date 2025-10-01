@@ -556,6 +556,37 @@ describe('ToolExecutor', () => {
 
       expect(args).toEqual(['--text', 'value with "quotes" and $special']);
     });
+
+    it('should handle numeric parameter values and convert to string', () => {
+      const toolDef: ToolDefinition = {
+        name: 'timeout-tool',
+        command: ['command'],
+        parameters: [
+          { name: 'timeout_ms', type: 'string', inject_as: InjectionType.Option, option_name: '--timeout' },
+        ],
+      };
+
+      // LLM might pass numbers via JSON.parse
+      const params = { timeout_ms: 3000 as any };
+      const { args } = buildCommandAndStdin(toolDef, params);
+
+      expect(args).toEqual(['--timeout', '3000']);
+    });
+
+    it('should handle boolean parameter values and convert to string', () => {
+      const toolDef: ToolDefinition = {
+        name: 'flag-tool',
+        command: ['command'],
+        parameters: [
+          { name: 'verbose', type: 'string', inject_as: InjectionType.Argument },
+        ],
+      };
+
+      const params = { verbose: true as any };
+      const { args } = buildCommandAndStdin(toolDef, params);
+
+      expect(args).toEqual(['true']);
+    });
   });
 
   describe('replaceVariables - Edge Cases', () => {

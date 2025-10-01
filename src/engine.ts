@@ -5,7 +5,7 @@ import { promises as fs } from 'node:fs';
 import { EngineContext } from './types.js';
 import { LLMAdapter, parseToolCalls, hasToolCalls } from './llm.js';
 import { Journal } from './journal.js';
-import { executeTool } from './executor.js';
+import { executeTool, buildCommandAndStdin } from './executor.js';
 import { HookExecutor, createHookExecutor } from './hook-executor.js';
 import {
   isAskHumanTool,
@@ -556,10 +556,13 @@ export class Engine {
           }
 
           try {
-            // Log action request
+            // Build actual command args using buildCommandAndStdin
+            const { args: commandArgs } = buildCommandAndStdin(toolDef, toolCall.arguments);
+
+            // Log action request with accurate resolved command
             const resolvedCommand = [
               ...toolDef.command,
-              ...Object.values(toolCall.arguments),
+              ...commandArgs,
             ].join(' ');
 
             // Use the original tool_call_id from LLM response
