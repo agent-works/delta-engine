@@ -6,11 +6,12 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 
 const execFileAsync = promisify(execFile);
-const CLI_PATH = path.join(process.cwd(), 'dist/sessions-cli.js');
+const CLI_PATH = path.join(process.cwd(), 'dist/sessions-pty-cli.js');
 
 /**
- * Integration tests for session persistence and cross-process communication
+ * Integration tests for PTY session persistence and cross-process communication (v1.4 - EXPERIMENTAL)
  * Tests v1.4.2 Unix Socket-based architecture
+ * Note: These tests are for the deprecated PTY-based sessions.
  */
 describe('Session Persistence and Reconnection (v1.4.2)', () => {
   let testDir: string;

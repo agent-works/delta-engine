@@ -1,154 +1,245 @@
-# Interactive Shell Agent
+# Bash Session Agent
 
-An intelligent agent with access to a persistent bash shell session.
+A Delta Engine agent that demonstrates persistent bash session management using v1.5 simplified sessions.
 
 ## Overview
 
-This agent demonstrates how to use Delta Engine's session management to interact with a long-running bash shell. The shell session persists across multiple commands, maintaining environment variables, working directory, and command history.
+This agent uses `delta-sessions` to maintain a persistent bash session across multiple commands. Unlike one-shot command execution, the session preserves working directory and environment state between commands.
 
 ## Features
 
-- ✅ Persistent bash shell session
-- ✅ Execute multiple commands in sequence
-- ✅ Environment and state preservation
-- ✅ Support for interactive programs
-- ✅ Control key support (arrows, ctrl+c, etc.)
+- **Persistent state**: Working directory changes persist across commands
+- **Command-based execution**: Single `exec` call returns complete output
+- **No timing complexity**: Output returned immediately when command completes
+- **Simple API**: Only 3 tools (start, exec, end)
 
-## Usage
-
-### Basic Usage
+## Quick Start
 
 ```bash
-# Run the agent
-delta run --agent examples/interactive-shell --task "List files in the current directory and show disk usage"
+# Navigate to agent directory
+cd examples/interactive-shell
+
+# Run with Delta Engine
+delta run --agent examples/interactive-shell  --task "List files then check disk usage"
 ```
 
-### Example Tasks
+## Example Tasks
 
-**Simple Commands**:
+### Basic File Operations
 ```bash
-delta run --agent examples/interactive-shell --task "What is the current directory? List all files."
+delta run --agent examples/interactive-shell   --task "Create a directory called 'test' and list its contents"
 ```
 
-**Multi-Step Tasks**:
+### Multi-step Workflows
 ```bash
-delta run --agent examples/interactive-shell --task "Create a directory called 'test', navigate into it, create a file called 'hello.txt' with content 'Hello World', and show me the file content"
+delta run --agent examples/interactive-shell   --task "Navigate to /tmp, create 3 text files, then count them"
 ```
 
-**Environment Exploration**:
+### System Information
 ```bash
-delta run --agent examples/interactive-shell --task "Show me the value of PATH environment variable and list all shell aliases"
-```
-
-**System Information**:
-```bash
-delta run --agent examples/interactive-shell --task "Show system information: OS version, disk usage, memory usage, and current user"
+delta run --agent examples/interactive-shell   --task "Show current directory, disk usage, and running processes"
 ```
 
 ## How It Works
 
-### Tool Flow
+### 1. Session Lifecycle
 
-1. **Start Session**: `shell_start()` creates a bash process with PTY
-2. **Read Prompt**: `shell_read()` gets the initial shell prompt
-3. **Execute Commands**: `shell_write()` sends commands with `\n`
-4. **Get Results**: `shell_read()` retrieves command output
-5. **Cleanup**: `shell_end()` terminates the session
-
-### Example Execution
-
-```
-User: "List files and check disk space"
-
-Agent:
-1. shell_start() → session_id: sess_abc123
-2. shell_read(sess_abc123, 1000) → "user@host:~$ "
-3. shell_write(sess_abc123, "ls -la\n")
-4. shell_read(sess_abc123, 2000) → [file listing]
-5. shell_write(sess_abc123, "df -h\n")
-6. shell_read(sess_abc123, 2000) → [disk usage]
-7. shell_end(sess_abc123) → terminated
+```yaml
+session_start()
+  ↓
+  Returns: {"session_id": "sess_abc123"}
+  ↓
+session_exec(sess_abc123, "ls -la")
+  ↓
+  Returns: {"stdout": "...", "stderr": "", "exit_code": 0}
+  ↓
+session_exec(sess_abc123, "pwd")
+  ↓
+  Returns: {"stdout": "/current/directory", "exit_code": 0}
+  ↓
+session_end(sess_abc123)
 ```
 
-## Configuration
+### 2. State Preservation
 
-See `config.yaml` for tool definitions:
-- `shell_start` - Start bash session
-- `shell_write` - Send text input
-- `shell_send_key` - Send control keys
-- `shell_read` - Read output
-- `shell_end` - Terminate session
-- `shell_list` - List sessions (debug)
+Working directory changes persist:
+
+```bash
+session_exec(sess_abc, "cd /tmp")
+session_exec(sess_abc, "pwd")  # Output: /tmp
+session_exec(sess_abc, "cd ..")
+session_exec(sess_abc, "pwd")  # Output: /
+```
+
+### 3. Error Handling
+
+Exit codes indicate success/failure:
+
+```bash
+session_exec(sess_abc, "ls existing_file")
+# exit_code: 0 (success)
+
+session_exec(sess_abc, "ls nonexistent")
+# exit_code: 1 (failure)
+# stderr: "ls: nonexistent: No such file or directory"
+```
+
+## Tool Configuration
+
+The agent uses 3 simple tools defined in `config.yaml`:
+
+### session_start
+Creates a new bash session.
+
+**Parameters**: None
+
+**Returns**:
+```json
+{
+  "session_id": "sess_abc123",
+  "command": "bash",
+  "work_dir": "/current/directory",
+  "status": "active"
+}
+```
+
+### session_exec
+Executes a command in the session.
+
+**Parameters**:
+- `session_id`: Session ID from start
+- `command`: Bash command (via stdin)
+
+**Returns**:
+```json
+{
+  "stdout": "command output",
+  "stderr": "error output",
+  "exit_code": 0,
+  "execution_time_ms": 42
+}
+```
+
+### session_end
+Terminates the session.
+
+**Parameters**:
+- `session_id`: Session ID
+
+**Returns**:
+```json
+{
+  "status": "terminated",
+  "session_id": "sess_abc123"
+}
+```
+
+## Comparison with v1.4 PTY Sessions
+
+| Aspect | v1.4 (PTY) | v1.5 (Simplified) |
+|--------|------------|-------------------|
+| **Tools** | 5 tools | 3 tools |
+| **Interaction** | write → wait → read | exec → immediate response |
+| **Escape sequences** | Required (`\n`, `\x1b[A`) | Not needed |
+| **Timing** | Must guess wait times | Automatic |
+| **Complexity** | High (PTY, buffering) | Low (command execution) |
+
+**Migration**: If you have a v1.4 agent, see [Migration Guide](../../docs/migration/v1.4-to-v1.5.md).
+
+## Common Patterns
+
+### Pattern 1: Sequential Commands
+```yaml
+Task: "Create a file and verify it"
+
+session_start() → sess_abc
+session_exec(sess_abc, "touch test.txt")
+session_exec(sess_abc, "ls -la test.txt")
+session_exec(sess_abc, "cat test.txt")
+session_end(sess_abc)
+```
+
+### Pattern 2: Combined Commands
+```yaml
+Task: "Setup and verify"
+
+session_start() → sess_abc
+session_exec(sess_abc, "mkdir -p test && cd test && touch file.txt && ls -la")
+session_end(sess_abc)
+```
+
+### Pattern 3: Multi-line Scripts
+```yaml
+Task: "Run a loop"
+
+session_start() → sess_abc
+session_exec(sess_abc, """
+for i in {1..5}; do
+  echo "Iteration $i"
+  sleep 0.1
+done
+""")
+session_end(sess_abc)
+```
+
+## Debugging
+
+### View Session State
+```bash
+# List all sessions
+delta-sessions list
+
+# View session metadata
+cat .sessions/sess_abc123/metadata.json
+
+# View session state (working directory)
+cat .sessions/sess_abc123/state.json
+
+# View execution history
+cat .sessions/sess_abc123/history.log
+```
+
+### Common Issues
+
+**Issue**: "Session not found"
+- **Cause**: Session ID incorrect or session already terminated
+- **Solution**: Check `delta-sessions list`
+
+**Issue**: "No command provided"
+- **Cause**: Command not passed via stdin
+- **Solution**: Ensure `inject_as: stdin` in config.yaml
+
+**Issue**: Commands fail with exit code 1
+- **Cause**: Command error (normal behavior)
+- **Solution**: Check `stderr` field for error message
 
 ## Advanced Usage
 
-### Working with Interactive Programs
-
-The agent can navigate interactive menus using control keys:
-
+### Environment Variables
 ```bash
-delta run --agent examples/interactive-shell --task "Run 'top' and show me the top 5 processes, then exit"
+session_exec(sess_abc, "export MY_VAR=hello")
+session_exec(sess_abc, "echo $MY_VAR")  # Note: env vars currently not captured
 ```
 
-The agent will:
-1. Start the shell
-2. Run `top`
-3. Wait for output
-4. Send `q` to quit
-5. Read the result
-
-### Long-Running Commands
-
-For commands that take time:
-
+**Note**: v1.5 MVP doesn't capture environment variable changes yet. Use combined commands:
 ```bash
-delta run --agent examples/interactive-shell --task "Find all .js files in the current directory and subdirectories"
+session_exec(sess_abc, "MY_VAR=hello; echo $MY_VAR")
 ```
 
-The agent will use appropriate timeouts in `shell_read()`.
-
-### Handling Errors
-
-The agent can recover from errors:
-
+### Background Jobs
+For long-running commands, consider:
 ```bash
-delta run --agent examples/interactive-shell --task "Try to cat a non-existent file and handle the error gracefully"
+session_exec(sess_abc, "nohup long_running_command > output.log 2>&1 &")
+session_exec(sess_abc, "tail output.log")
 ```
-
-## Troubleshooting
-
-### Session Errors
-
-**Problem**: "Session not found or dead"
-
-**Solution**: The session process may have crashed. The agent will automatically start a new session.
-
-### No Output
-
-**Problem**: `shell_read` returns empty string
-
-**Possible Causes**:
-- Command produces no output (e.g., `cd`)
-- Timeout too short for slow commands
-- Command is waiting for input
-
-**Solution**: Agent should try longer timeout or check if command completed.
-
-### Hung Processes
-
-**Problem**: Command hangs and doesn't return
-
-**Solution**: Agent can send `ctrl+c` via `shell_send_key(session_id, "ctrl+c")`
-
-## Limitations
-
-1. **Single Process Only**: Each session is independent
-2. **No Process Restoration**: Sessions don't survive `delta-sessions` CLI restarts
-3. **Output Buffering**: Very large outputs (>1MB) may be truncated
-4. **Platform-Specific**: Behavior may vary on Windows (use WSL)
 
 ## See Also
 
-- [Session Management Design](../../docs/architecture/v1.4-sessions-design.md)
-- [delta-sessions CLI Reference](../../docs/api/delta-sessions.md)
-- [Python REPL Example](../python-repl/)
+- [Session Management Guide](../../docs/guides/session-management.md) - Complete guide
+- [delta-sessions API Reference](../../docs/api/delta-sessions.md) - CLI documentation
+- [v1.5 Architecture Design](../../docs/architecture/v1.5-sessions-simplified.md) - Design rationale
+- [v1.4 to v1.5 Migration](../../docs/migration/v1.4-to-v1.5.md) - Upgrade guide
+
+## License
+
+MIT

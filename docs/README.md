@@ -19,6 +19,10 @@
 ### [Migration](./migration/)
 - [v1.0 to v1.1](./migration/v1.0-to-v1.1.md) - Migration guide
 
+### [Research](./research/)
+- [Research & Exploratory Design](./research/README.md) - Future features and design explorations
+- [Memory Folding](./research/memory-folding.md) - Long-running agent context management ⚗️
+
 ### [Archive](./archive/)
 - [TSD v1.0](./archive/tsd-v1.0.md) - Original technical specification
 
@@ -69,6 +73,7 @@ When adding documentation:
 - **Need help?** → [Getting Started](./guides/getting-started.md)
 - **System design?** → [Architecture](./architecture/README.md)
 - **Upgrading?** → [Migration Guide](./migration/v1.0-to-v1.1.md)
+- **Future features?** → [Research](./research/)
 - **Historical context?** → [Archive](./archive/)
 
 ## 📊 Documentation Status

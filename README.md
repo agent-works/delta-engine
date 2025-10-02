@@ -10,7 +10,7 @@
 - 📦 **Portable** - Single directory contains everything
 - 🔄 **Stateless** - Resumable from any interruption
 - 👥 **Interactive** - Human-in-the-loop support for user input (v1.2)
-- 🖥️ **Session Management** - Persistent PTY sessions for stateful interactions (v1.4)
+- 🖥️ **Session Management** - Command-based persistent sessions for stateful workflows (v1.5)
 
 
 ## Core Concepts
@@ -62,18 +62,20 @@ my-agent/
 ### Guides
 - **[Getting Started](docs/guides/getting-started.md)** - Quick start guide
 - **[Agent Development](docs/guides/agent-development.md)** - Build your own agents
-- **[Session Management](docs/guides/session-management.md)** - Using persistent sessions (v1.4)
+- **[Session Management](docs/guides/session-management.md)** - Using persistent sessions (v1.5)
 
 ### Architecture
 - **[Architecture Overview](docs/architecture/README.md)** - System design and principles
-- **[Session Management Design](docs/architecture/v1.4-sessions-design.md)** - Session system design (v1.4)
+- **[v1.5 Session Design](docs/architecture/v1.5-sessions-simplified.md)** - Simplified session management (v1.5)
+- **[v1.4 PTY Deprecation](docs/architecture/v1.4-pty-deprecation.md)** - Why PTY was deprecated
 
 ### API Reference
 - **[delta CLI](docs/api/delta.md)** - Main CLI commands
-- **[delta-sessions CLI](docs/api/delta-sessions.md)** - Session management CLI (v1.4)
+- **[delta-sessions CLI](docs/api/delta-sessions.md)** - Session management CLI (v1.5)
 
 ### Migration
-- **[v1.0 to v1.1 Migration](docs/migration/v1.0-to-v1.1.md)** - Upgrade guide
+- **[v1.0 to v1.1 Migration](docs/migration/v1.0-to-v1.1.md)** - Stateless core upgrade
+- **[v1.4 to v1.5 Migration](docs/migration/v1.4-to-v1.5.md)** - PTY to simplified sessions
 
 ## Development
 

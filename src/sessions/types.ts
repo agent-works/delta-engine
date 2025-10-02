@@ -1,127 +1,91 @@
+/**
+ * Simplified Session Management Types (v1.5)
+ *
+ * Command-based execution model (no PTY)
+ */
+
 import { z } from 'zod';
 
-/**
- * Session status enumeration
- */
-export type SessionStatus = 'running' | 'dead';
+// ============================================================================
+// Session Metadata
+// ============================================================================
 
-/**
- * Session metadata schema
- * Contains all information needed to manage a session
- */
 export const SessionMetadataSchema = z.object({
   session_id: z.string(),
-  command: z.array(z.string()),
-  pid: z.number().int().positive(), // PTY process PID
-  holder_pid: z.number().int().positive(), // Holder process PID
-  created_at: z.string(),
-  last_accessed_at: z.string(),
-  status: z.enum(['running', 'dead']),
-  exit_code: z.number().int().optional(), // PTY exit code when dead
+  command: z.string(),
+  created_at: z.string(), // ISO 8601
+  last_executed_at: z.string().optional(), // ISO 8601
+  status: z.enum(['active', 'terminated']),
+  work_dir: z.string(),
+  execution_count: z.number().default(0),
 });
 
 export type SessionMetadata = z.infer<typeof SessionMetadataSchema>;
 
-/**
- * Session configuration
- */
-export interface SessionConfig {
-  sessions_dir: string;
-}
+// ============================================================================
+// Execution Result
+// ============================================================================
 
-/**
- * Session read options
- */
-export interface ReadOptions {
-  timeout?: number; // Milliseconds to wait for output (0 = immediate)
-  lines?: number;   // Return only last N lines
-}
+export const ExecutionResultSchema = z.object({
+  stdout: z.string(),
+  stderr: z.string(),
+  exit_code: z.number(),
+  execution_time_ms: z.number(),
+});
 
-/**
- * Socket protocol types
- */
-export type SocketRequest =
-  | { type: 'write'; data: string }
-  | { type: 'read' }
-  | { type: 'peek' }
-  | { type: 'shutdown' };
+export type ExecutionResult = z.infer<typeof ExecutionResultSchema>;
 
-export type SocketResponse =
-  | { status: 'ok'; bytes?: number; output?: string }
-  | { status: 'error'; message: string };
+// ============================================================================
+// Session State (Internal)
+// ============================================================================
 
-/**
- * CLI command result types
- */
-export interface StartResult {
-  session_id: string;
-  status: 'running';
-  pid: number;
-  command: string[];
-}
+export const SessionStateSchema = z.object({
+  work_dir: z.string(),
+  env_vars: z.record(z.string()),
+});
 
-export interface WriteResult {
-  status: 'sent';
-  bytes: number;
-  session_id: string;
-}
+export type SessionState = z.infer<typeof SessionStateSchema>;
 
-export interface WriteKeyResult {
-  status: 'sent';
-  key: string;
-  session_id: string;
-}
+// ============================================================================
+// CLI API Types (JSON responses)
+// ============================================================================
 
-export interface EndResult {
-  status: 'terminated';
-  session_id: string;
-}
+export const StartResultSchema = z.object({
+  session_id: z.string(),
+  command: z.string(),
+  work_dir: z.string(),
+  status: z.literal('active'),
+});
 
-export interface StatusResult {
-  session_id: string;
-  status: SessionStatus;
-  pid: number;
-  holder_pid: number;
-  alive: boolean;
-  uptime_seconds: number;
-  command: string[];
-}
+export type StartResult = z.infer<typeof StartResultSchema>;
 
-export interface CleanupResult {
-  cleaned: string[];
-  remaining: string[];
-}
+export const ExecResultSchema = ExecutionResultSchema;
+export type ExecResult = ExecutionResult;
 
-export interface ListSessionInfo {
-  session_id: string;
-  command: string;
-  status: SessionStatus;
-  pid: number;
-  holder_pid: number;
-  created_at: string;
-  last_accessed_at: string;
-}
+export const EndResultSchema = z.object({
+  status: z.literal('terminated'),
+  session_id: z.string(),
+});
 
-/**
- * Error types for better error handling
- */
-export class SessionNotFoundError extends Error {
-  constructor(sessionId: string) {
-    super(`Session ${sessionId} not found`);
-    this.name = 'SessionNotFoundError';
-  }
-}
+export type EndResult = z.infer<typeof EndResultSchema>;
 
-export class SessionDeadError extends Error {
-  constructor(sessionId: string) {
-    super(`Session ${sessionId} is dead`);
-    this.name = 'SessionDeadError';
-  }
-}
+export const ListSessionInfoSchema = z.object({
+  session_id: z.string(),
+  command: z.string(),
+  status: z.enum(['active', 'terminated']),
+  created_at: z.string(),
+  last_executed_at: z.string().optional(),
+  execution_count: z.number(),
+});
 
-export class SessionAlreadyExistsError extends Error {
-  constructor(sessionId: string) {
-    super(`Session ${sessionId} already exists`);
-    this.name = 'SessionAlreadyExistsError';
-  }
-}
+export type ListSessionInfo = z.infer<typeof ListSessionInfoSchema>;
+
+// ============================================================================
+// Manager Configuration
+// ============================================================================
+
+export const SessionManagerConfigSchema = z.object({
+  sessions_dir: z.string(),
+});
+
+export type SessionManagerConfig = z.infer<typeof SessionManagerConfigSchema>;

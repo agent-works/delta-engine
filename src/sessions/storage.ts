@@ -1,116 +1,145 @@
+/**
+ * Session Storage - Metadata and state persistence
+ */
+
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import type { SessionMetadata } from './types.js';
-import { SessionMetadataSchema } from './types.js';
+import type { SessionMetadata, SessionState } from './types.js';
+import { SessionMetadataSchema, SessionStateSchema } from './types.js';
 
 /**
- * Save session metadata to disk
+ * Session storage operations
  */
-export async function saveMetadata(
-  sessionDir: string,
-  metadata: SessionMetadata
-): Promise<void> {
-  const metadataPath = path.join(sessionDir, 'metadata.json');
+export class SessionStorage {
+  constructor(private sessionsDir: string) {}
 
-  // Ensure session directory exists
-  await fs.mkdir(sessionDir, { recursive: true });
-
-  // Write metadata
-  await fs.writeFile(
-    metadataPath,
-    JSON.stringify(metadata, null, 2),
-    'utf-8'
-  );
-}
-
-/**
- * Load session metadata from disk
- */
-export async function loadMetadata(sessionDir: string): Promise<SessionMetadata> {
-  const metadataPath = path.join(sessionDir, 'metadata.json');
-
-  try {
-    const data = await fs.readFile(metadataPath, 'utf-8');
-    const parsed = JSON.parse(data);
-
-    // Validate with Zod schema
-    return SessionMetadataSchema.parse(parsed);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new Error(`Metadata not found: ${sessionDir}`);
-    }
-    throw err;
+  /**
+   * Get session directory path
+   */
+  getSessionDir(sessionId: string): string {
+    return path.join(this.sessionsDir, sessionId);
   }
-}
 
-/**
- * Update session metadata (partial update)
- */
-export async function updateMetadata(
-  sessionDir: string,
-  updates: Partial<SessionMetadata>
-): Promise<void> {
-  // Load current metadata
-  const metadata = await loadMetadata(sessionDir);
+  /**
+   * Get metadata file path
+   */
+  private getMetadataPath(sessionId: string): string {
+    return path.join(this.getSessionDir(sessionId), 'metadata.json');
+  }
 
-  // Apply updates
-  const updated = { ...metadata, ...updates };
+  /**
+   * Get state file path
+   */
+  private getStatePath(sessionId: string): string {
+    return path.join(this.getSessionDir(sessionId), 'state.json');
+  }
 
-  // Save back
-  await saveMetadata(sessionDir, updated);
-}
+  /**
+   * Create session directory structure
+   */
+  async createSessionDir(sessionId: string): Promise<void> {
+    const sessionDir = this.getSessionDir(sessionId);
+    await fs.mkdir(sessionDir, { recursive: true });
+  }
 
-/**
- * List all session directories in sessions_dir
- */
-export async function listSessionDirs(sessionsDir: string): Promise<string[]> {
-  try {
-    const entries = await fs.readdir(sessionsDir, { withFileTypes: true });
+  /**
+   * Check if session exists
+   */
+  async sessionExists(sessionId: string): Promise<boolean> {
+    try {
+      await fs.access(this.getMetadataPath(sessionId));
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
-    return entries
-      .filter((entry) => entry.isDirectory() && entry.name.startsWith('sess_'))
-      .map((entry) => entry.name);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      // Sessions dir doesn't exist yet
+  /**
+   * Save session metadata
+   */
+  async saveMetadata(metadata: SessionMetadata): Promise<void> {
+    const metadataPath = this.getMetadataPath(metadata.session_id);
+    const content = JSON.stringify(metadata, null, 2);
+    await fs.writeFile(metadataPath, content, 'utf-8');
+  }
+
+  /**
+   * Load session metadata
+   */
+  async loadMetadata(sessionId: string): Promise<SessionMetadata | null> {
+    try {
+      const metadataPath = this.getMetadataPath(sessionId);
+      const content = await fs.readFile(metadataPath, 'utf-8');
+      const data = JSON.parse(content);
+      return SessionMetadataSchema.parse(data);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Save session state (working directory + environment)
+   */
+  async saveState(sessionId: string, state: SessionState): Promise<void> {
+    const statePath = this.getStatePath(sessionId);
+    const content = JSON.stringify(state, null, 2);
+    await fs.writeFile(statePath, content, 'utf-8');
+  }
+
+  /**
+   * Load session state
+   */
+  async loadState(sessionId: string): Promise<SessionState | null> {
+    try {
+      const statePath = this.getStatePath(sessionId);
+      const content = await fs.readFile(statePath, 'utf-8');
+      const data = JSON.parse(content);
+      return SessionStateSchema.parse(data);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Delete session directory
+   */
+  async deleteSession(sessionId: string): Promise<void> {
+    const sessionDir = this.getSessionDir(sessionId);
+    try {
+      await fs.rm(sessionDir, { recursive: true, force: true });
+    } catch (error) {
+      // Ignore errors (session may already be deleted)
+    }
+  }
+
+  /**
+   * List all session IDs
+   */
+  async listSessionIds(): Promise<string[]> {
+    try {
+      const entries = await fs.readdir(this.sessionsDir, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith('sess_'))
+        .map((entry) => entry.name);
+    } catch (error) {
+      // Sessions directory doesn't exist yet
       return [];
     }
-    throw err;
   }
-}
 
-/**
- * Check if a session exists
- */
-export async function sessionExists(
-  sessionsDir: string,
-  sessionId: string
-): Promise<boolean> {
-  const sessionDir = path.join(sessionsDir, sessionId);
-
-  try {
-    const stats = await fs.stat(sessionDir);
-    return stats.isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Remove a session directory and all its contents
- */
-export async function removeSessionDir(
-  sessionsDir: string,
-  sessionId: string
-): Promise<void> {
-  const sessionDir = path.join(sessionsDir, sessionId);
-
-  try {
-    await fs.rm(sessionDir, { recursive: true, force: true });
-  } catch (err) {
-    // Ignore if directory doesn't exist
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw err;
+  /**
+   * Append to execution history log (optional, for debugging)
+   */
+  async appendHistory(
+    sessionId: string,
+    entry: { timestamp: string; command: string; exit_code: number }
+  ): Promise<void> {
+    const historyPath = path.join(this.getSessionDir(sessionId), 'history.log');
+    const line = JSON.stringify(entry) + '\n';
+    try {
+      await fs.appendFile(historyPath, line, 'utf-8');
+    } catch {
+      // Ignore errors (history is optional)
     }
   }
 }

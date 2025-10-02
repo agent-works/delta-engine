@@ -1,6 +1,8 @@
-# delta-sessions CLI Reference
+# delta-sessions CLI Reference (v1.5)
 
 Complete API reference for the `delta-sessions` command-line tool.
+
+---
 
 ## Table of Contents
 
@@ -8,32 +10,30 @@ Complete API reference for the `delta-sessions` command-line tool.
 - [Installation](#installation)
 - [Commands](#commands)
   - [start](#start)
-  - [write](#write)
-  - [write-key](#write-key)
-  - [read](#read)
+  - [exec](#exec)
   - [end](#end)
   - [list](#list)
-  - [status](#status)
-  - [cleanup](#cleanup)
 - [Global Options](#global-options)
 - [Exit Codes](#exit-codes)
 - [Output Formats](#output-formats)
-- [Supported Keys](#supported-keys)
-- [Escape Sequences](#escape-sequences)
 - [Examples](#examples)
+- [Troubleshooting](#troubleshooting)
+- [See Also](#see-also)
 
 ---
 
 ## Overview
 
-`delta-sessions` is a command-line tool for managing persistent PTY (pseudo-terminal) sessions. It enables agents to interact with long-running, stateful command-line programs.
+`delta-sessions` is a command-line tool for managing persistent, stateful command execution sessions. It enables agents to execute commands while preserving working directory context across multiple invocations.
 
 **Key Features**:
-- Start any interactive CLI program
-- Read/write to running processes
-- Support keyboard control sequences
-- Process-agnostic (bash, Python, psql, ssh, etc.)
-- Automatic dead session detection
+- Command-based execution (no PTY complexity)
+- Working directory preservation
+- Immediate, complete output (no timing guesswork)
+- Simple 3-command API
+- Process-agnostic (bash, Python, any command-line program)
+
+**Design Philosophy**: v1.5 sessions use synchronous command execution optimized for LLM agents. For experimental PTY-based real-time interaction, see `delta-sessions-pty`.
 
 ---
 
@@ -45,6 +45,9 @@ npm install -g delta-engine
 
 # Verify installation
 delta-sessions --version
+
+# Link for development
+npm run build && npm link
 ```
 
 ---
@@ -53,44 +56,47 @@ delta-sessions --version
 
 ### `start`
 
-Start a new session by launching a command in a PTY.
+Start a new session by launching a shell or interactive program.
 
 #### Syntax
 
 ```bash
-delta-sessions start <command> [args...] [--sessions-dir <dir>]
+delta-sessions start [command] [args...] [--sessions-dir <dir>]
 ```
 
 #### Parameters
 
-- `<command>` - Executable to run (required)
+- `[command]` - Shell or program to run (optional, default: `bash`)
 - `[args...]` - Arguments to pass to command (optional)
 
 #### Options
 
-- `--sessions-dir <dir>` - Custom sessions directory (default: `~/.sessions/`)
+- `--sessions-dir <dir>` - Custom sessions directory (default: `.sessions/` in CWD)
 
 #### Output
 
-JSON object with session ID:
+JSON object with session metadata:
 ```json
 {
-  "session_id": "sess_abc123def456"
+  "session_id": "sess_a1b2c3d4e5f6",
+  "command": "bash",
+  "work_dir": "/current/directory",
+  "status": "active"
 }
 ```
 
 #### Examples
 
-**Start bash shell**:
+**Start bash shell** (default):
 ```bash
-delta-sessions start bash
-# Output: {"session_id":"sess_abc123"}
+delta-sessions start
+# Output: {"session_id":"sess_abc123","command":"bash","work_dir":"/tmp","status":"active"}
 ```
 
 **Start Python REPL**:
 ```bash
-delta-sessions start python3 -i
-# Output: {"session_id":"sess_def456"}
+delta-sessions start python3
+# Output: {"session_id":"sess_def456","command":"python3",...}
 ```
 
 **Start with custom directory**:
@@ -98,34 +104,42 @@ delta-sessions start python3 -i
 delta-sessions start bash --sessions-dir /tmp/my-sessions
 ```
 
-**Start psql**:
+**Start zsh**:
 ```bash
-delta-sessions start psql -h localhost -U postgres -d mydb
+delta-sessions start zsh
 ```
 
-**Start SSH session**:
+**Start node REPL**:
 ```bash
-delta-sessions start ssh user@example.com
+delta-sessions start node
 ```
+
+#### Behavior
+
+1. Creates session directory (`.sessions/<session_id>/`)
+2. Generates UUID-based session ID
+3. Stores metadata (`metadata.json`)
+4. Initializes state (`state.json`) with current working directory
+5. Returns session ID for use with `exec`
 
 #### Exit Codes
 
 - `0` - Success
-- `1` - Failed to start process
+- `1` - Failed to create session
 
 ---
 
-### `write`
+### `exec`
 
-Send text input to a session (simulates typing).
+Execute a command in the session. Command runs to completion and returns full output immediately.
 
 #### Syntax
 
 ```bash
-delta-sessions write <session_id> [--sessions-dir <dir>]
+delta-sessions exec <session_id> [--sessions-dir <dir>]
 ```
 
-Input is read from stdin.
+**Command input is read from stdin.**
 
 #### Parameters
 
@@ -133,221 +147,106 @@ Input is read from stdin.
 
 #### Options
 
-- `--sessions-dir <dir>` - Custom sessions directory (default: `~/.sessions/`)
+- `--sessions-dir <dir>` - Custom sessions directory (default: `.sessions/`)
 
 #### Input
 
-Text from stdin. Supports:
-- Literal text
-- Escape sequences: `\n` (newline), `\t` (tab), `\\` (backslash)
-- Hex escapes: `\xNN` (e.g., `\x03` for Ctrl+C)
-- Control characters for keyboard input
+Command text from stdin. Supports:
+- Single-line commands: `ls -la`
+- Multi-line scripts:
+  ```bash
+  for i in {1..5}; do
+    echo "Number: $i"
+  done
+  ```
+- Combined commands: `cd /tmp && mkdir test && ls`
 
 #### Output
 
-Empty on success.
+**Direct stdout/stderr output** (not JSON):
+- Command stdout → stdout
+- Command stderr → stderr
+- Exit code passed through to shell exit code
 
 #### Examples
 
-**Send command to shell**:
+**Execute simple command**:
 ```bash
-echo "ls -la\n" | delta-sessions write sess_abc123
+echo "ls -la" | delta-sessions exec sess_abc123
+# Output: (directory listing)
 ```
 
-**Send Python code**:
+**Change directory and verify**:
 ```bash
-echo "print('hello')\n" | delta-sessions write sess_python1
+echo "cd /tmp" | delta-sessions exec sess_abc123
+echo "pwd" | delta-sessions exec sess_abc123
+# Output: /tmp
 ```
 
-**Send control character (Ctrl+C)**:
+**Multi-line Python script**:
 ```bash
-echo "\x03" | delta-sessions write sess_abc123
-```
-
-**Send multi-line code**:
-```bash
-cat <<'EOF' | delta-sessions write sess_python1
+cat <<'EOF' | delta-sessions exec sess_python1
 def factorial(n):
     if n <= 1: return 1
     return n * factorial(n-1)
 
+print(factorial(10))
 EOF
+# Output: 3628800
 ```
 
-**Send arrow key (escape sequence)**:
+**Combined commands**:
 ```bash
-echo "\x1b[A" | delta-sessions write sess_abc123  # Up arrow
+echo "cd /tmp && mkdir testdir && cd testdir && pwd" | delta-sessions exec sess_abc123
+# Output: /tmp/testdir
 ```
+
+**Error handling**:
+```bash
+echo "ls /nonexistent" | delta-sessions exec sess_abc123
+# stderr: ls: /nonexistent: No such file or directory
+# Exit code: 1
+```
+
+#### Behavior
+
+1. Reads command from stdin
+2. Loads session state (working directory, metadata)
+3. Executes command in session context
+4. Captures stdout, stderr, exit code
+5. Updates session state (new CWD if changed)
+6. Returns complete output immediately
+
+#### Key Differences from PTY (v1.4)
+
+| Aspect | v1.4 PTY | v1.5 Exec |
+|--------|----------|-----------|
+| Interaction | write → sleep → read | exec → immediate output |
+| Escape sequences | Required (`\n`, `\x1b[A`) | Not needed |
+| Timing | Must guess wait times | Automatic (command completion) |
+| Output | May be incomplete | Always complete |
+| LLM calls | 3-5 per command | 1 per command |
 
 #### Exit Codes
 
-- `0` - Success
-- `1` - Session not found or dead
-- `1` - Write failed
+Exit code from executed command is passed through:
+- `0` - Command succeeded
+- `1-255` - Command failed (exit code from command)
+- `1` - Session not found or session execution error
 
----
-
-### `write-key`
-
-Send a semantic keyboard key to a session (wrapper around `write` for clarity).
-
-#### Syntax
-
+**Check exit code in scripts**:
 ```bash
-delta-sessions write-key <session_id> <key_name> [--sessions-dir <dir>]
+echo "test -f /etc/passwd" | delta-sessions exec sess_abc123
+if [ $? -eq 0 ]; then
+  echo "File exists"
+fi
 ```
-
-#### Parameters
-
-- `<session_id>` - Session ID (required)
-- `<key_name>` - Semantic key name (required, see [Supported Keys](#supported-keys))
-
-#### Options
-
-- `--sessions-dir <dir>` - Custom sessions directory (default: `~/.sessions/`)
-
-#### Output
-
-Empty on success.
-
-#### Examples
-
-**Send Enter key**:
-```bash
-delta-sessions write-key sess_abc123 enter
-```
-
-**Send Ctrl+C (interrupt)**:
-```bash
-delta-sessions write-key sess_abc123 ctrl+c
-```
-
-**Navigate menu with arrows**:
-```bash
-delta-sessions write-key sess_abc123 arrow_down
-delta-sessions write-key sess_abc123 arrow_down
-delta-sessions write-key sess_abc123 enter
-```
-
-**Send function key**:
-```bash
-delta-sessions write-key sess_abc123 f1
-```
-
-#### Exit Codes
-
-- `0` - Success
-- `1` - Session not found or dead
-- `1` - Invalid key name
-
----
-
-### `read`
-
-Read output from a session.
-
-#### Syntax
-
-```bash
-delta-sessions read <session_id> [options]
-```
-
-#### Parameters
-
-- `<session_id>` - Session ID (required)
-
-#### Options
-
-- `--timeout <ms>` - Wait timeout in milliseconds (default: 0)
-- `--wait` - Wait indefinitely until prompt detected
-- `--follow` - Stream output continuously (like `tail -f`)
-- `--lines <n>` - Return only first N lines
-- `--sessions-dir <dir>` - Custom sessions directory
-
-#### Read Modes
-
-**1. Immediate read** (no options):
-```bash
-delta-sessions read sess_abc123
-```
-Returns buffered output immediately.
-
-**2. Timeout wait** (`--timeout`):
-```bash
-delta-sessions read sess_abc123 --timeout 2000
-```
-Waits up to 2 seconds. Returns early if prompt detected.
-
-**3. Wait for completion** (`--wait`):
-```bash
-delta-sessions read sess_abc123 --wait
-```
-Waits indefinitely until prompt pattern detected.
-
-**4. Stream output** (`--follow`):
-```bash
-delta-sessions read sess_abc123 --follow
-```
-Continuously streams output (useful for monitoring).
-
-**5. Limited lines** (`--lines`):
-```bash
-delta-sessions read sess_abc123 --lines 10
-```
-Returns first 10 lines only.
-
-#### Output
-
-Raw text output from session (stdout + stderr combined).
-
-#### Prompt Detection
-
-`read` with `--timeout` or `--wait` returns early when it detects:
-- `$ ` - Shell prompt
-- `>>> ` - Python prompt
-- `=> ` - psql prompt
-- `# ` - Root shell or comment prompt
-
-Custom prompts may not be detected (will wait full timeout).
-
-#### Examples
-
-**Read shell output after command**:
-```bash
-echo "ls -la\n" | delta-sessions write sess_abc123
-delta-sessions read sess_abc123 --timeout 2000
-```
-
-**Read Python REPL output**:
-```bash
-echo "print(2+2)\n" | delta-sessions write sess_py1
-delta-sessions read sess_py1 --timeout 1000
-# Output: 4\n>>>
-```
-
-**Stream long-running command**:
-```bash
-echo "npm install\n" | delta-sessions write sess_abc123
-delta-sessions read sess_abc123 --follow
-# Streams output as npm installs packages
-```
-
-**Get first 5 lines of help**:
-```bash
-echo "help\n" | delta-sessions write sess_abc123
-delta-sessions read sess_abc123 --timeout 1000 --lines 5
-```
-
-#### Exit Codes
-
-- `0` - Success (even if empty output)
-- `1` - Session not found or dead
 
 ---
 
 ### `end`
 
-Terminate a session by killing the process.
+Terminate a session and clean up resources.
 
 #### Syntax
 
@@ -361,14 +260,15 @@ delta-sessions end <session_id> [--sessions-dir <dir>]
 
 #### Options
 
-- `--sessions-dir <dir>` - Custom sessions directory
+- `--sessions-dir <dir>` - Custom sessions directory (default: `.sessions/`)
 
 #### Output
 
 JSON object:
 ```json
 {
-  "status": "terminated"
+  "status": "terminated",
+  "session_id": "sess_abc123"
 }
 ```
 
@@ -377,30 +277,32 @@ JSON object:
 **End bash session**:
 ```bash
 delta-sessions end sess_abc123
+# Output: {"status":"terminated","session_id":"sess_abc123"}
 ```
 
-**End Python session**:
+**End with custom directory**:
 ```bash
-delta-sessions end sess_python1
+delta-sessions end sess_abc123 --sessions-dir /tmp/sessions
 ```
 
 #### Behavior
 
-- Sends SIGTERM to process
-- Waits up to 5 seconds for graceful shutdown
-- Force kills (SIGKILL) if still running
-- Removes session metadata
+1. Updates metadata status to "terminated"
+2. Removes session directory (optional, configurable)
+3. Returns confirmation
+
+**Note**: Unlike v1.4 PTY sessions, v1.5 sessions don't have long-running processes to kill. State is file-based.
 
 #### Exit Codes
 
 - `0` - Success
-- `1` - Session not found (already dead or never existed)
+- `1` - Session not found
 
 ---
 
 ### `list`
 
-List all sessions.
+List all active sessions.
 
 #### Syntax
 
@@ -410,28 +312,30 @@ delta-sessions list [--sessions-dir <dir>]
 
 #### Options
 
-- `--sessions-dir <dir>` - Custom sessions directory
+- `--sessions-dir <dir>` - Custom sessions directory (default: `.sessions/`)
 
 #### Output
 
 JSON array of session summaries:
 ```json
-{
-  "sessions": [
-    {
-      "session_id": "sess_abc123",
-      "command": ["bash"],
-      "status": "running",
-      "created_at": "2025-10-01T10:30:00.000Z"
-    },
-    {
-      "session_id": "sess_def456",
-      "command": ["python3", "-i"],
-      "status": "dead",
-      "created_at": "2025-10-01T09:15:00.000Z"
-    }
-  ]
-}
+[
+  {
+    "session_id": "sess_abc123",
+    "command": "bash",
+    "work_dir": "/tmp/project",
+    "status": "active",
+    "created_at": "2025-10-02T10:30:00.000Z",
+    "execution_count": 5
+  },
+  {
+    "session_id": "sess_def456",
+    "command": "python3",
+    "work_dir": "/home/user",
+    "status": "active",
+    "created_at": "2025-10-02T09:15:00.000Z",
+    "execution_count": 12
+  }
+]
 ```
 
 #### Examples
@@ -441,9 +345,19 @@ JSON array of session summaries:
 delta-sessions list
 ```
 
-**List in custom directory**:
+**List with jq filtering**:
 ```bash
-delta-sessions list --sessions-dir /tmp/sessions
+delta-sessions list | jq '.[] | select(.command == "bash")'
+```
+
+**Count sessions**:
+```bash
+delta-sessions list | jq 'length'
+```
+
+**Get first session ID**:
+```bash
+SESSION=$(delta-sessions list | jq -r '.[0].session_id')
 ```
 
 #### Exit Codes
@@ -452,120 +366,14 @@ delta-sessions list --sessions-dir /tmp/sessions
 
 ---
 
-### `status`
-
-Check if a session is alive.
-
-#### Syntax
-
-```bash
-delta-sessions status <session_id> [--sessions-dir <dir>]
-```
-
-#### Parameters
-
-- `<session_id>` - Session ID (required)
-
-#### Options
-
-- `--sessions-dir <dir>` - Custom sessions directory
-
-#### Output
-
-JSON object:
-```json
-{
-  "session_id": "sess_abc123",
-  "command": ["bash"],
-  "pid": 12345,
-  "status": "running",
-  "created_at": "2025-10-01T10:30:00.000Z",
-  "last_accessed_at": "2025-10-01T10:32:15.000Z"
-}
-```
-
-#### Status Values
-
-- `running` - Process is alive and healthy
-- `dead` - Process terminated or killed
-
-#### Examples
-
-**Check bash session**:
-```bash
-delta-sessions status sess_abc123
-```
-
-**Check and parse with jq**:
-```bash
-STATUS=$(delta-sessions status sess_abc123 | jq -r '.status')
-if [ "$STATUS" = "running" ]; then
-  echo "Session is alive"
-fi
-```
-
-#### Exit Codes
-
-- `0` - Success (session exists, regardless of status)
-- `1` - Session not found
-
----
-
-### `cleanup`
-
-Remove all dead sessions.
-
-#### Syntax
-
-```bash
-delta-sessions cleanup [--sessions-dir <dir>]
-```
-
-#### Options
-
-- `--sessions-dir <dir>` - Custom sessions directory
-
-#### Output
-
-JSON object with removal count:
-```json
-{
-  "removed": 3
-}
-```
-
-#### Examples
-
-**Clean up dead sessions**:
-```bash
-delta-sessions cleanup
-# Output: {"removed":2}
-```
-
-**Scheduled cleanup (cron)**:
-```bash
-# Add to crontab
-0 2 * * * delta-sessions cleanup
-```
-
-#### Behavior
-
-- Scans all sessions
-- Checks process liveness (`kill -0`)
-- Removes metadata for dead processes
-- Deletes session directories
-
-#### Exit Codes
-
-- `0` - Success (even if no dead sessions)
-
----
-
 ## Global Options
 
 All commands support:
 
-- `--sessions-dir <dir>` - Custom sessions directory (default: `~/.sessions/`)
+- `--sessions-dir <dir>` - Custom sessions directory
+  - Default: `.sessions/` in current working directory
+  - Use absolute path for shared sessions across projects
+
 - `--help` - Show command help
 - `--version` - Show version
 
@@ -573,21 +381,22 @@ All commands support:
 
 **Custom sessions directory**:
 ```bash
-delta-sessions start bash --sessions-dir /tmp/my-sessions
+delta-sessions start --sessions-dir /tmp/my-sessions
 delta-sessions list --sessions-dir /tmp/my-sessions
+echo "pwd" | delta-sessions exec sess_abc123 --sessions-dir /tmp/my-sessions
 ```
 
 **Show help**:
 ```bash
 delta-sessions --help
 delta-sessions start --help
-delta-sessions read --help
+delta-sessions exec --help
 ```
 
 **Show version**:
 ```bash
 delta-sessions --version
-# Output: 1.4.0
+# Output: 1.5.0
 ```
 
 ---
@@ -597,387 +406,320 @@ delta-sessions --version
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | General error (session not found, process failed, invalid input) |
+| 1 | General error (session not found, command failed) |
+| N | For `exec`: exit code from executed command (1-255) |
 
-All commands follow this convention for scripting.
+### Exit Code Behavior
+
+**start, end, list**:
+- `0` = success
+- `1` = error
+
+**exec**:
+- Passes through exit code from executed command
+- Use `$?` to check command success
+
+**Example**:
+```bash
+echo "test -f /etc/passwd" | delta-sessions exec sess_abc123
+if [ $? -eq 0 ]; then
+  echo "Command succeeded"
+else
+  echo "Command failed"
+fi
+```
 
 ---
 
 ## Output Formats
 
-All commands output **JSON** or **raw text**:
+Commands output either **JSON** or **raw text**:
 
-**JSON commands** (`start`, `end`, `list`, `status`, `cleanup`):
+### JSON Commands
+
+`start`, `end`, `list` return structured JSON:
+
+**start**:
 ```json
-{"session_id": "sess_abc123"}
+{"session_id": "sess_abc123", "command": "bash", "work_dir": "/tmp", "status": "active"}
 ```
 
-**Text commands** (`read`):
-```
-ls -la output
-total 48
-drwxr-xr-x  12 user  staff  384 Oct  1 10:30 .
+**end**:
+```json
+{"status": "terminated", "session_id": "sess_abc123"}
 ```
 
-**Parsing JSON**:
+**list**:
+```json
+[{"session_id": "sess_abc123", "command": "bash", ...}]
+```
+
+**Parsing with jq**:
 ```bash
-SESSION_ID=$(delta-sessions start bash | jq -r '.session_id')
-echo "Started session: $SESSION_ID"
+SESSION_ID=$(delta-sessions start | jq -r '.session_id')
+WORK_DIR=$(delta-sessions list | jq -r '.[0].work_dir')
 ```
 
----
+### Raw Text Commands
 
-## Supported Keys
+`exec` outputs raw command output (not wrapped in JSON):
 
-The `write-key` command supports the following semantic key names:
-
-### Navigation Keys
-
-| Key Name | Escape Sequence | Description |
-|----------|----------------|-------------|
-| `arrow_up` | `\x1b[A` | Up arrow |
-| `arrow_down` | `\x1b[B` | Down arrow |
-| `arrow_right` | `\x1b[C` | Right arrow |
-| `arrow_left` | `\x1b[D` | Left arrow |
-| `home` | `\x1b[H` | Home key |
-| `end` | `\x1b[F` | End key |
-| `page_up` | `\x1b[5~` | Page Up |
-| `page_down` | `\x1b[6~` | Page Down |
-
-### Confirmation Keys
-
-| Key Name | Escape Sequence | Description |
-|----------|----------------|-------------|
-| `enter` | `\n` | Enter/Return |
-| `tab` | `\t` | Tab |
-| `space` | ` ` | Space bar |
-
-### Control Keys
-
-| Key Name | Escape Sequence | Description |
-|----------|----------------|-------------|
-| `ctrl+a` | `\x01` | Ctrl+A |
-| `ctrl+b` | `\x02` | Ctrl+B |
-| `ctrl+c` | `\x03` | Ctrl+C (interrupt) |
-| `ctrl+d` | `\x04` | Ctrl+D (EOF) |
-| `ctrl+e` | `\x05` | Ctrl+E |
-| `ctrl+f` | `\x06` | Ctrl+F |
-| `ctrl+g` | `\x07` | Ctrl+G |
-| `ctrl+h` | `\x08` | Ctrl+H (backspace) |
-| `ctrl+k` | `\x0b` | Ctrl+K |
-| `ctrl+l` | `\x0c` | Ctrl+L (clear) |
-| `ctrl+n` | `\x0e` | Ctrl+N |
-| `ctrl+p` | `\x10` | Ctrl+P |
-| `ctrl+r` | `\x12` | Ctrl+R (search) |
-| `ctrl+t` | `\x14` | Ctrl+T |
-| `ctrl+u` | `\x15` | Ctrl+U |
-| `ctrl+w` | `\x17` | Ctrl+W |
-| `ctrl+x` | `\x18` | Ctrl+X |
-| `ctrl+y` | `\x19` | Ctrl+Y |
-| `ctrl+z` | `\x1a` | Ctrl+Z (suspend) |
-
-### Function Keys
-
-| Key Name | Escape Sequence | Description |
-|----------|----------------|-------------|
-| `f1` | `\x1bOP` | F1 |
-| `f2` | `\x1bOQ` | F2 |
-| `f3` | `\x1bOR` | F3 |
-| `f4` | `\x1bOS` | F4 |
-| `f5` | `\x1b[15~` | F5 |
-| `f6` | `\x1b[17~` | F6 |
-| `f7` | `\x1b[18~` | F7 |
-| `f8` | `\x1b[19~` | F8 |
-| `f9` | `\x1b[20~` | F9 |
-| `f10` | `\x1b[21~` | F10 |
-| `f11` | `\x1b[23~` | F11 |
-| `f12` | `\x1b[24~` | F12 |
-
-### Editing Keys
-
-| Key Name | Escape Sequence | Description |
-|----------|----------------|-------------|
-| `backspace` | `\x7f` | Backspace |
-| `delete` | `\x1b[3~` | Delete |
-| `insert` | `\x1b[2~` | Insert |
-| `escape` | `\x1b` | Escape |
-
-### Special Keys
-
-| Key Name | Escape Sequence | Description |
-|----------|----------------|-------------|
-| `ctrl+shift+z` | `\x1b[1;6Z` | Ctrl+Shift+Z |
-
----
-
-## Escape Sequences
-
-The `write` command supports parsing escape sequences in input:
-
-### Standard Escapes
-
-| Sequence | Character | Description |
-|----------|-----------|-------------|
-| `\n` | Newline (0x0A) | Line feed |
-| `\r` | Carriage return (0x0D) | Return |
-| `\t` | Tab (0x09) | Horizontal tab |
-| `\\` | Backslash (0x5C) | Literal backslash |
-
-### Hex Escapes
-
-Format: `\xNN` where `NN` is a two-digit hexadecimal value.
-
-**Examples**:
+**stdout → stdout**:
 ```bash
-\x03  # Ctrl+C
-\x1b  # Escape key
-\x0a  # Newline
-\x20  # Space
+echo "ls -la" | delta-sessions exec sess_abc123
+# Output: (raw directory listing)
 ```
 
-### Unicode Escapes
-
-Format: `\uNNNN` where `NNNN` is a four-digit hexadecimal Unicode code point.
-
-**Examples**:
+**stderr → stderr**:
 ```bash
-\u0041  # 'A'
-\u2764  # ❤
-\u4e2d  # 中
+echo "ls /nonexistent" | delta-sessions exec sess_abc123
+# stderr: ls: /nonexistent: No such file or directory
 ```
 
-### Control Characters
-
-ANSI escape sequences for cursor control and colors:
-
-**Cursor movement**:
-```bash
-\x1b[A      # Up
-\x1b[B      # Down
-\x1b[C      # Right
-\x1b[D      # Left
-\x1b[H      # Home
-\x1b[2J     # Clear screen
-```
-
-**Colors**:
-```bash
-\x1b[31m    # Red text
-\x1b[32m    # Green text
-\x1b[0m     # Reset colors
-```
+**Rationale**: Direct output provides better UX for reading command results and integrating with shell pipelines.
 
 ---
 
 ## Examples
 
-### Example 1: Simple Shell Session
+### Example 1: Basic Shell Session
 
 ```bash
-# Start bash
-SESSION=$(delta-sessions start bash | jq -r '.session_id')
+# Start bash session
+SESSION=$(delta-sessions start | jq -r '.session_id')
 
-# Wait for prompt
-delta-sessions read $SESSION --timeout 1000
+# Execute commands
+echo "ls -la" | delta-sessions exec $SESSION
+echo "pwd" | delta-sessions exec $SESSION
+echo "df -h" | delta-sessions exec $SESSION
 
-# List files
-echo "ls -la\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 2000
+# Clean up
+delta-sessions end $SESSION
+```
 
-# Check disk usage
-echo "df -h\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 2000
+### Example 2: Working Directory Persistence
+
+```bash
+# Start session
+SESSION=$(delta-sessions start | jq -r '.session_id')
+
+# Change directory
+echo "cd /tmp" | delta-sessions exec $SESSION
+
+# Verify directory persists
+echo "pwd" | delta-sessions exec $SESSION
+# Output: /tmp
+
+# Create subdirectory and navigate
+echo "mkdir testdir && cd testdir" | delta-sessions exec $SESSION
+echo "pwd" | delta-sessions exec $SESSION
+# Output: /tmp/testdir
 
 # End session
 delta-sessions end $SESSION
 ```
 
-### Example 2: Python REPL
+### Example 3: Python REPL
 
 ```bash
-# Start Python
-SESSION=$(delta-sessions start python3 -i | jq -r '.session_id')
-
-# Wait for prompt
-delta-sessions read $SESSION --timeout 1000
+# Start Python session
+SESSION=$(delta-sessions start python3 | jq -r '.session_id')
 
 # Define function
-cat <<'EOF' | delta-sessions write $SESSION
+cat <<'EOF' | delta-sessions exec $SESSION
 def factorial(n):
     if n <= 1: return 1
     return n * factorial(n-1)
-
 EOF
-delta-sessions read $SESSION --timeout 1000
 
 # Call function
-echo "print(factorial(10))\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 1000
+echo "print(factorial(10))" | delta-sessions exec $SESSION
 # Output: 3628800
 
-# Clean up
+# End session
 delta-sessions end $SESSION
 ```
 
-### Example 3: Interactive Menu Navigation
-
-```bash
-# Start program with menu
-SESSION=$(delta-sessions start ./menu-program | jq -r '.session_id')
-
-# Wait for menu
-delta-sessions read $SESSION --timeout 2000
-
-# Navigate down 2 times
-delta-sessions write-key $SESSION arrow_down
-delta-sessions read $SESSION --timeout 500
-delta-sessions write-key $SESSION arrow_down
-delta-sessions read $SESSION --timeout 500
-
-# Select option
-delta-sessions write-key $SESSION enter
-delta-sessions read $SESSION --timeout 2000
-
-# Exit
-delta-sessions write-key $SESSION ctrl+c
-delta-sessions end $SESSION
-```
-
-### Example 4: Long-Running Command
-
-```bash
-# Start session
-SESSION=$(delta-sessions start bash | jq -r '.session_id')
-
-# Run long command
-echo "npm install\n" | delta-sessions write $SESSION
-
-# Stream output
-delta-sessions read $SESSION --follow &
-READER_PID=$!
-
-# Wait for completion (or interrupt manually)
-wait $READER_PID
-
-# Clean up
-delta-sessions end $SESSION
-```
-
-### Example 5: Error Handling
+### Example 4: Error Handling
 
 ```bash
 #!/bin/bash
 set -e
 
 # Start session
-SESSION=$(delta-sessions start bash | jq -r '.session_id')
+SESSION=$(delta-sessions start | jq -r '.session_id')
 
-# Function to clean up on exit
-cleanup() {
-  echo "Cleaning up..."
-  delta-sessions end $SESSION 2>/dev/null || true
-}
-trap cleanup EXIT
+# Cleanup on exit
+trap "delta-sessions end $SESSION 2>/dev/null || true" EXIT
 
-# Execute command
-echo "ls /nonexistent\n" | delta-sessions write $SESSION
-OUTPUT=$(delta-sessions read $SESSION --timeout 2000)
-
-# Check for errors
-if echo "$OUTPUT" | grep -q "No such file"; then
-  echo "Error: Directory not found"
-  exit 1
+# Try command
+if echo "cd /nonexistent" | delta-sessions exec $SESSION; then
+  echo "Success"
+else
+  echo "Failed with exit code: $?"
+  # Continue with recovery...
+  echo "cd /tmp" | delta-sessions exec $SESSION
 fi
 
-echo "Success!"
+# Verify current directory
+echo "pwd" | delta-sessions exec $SESSION
 ```
 
-### Example 6: Session Lifecycle
+### Example 5: Multi-line Scripts
 
 ```bash
-#!/bin/bash
+# Start session
+SESSION=$(delta-sessions start | jq -r '.session_id')
 
-# Check existing sessions
-delta-sessions list
-
-# Clean up dead sessions
-delta-sessions cleanup
-
-# Start new session
-SESSION=$(delta-sessions start bash | jq -r '.session_id')
-echo "Started: $SESSION"
-
-# Check status
-delta-sessions status $SESSION
-
-# Use session
-echo "echo 'Hello World'\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 1000
-
-# Verify still alive
-STATUS=$(delta-sessions status $SESSION | jq -r '.status')
-if [ "$STATUS" != "running" ]; then
-  echo "Session died unexpectedly!"
-  exit 1
-fi
+# Execute multi-line bash script
+cat <<'EOF' | delta-sessions exec $SESSION
+for i in {1..5}; do
+  echo "Creating file_$i.txt"
+  touch "file_$i.txt"
+done
+ls -la *.txt
+EOF
 
 # End session
 delta-sessions end $SESSION
-echo "Session terminated"
-
-# Verify it's gone
-delta-sessions status $SESSION 2>/dev/null && echo "ERROR: Still exists!" || echo "Confirmed deleted"
 ```
 
-### Example 7: Database Queries
+### Example 6: Project Setup Workflow
 
 ```bash
-# Connect to PostgreSQL
-SESSION=$(delta-sessions start psql -h localhost -U postgres -d mydb | jq -r '.session_id')
+# Start session
+SESSION=$(delta-sessions start | jq -r '.session_id')
 
-# Wait for prompt
-delta-sessions read $SESSION --timeout 3000
+# Create project structure
+echo "mkdir -p src tests docs" | delta-sessions exec $SESSION
 
-# Execute query
-cat <<'EOF' | delta-sessions write $SESSION
-SELECT * FROM users WHERE created_at > NOW() - INTERVAL '7 days';
-EOF
-echo "\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 5000
+# Navigate to src
+echo "cd src" | delta-sessions exec $SESSION
 
-# Another query
-echo "\\dt\n" | delta-sessions write $SESSION  # List tables
-delta-sessions read $SESSION --timeout 2000
+# Create files
+echo "touch index.js utils.js" | delta-sessions exec $SESSION
 
-# Exit
-echo "\\q\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 1000
+# Navigate to tests
+echo "cd ../tests" | delta-sessions exec $SESSION
+echo "touch index.test.js" | delta-sessions exec $SESSION
 
+# Verify structure
+echo "cd .." | delta-sessions exec $SESSION
+echo "find . -type f" | delta-sessions exec $SESSION
+
+# End session
 delta-sessions end $SESSION
 ```
 
-### Example 8: SSH Remote Commands
+### Example 7: Data Pipeline
 
 ```bash
-# Connect via SSH
-SESSION=$(delta-sessions start ssh user@example.com | jq -r '.session_id')
+# Start session
+SESSION=$(delta-sessions start | jq -r '.session_id')
 
-# Wait for connection
-delta-sessions read $SESSION --timeout 10000
+# Download data
+echo "curl -s https://api.example.com/data > data.json" | delta-sessions exec $SESSION
 
-# Execute remote command
-echo "df -h\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 3000
+# Process with jq
+echo "jq '.items[] | .name' data.json > names.txt" | delta-sessions exec $SESSION
 
-# Another command
-echo "uptime\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 2000
+# Analyze
+echo "wc -l names.txt" | delta-sessions exec $SESSION
 
-# Disconnect
-echo "exit\n" | delta-sessions write $SESSION
-delta-sessions read $SESSION --timeout 2000
+# View results
+echo "cat names.txt" | delta-sessions exec $SESSION
 
+# End session
 delta-sessions end $SESSION
+```
+
+### Example 8: Multiple Sessions
+
+```bash
+# Start two separate sessions
+SESSION_BUILD=$(delta-sessions start | jq -r '.session_id')
+SESSION_TEST=$(delta-sessions start | jq -r '.session_id')
+
+# Build in first session
+echo "cd /project && npm run build" | delta-sessions exec $SESSION_BUILD &
+BUILD_PID=$!
+
+# Test in second session
+echo "cd /project && npm test" | delta-sessions exec $SESSION_TEST &
+TEST_PID=$!
+
+# Wait for both
+wait $BUILD_PID
+wait $TEST_PID
+
+# Clean up both
+delta-sessions end $SESSION_BUILD
+delta-sessions end $SESSION_TEST
+```
+
+### Example 9: Session Management
+
+```bash
+# List all sessions
+delta-sessions list
+
+# Get session count
+COUNT=$(delta-sessions list | jq 'length')
+echo "Active sessions: $COUNT"
+
+# Find long-running sessions
+delta-sessions list | jq '.[] | select(.execution_count > 10)'
+
+# End all sessions (cleanup)
+for session_id in $(delta-sessions list | jq -r '.[].session_id'); do
+  delta-sessions end $session_id
+done
+```
+
+### Example 10: Interactive Agent Integration
+
+```yaml
+# agent config.yaml
+tools:
+  - name: session_start
+    command: [delta-sessions, start]
+    parameters: []
+
+  - name: session_exec
+    command: [delta-sessions, exec]
+    parameters:
+      - name: session_id
+        type: string
+        inject_as: argument
+      - name: command
+        type: string
+        inject_as: stdin
+
+  - name: session_end
+    command: [delta-sessions, end]
+    parameters:
+      - name: session_id
+        type: string
+        inject_as: argument
+```
+
+**Agent workflow**:
+```
+Thought: I need to list files and check disk usage
+Action: session_start()
+Result: {"session_id": "sess_abc123", ...}
+
+Thought: List files
+Action: session_exec("sess_abc123", "ls -la")
+Result: (file listing)
+
+Thought: Check disk usage
+Action: session_exec("sess_abc123", "df -h")
+Result: (disk usage)
+
+Thought: Task complete, clean up
+Action: session_end("sess_abc123")
+Result: {"status": "terminated"}
 ```
 
 ---
@@ -998,63 +740,161 @@ npm install -g delta-engine
 
 # Verify
 which delta-sessions
+
+# For local development
+npm run build && npm link
 ```
+
+---
 
 ### Session Not Found
 
-**Problem**: `Error: Session not found or dead`
+**Problem**: `Error: Session sess_abc123 not found`
+
+**Causes**:
+- Session ID typo
+- Session already terminated
+- Wrong `--sessions-dir` path
 
 **Solution**:
 ```bash
 # List all sessions
 delta-sessions list
 
-# Check specific session
-delta-sessions status sess_abc123
+# Check specific directory
+delta-sessions list --sessions-dir /path/to/sessions
 
-# Clean up dead sessions
-delta-sessions cleanup
+# Verify session exists
+ls -la .sessions/sess_abc123/
 ```
 
-### Timeout Issues
+---
 
-**Problem**: `read` returns empty or incomplete output
+### Command Fails with Exit Code 1
 
-**Solutions**:
+**Problem**: Commands return exit code 1
+
+**Cause**: Command error (normal behavior, not a delta-sessions bug)
+
+**Solution**: Check stderr for error details
 ```bash
-# Increase timeout
-delta-sessions read $SESSION --timeout 5000  # 5 seconds
-
-# Or wait indefinitely
-delta-sessions read $SESSION --wait
-
-# Or stream output
-delta-sessions read $SESSION --follow
+echo "ls /nonexistent" | delta-sessions exec sess_abc123 2>&1
+# stderr shows: ls: /nonexistent: No such file or directory
 ```
 
-### Invalid Key Name
-
-**Problem**: `Error: Invalid key name: xyz`
-
-**Solution**: Check [Supported Keys](#supported-keys) section. Use exact key names:
+**Handle errors in scripts**:
 ```bash
-# Wrong: delta-sessions write-key $SESSION up
-# Correct:
-delta-sessions write-key $SESSION arrow_up
+if echo "cd /tmp/test" | delta-sessions exec $SESSION; then
+  echo "Directory exists"
+else
+  echo "Directory doesn't exist, creating..."
+  echo "mkdir -p /tmp/test && cd /tmp/test" | delta-sessions exec $SESSION
+fi
 ```
+
+---
+
+### Working Directory Not Preserved
+
+**Problem**: `cd` commands don't persist
+
+**Causes**:
+- Using different session IDs (each session has independent CWD)
+- Command failed (exit code != 0)
+
+**Solution**:
+
+**✅ Same session - CWD persists**:
+```bash
+echo "cd /tmp" | delta-sessions exec sess_abc123
+echo "pwd" | delta-sessions exec sess_abc123  # Output: /tmp
+```
+
+**❌ Different sessions - CWD independent**:
+```bash
+echo "cd /tmp" | delta-sessions exec sess_abc123
+echo "pwd" | delta-sessions exec sess_xyz456  # Output: (original CWD)
+```
+
+**Check exit code**:
+```bash
+if echo "cd /nonexistent" | delta-sessions exec $SESSION; then
+  echo "Directory changed"
+else
+  echo "cd failed, CWD unchanged"
+fi
+```
+
+---
+
+### No Command Provided (stdin empty)
+
+**Problem**: `Error: No command provided (stdin is empty)`
+
+**Cause**: Forgot to pipe command to `exec`
+
+**Solution**:
+
+**❌ Wrong**:
+```bash
+delta-sessions exec sess_abc123 "ls -la"  # Doesn't work
+```
+
+**✅ Correct**:
+```bash
+echo "ls -la" | delta-sessions exec sess_abc123
+```
+
+---
+
+### Comparison with PTY Sessions
+
+**Problem**: Migrating from `delta-sessions-pty` (v1.4)
+
+**Solution**: See [Migration Guide](../migration/v1.4-to-v1.5.md)
+
+**Key differences**:
+
+| Aspect | PTY (v1.4) | Simplified (v1.5) |
+|--------|------------|-------------------|
+| Commands | 8 commands | 3 commands |
+| Interaction | write → sleep → read | exec → immediate |
+| Escape sequences | Required | Not needed |
+| Timing | Must guess | Automatic |
+| Real-time apps | Supported (vim, top) | Not supported |
+| LLM-friendliness | Low | High |
+
+**When to use PTY**: Interactive TUI apps (vim, htop, tmux). Use `delta-sessions-pty` (experimental).
+
+**When to use v1.5**: 90% of use cases (bash commands, Python scripts, SQL queries).
 
 ---
 
 ## See Also
 
-- [Session Management Guide](../guides/session-management.md) - Comprehensive usage guide
-- [Architecture Design](../architecture/v1.4-sessions-design.md) - Technical design document
-- [Interactive Shell Example](../../examples/interactive-shell/) - Working example agent
-- [Python REPL Example](../../examples/python-repl/) - Python REPL agent
+- **[Session Management Guide](../guides/session-management.md)** - Comprehensive usage guide with patterns and best practices
+- **[v1.5 Architecture Design](../architecture/v1.5-sessions-simplified.md)** - Technical design document and rationale
+- **[v1.4 to v1.5 Migration Guide](../migration/v1.4-to-v1.5.md)** - Upgrade from PTY-based sessions
+- **[Interactive Shell Example](../../examples/interactive-shell/)** - Working example agent
+- **[Python REPL Example](../../examples/python-repl/)** - Python execution example
+
+### Experimental PTY Sessions
+
+For real-time PTY interaction (vim, top, htop):
+- **[delta-sessions-pty Reference](./delta-sessions-pty.md)** - Experimental PTY API (v1.4)
+- **[PTY Deprecation](../architecture/v1.4-pty-deprecation.md)** - Why PTY was deprecated
 
 ---
 
-**Version**: 1.4.2
-**Last Updated**: 2025-10-01
+## Version History
 
-**Architecture Note**: v1.4.2 uses Unix Domain Sockets for inter-process communication, replacing the screen-based approach in v1.4.0. This provides better reliability, cross-process session access, and simpler implementation.
+- **v1.5.0** (2025-10-02) - Simplified command-based sessions (start, exec, end)
+- **v1.4.2** (2025-10-01) - PTY-based sessions with Unix Domain Sockets
+- **v1.4.0** (2025-09-30) - PTY-based sessions with screen backend
+
+---
+
+**Version**: 1.5.0
+**Last Updated**: 2025-10-02
+
+**Note**: This is the **recommended API** for Delta Engine sessions. For experimental PTY support, see `delta-sessions-pty` (not recommended for LLM agents).

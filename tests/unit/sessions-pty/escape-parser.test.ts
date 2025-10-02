@@ -3,7 +3,7 @@ import {
   parseEscapeSequences,
   containsEscapeSequences,
   escapeForDisplay,
-} from '../../../src/sessions/escape-parser.js';
+} from '../../../src/sessions-pty/escape-parser.js';
 
 describe('escape-parser', () => {
   describe('parseEscapeSequences', () => {

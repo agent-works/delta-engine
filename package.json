@@ -1,13 +1,14 @@
 {
   "name": "delta-engine",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "description": "A minimalist platform for accelerating AI Agent prototype iteration",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "delta": "./dist/index.js",
     "delta-engine": "./dist/index.js",
-    "delta-sessions": "./dist/sessions-cli.js"
+    "delta-sessions": "./dist/sessions-cli.js",
+    "delta-sessions-pty": "./dist/sessions-pty-cli.js"
   },
   "scripts": {
     "build": "tsc",

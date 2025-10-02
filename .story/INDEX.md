@@ -84,6 +84,38 @@
 **Status**: ✅ Active (methodology, not specific to sessions)
 **Details**: @decisions/005-poc-first-validation.md
 
+### 6. Abandon PTY-based Sessions (v1.4 → v1.5 Pivot)
+**Time**: 2025-10-02 (v1.5 development)
+**Problem**: v1.4 PTY-based sessions technically working but mismatched with LLM interaction patterns
+**Context**:
+  - v1.4.2 implemented full PTY support (1848 lines: holder process, Unix socket IPC, escape parsing)
+  - Real-world usage (`claude-code-workflow`) revealed fundamental problems:
+    - LLM polling pattern inefficient (write → sleep 10-60s → read → analyze → repeat)
+    - ANSI escape sequences high cognitive load (even with semantic keys)
+    - Real-time monitoring impossible for request-response model LLMs
+  - 90% agent use cases don't need PTY (bash commands, Python scripts, SQL queries)
+**Decision**: Deprecate PTY approach, create simplified command-based sessions (v1.5)
+**Implementation**:
+  - PTY code moved to `src/sessions-pty/` (experimental, ~1848 lines)
+  - CLI renamed to `delta-sessions-pty` (may remove in v2.0)
+  - v1.5 new API: `start`, `exec`, `end` (~600 lines, 66% code reduction)
+  - Design: Sync execution (exec → complete output), no escape sequences, file-based state
+**Rationale**:
+  - ✅ LLM-friendly: Single exec call = complete output (no timing guesses)
+  - ✅ Simplicity: 600 vs 1848 lines, no IPC/socket complexity
+  - ✅ Debuggable: State visible in filesystem, stdout/stderr capture
+  - ⚠️ No streaming: Acceptable for 90% use cases
+  - ⚠️ PTY apps (vim, top) unsupported: Use experimental `delta-sessions-pty` if needed
+**Lessons Learned**:
+  1. Validate usage patterns, not just technical feasibility (POC validated tech, not LLM fit)
+  2. LLMs are not humans (real-time, visual feedback, interactivity ≠ LLM strengths)
+  3. Simplicity > feature completeness (100% terminal compat wasted if 90% unused)
+  4. Failed experiments are research, not waste (1848 lines = valuable reference)
+**Status**: ✅ Active (v1.5 design phase)
+**Details**:
+  - @docs/architecture/v1.5-sessions-simplified.md (new design)
+  - @docs/architecture/v1.4-pty-deprecation.md (rationale + lessons)
+
 ---
 
 ## ⚠️ Known Traps (Must Avoid)
@@ -156,6 +188,28 @@ const socketPath = `/tmp/delta-sock-${sessionId}.sock`;  // 42 bytes
 **Affected**: v1.4.2 session management
 **Status**: ✅ Fixed (sockets in /tmp/)
 **Details**: @traps/unix-socket-path-limit.md
+
+### LLM Real-time Interaction Mismatch
+**Symptom**: Agent spends excessive time waiting, multiple sleep/read cycles, unpredictable timing
+**Root Cause**: LLMs operate in request-response model, cannot monitor real-time PTY output
+**Example Pattern**:
+```yaml
+# Agent needs to guess timing
+write("command\n") → sleep(10s) → read() → if incomplete → sleep(20s) → read() → ...
+```
+**Problem**:
+  - Polling inefficient (multiple round-trips)
+  - Timing unreliable (output may take 5s or 60s)
+  - High cost (multiple LLM calls just to wait)
+  - Complex error handling (partial output, buffering)
+**Solution**: Use command-based execution instead of PTY
+```yaml
+# v1.5 simplified sessions
+exec("command") → returns complete output immediately
+```
+**Affected**: v1.4 PTY-based sessions (deprecated)
+**Status**: ⚠️ Trap avoided in v1.5 (use `delta-sessions` not `delta-sessions-pty`)
+**Details**: @docs/architecture/v1.4-pty-deprecation.md
 
 ---
 

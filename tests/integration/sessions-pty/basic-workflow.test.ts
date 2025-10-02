@@ -6,12 +6,14 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 
 const execFileAsync = promisify(execFile);
-const CLI_PATH = path.join(process.cwd(), 'dist/sessions-cli.js');
+const CLI_PATH = path.join(process.cwd(), 'dist/sessions-pty-cli.js');
 
 /**
- * Integration tests for basic session workflow
+ * Integration tests for basic PTY session workflow (v1.4 - EXPERIMENTAL)
+ * Note: These tests are for the deprecated PTY-based sessions.
+ * For v1.5 simplified sessions, see tests/integration/sessions/
  */
-describe('Session Workflow Integration', () => {
+describe('PTY Session Workflow Integration (v1.4)', () => {
   let testDir: string;
   let sessionsDir: string;
 

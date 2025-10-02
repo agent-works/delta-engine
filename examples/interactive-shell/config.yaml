@@ -1,6 +1,6 @@
-name: interactive-shell
+name: bash-session
 version: 1.0.0
-description: Agent with persistent bash shell session
+description: Agent with persistent bash session (v1.5 simplified)
 
 llm:
   model: gpt-4o
@@ -8,74 +8,35 @@ llm:
   max_tokens: 2000
 
 tools:
-  # Start a persistent bash shell
-  - name: shell_start
-    description: "Start a persistent bash shell session. Returns a session_id that you must use for all subsequent operations."
-    command: [delta-sessions, start, bash, "-i"]
+  # Start a persistent bash session
+  - name: session_start
+    description: "Start a persistent bash session. Returns a session_id for subsequent commands."
+    command: [delta-sessions, start]
     parameters: []
 
-  # Send text input to shell
-  - name: shell_write
+  # Execute command in session
+  - name: session_exec
     description: |
-      Send input to the shell session.
-      Use \\n for newline (Enter key).
-      Use \\t for tab.
-      For special keys, use shell_send_key instead.
-    command: [delta-sessions, write]
+      Execute a bash command in the session.
+      Returns complete output immediately (stdout, stderr, exit_code).
+      Working directory and environment are preserved across commands.
+    command: [delta-sessions, exec]
     parameters:
       - name: session_id
         type: string
-        description: "Session ID from shell_start"
+        description: "Session ID from session_start"
         inject_as: argument
-      - name: input
+      - name: command
         type: string
-        description: "Input to send. Use \\n for Enter, \\t for Tab"
+        description: "Bash command to execute (can be multi-line)"
         inject_as: stdin
 
-  # Send control keys
-  - name: shell_send_key
-    description: |
-      Send a control key to the shell session.
-      Supported keys: arrow_up, arrow_down, arrow_left, arrow_right,
-      enter, tab, escape, space, backspace, ctrl+c, ctrl+d, home, end
-    command: [delta-sessions, write-key]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID"
-        inject_as: argument
-      - name: key
-        type: string
-        description: "Key name (e.g., 'arrow_down', 'enter', 'ctrl+c')"
-        inject_as: argument
-
-  # Read output from shell
-  - name: shell_read
-    description: "Read output from the shell session. Use timeout_ms to wait for output."
-    command: [delta-sessions, read]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID"
-        inject_as: argument
-      - name: timeout_ms
-        type: string
-        description: "Wait timeout in milliseconds (e.g., '0' = immediate, '2000' = 2 seconds)"
-        inject_as: option
-        option_name: --timeout
-
   # Terminate session
-  - name: shell_end
-    description: "Terminate the shell session. Always call this when done."
+  - name: session_end
+    description: "Terminate the session. Always call this when done."
     command: [delta-sessions, end]
     parameters:
       - name: session_id
         type: string
         description: "Session ID"
         inject_as: argument
-
-  # List all sessions (for debugging)
-  - name: shell_list
-    description: "List all active sessions (for debugging)"
-    command: [delta-sessions, list]
-    parameters: []

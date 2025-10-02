@@ -1,6 +1,6 @@
 name: python-repl
 version: 1.0.0
-description: Agent with persistent Python REPL session
+description: Agent with persistent Python REPL session (v1.5 simplified)
 
 llm:
   model: gpt-4o
@@ -11,16 +11,16 @@ tools:
   # Start Python REPL
   - name: python_start
     description: "Start a persistent Python interactive session (REPL). Returns a session_id."
-    command: [delta-sessions, start, python3, "-i"]
+    command: [delta-sessions, start, python3]
     parameters: []
 
-  # Send Python code
+  # Execute Python code
   - name: python_exec
     description: |
       Execute Python code in the REPL session.
-      Use \\n for newline to separate statements.
-      Multi-line code should end with \\n to execute.
-    command: [delta-sessions, write]
+      Returns complete output immediately (stdout, stderr, exit_code).
+      Variables and imports persist across executions.
+    command: [delta-sessions, exec]
     parameters:
       - name: session_id
         type: string
@@ -28,36 +28,8 @@ tools:
         inject_as: argument
       - name: code
         type: string
-        description: "Python code to execute. Use \\n for newlines."
+        description: "Python code to execute (can be multi-line)"
         inject_as: stdin
-
-  # Read Python output
-  - name: python_read
-    description: "Read output from the Python REPL. Use timeout_ms to wait for results."
-    command: [delta-sessions, read]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID"
-        inject_as: argument
-      - name: timeout_ms
-        type: string
-        description: "Wait timeout in milliseconds (e.g., '0' = immediate, '2000' = 2 seconds)"
-        inject_as: option
-        option_name: --timeout
-
-  # Send interrupt
-  - name: python_interrupt
-    description: "Send Ctrl+C to interrupt running Python code"
-    command: [delta-sessions, write-key]
-    parameters:
-      - name: session_id
-        type: string
-        inject_as: argument
-      - name: key
-        type: string
-        description: "Must be 'ctrl+c'"
-        inject_as: argument
 
   # End session
   - name: python_end
@@ -66,4 +38,5 @@ tools:
     parameters:
       - name: session_id
         type: string
+        description: "Session ID"
         inject_as: argument

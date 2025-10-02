@@ -123,12 +123,18 @@ fi
   // We'll catch the error from missing API key but can still check hook execution
   try {
     // This will fail due to invalid API key, but hooks should still run
-    await (engine as any).run();
+    // Add timeout to prevent test from hanging indefinitely
+    await Promise.race([
+      (engine as any).run(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('API call timeout - expected with dummy key')), 5000)
+      )
+    ]);
   } catch (error: any) {
-    if (!error.message.includes('API')) {
+    if (!error.message.includes('API') && !error.message.includes('timeout')) {
       throw error;
     }
-    console.log('✓ Expected API error (testing with dummy key)');
+    console.log('✓ Expected API error or timeout (testing with dummy key)');
   }
 
   // Step 4: Verify hook execution in audit trail

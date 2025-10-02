@@ -1,40 +1,40 @@
-# Session Management Guide
+# Session Management Guide (v1.5)
+
+Complete guide to using Delta Engine's simplified session management system.
+
+---
 
 ## Table of Contents
 
 - [What Are Sessions?](#what-are-sessions)
 - [When to Use Sessions](#when-to-use-sessions)
 - [Quick Start](#quick-start)
+- [Core Concepts](#core-concepts)
+- [Tool Configuration](#tool-configuration)
 - [Common Patterns](#common-patterns)
-  - [Interactive Shell](#interactive-shell)
-  - [Python REPL](#python-repl)
-  - [Database Console](#database-console)
-  - [SSH Sessions](#ssh-sessions)
-- [Tool Design Patterns](#tool-design-patterns)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 - [Advanced Topics](#advanced-topics)
+- [Migration from v1.4](#migration-from-v14)
 
 ---
 
 ## What Are Sessions?
 
-Sessions provide **persistent, stateful interactions** with command-line programs in Delta Engine. While Delta Engine's core is stateless (rebuilding state from the journal), some tools require maintaining long-running processes:
+Sessions provide **persistent, stateful command execution** in Delta Engine. While the engine core remains stateless (rebuilding from journal), sessions enable agents to maintain working directory and environment context across multiple command executions.
 
-- **Interactive shells** (bash, zsh)
-- **REPLs** (Python, Node.js, Ruby)
-- **Database consoles** (psql, mysql, redis-cli)
-- **Interactive CLIs** (ssh, vim, tmux)
+### Key Features
 
-Sessions bridge the gap by managing these stateful processes **outside** the engine core, preserving Delta Engine's "Everything is a Command" philosophy.
+- **Command-based execution**: Single `exec` call returns complete output
+- **State preservation**: Working directory persists across commands
+- **LLM-friendly**: No timing guesses, no escape sequences
+- **Simple API**: Only 3 commands (start, exec, end)
+- **File-based storage**: State visible in `.sessions/` directory
 
-### Key Characteristics
+### When NOT to Use Sessions
 
-- **Process-Agnostic**: Support any interactive CLI program
-- **PTY-Based**: Real terminal emulation via pseudo-terminals
-- **Read/Write Separation**: Asynchronous interactions (write → wait → read)
-- **Manual Lifecycle**: Agent controls when to start/end sessions
-- **Independent Storage**: Sessions live in `.sessions/`, separate from `.delta/`
+- ✅ **Use sessions**: Multi-command workflows, state preservation needed
+- ❌ **Don't use**: Single commands, no state needed → Use regular tools instead
 
 ---
 
@@ -42,289 +42,53 @@ Sessions bridge the gap by managing these stateful processes **outside** the eng
 
 ### ✅ Use Sessions When:
 
-- **Stateful Context Required**: Variables, environment, or history must persist
-- **Multi-Turn Interactions**: Execute multiple commands in sequence
-- **Interactive Programs**: Navigate menus, respond to prompts
-- **Long-Running Processes**: Keep process alive between agent iterations
+**Stateful Context Required**
+```
+Task: "Navigate to /tmp, create files, then list them"
+→ Working directory must persist across commands
+```
 
-**Examples**:
-- Python REPL: Define functions, use them later
-- Shell: `cd` into directory, run commands there
-- SSH: Connect once, run many commands
-- psql: Open transaction, run queries, commit
+**Multi-command Workflows**
+```
+Task: "Install package, run tests, check coverage"
+→ Environment setup must persist
+```
+
+**Sequential Operations**
+```
+Task: "Analyze code, generate report, save results"
+→ Intermediate state must be maintained
+```
 
 ### ❌ Don't Use Sessions When:
 
-- **One-Shot Commands**: Single command with no state
-- **No State Needed**: Each invocation is independent
-- **File-Based State**: State persists via files, not memory
+**Single Commands**
+```
+Task: "Show current directory"
+→ Use simple tool: [pwd]
+```
 
-**Use regular tools instead**:
-- `curl` for HTTP requests
-- `grep` for file searches
-- `jq` for JSON processing
+**Independent Operations**
+```
+Task: "List files in /tmp AND check disk usage in /var"
+→ Two separate one-shot commands suffice
+```
 
 ---
 
 ## Quick Start
 
-### 1. Install Delta Engine
+### 1. Add Session Tools to Agent
 
-```bash
-npm install -g delta-engine
-# or
-npm install delta-engine
-```
-
-This provides two CLI commands:
-- `delta` - Main engine
-- `delta-sessions` - Session management
-
-### 2. Create a Simple Agent
-
-**config.yaml**:
-```yaml
-name: shell-agent
-version: 1.0.0
-description: Agent with bash shell
-
-llm:
-  model: gpt-4o
-  temperature: 0.7
-  max_tokens: 2000
-
-tools:
-  - name: shell_start
-    description: "Start a bash shell session"
-    command: [delta-sessions, start, bash]
-    parameters: []
-
-  - name: shell_write
-    description: "Send command to shell (include \\n for Enter)"
-    command: [delta-sessions, write]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID from shell_start"
-        inject_as: argument
-      - name: input
-        type: string
-        description: "Command to execute"
-        inject_as: stdin
-
-  - name: shell_read
-    description: "Read shell output"
-    command: [delta-sessions, read]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID"
-        inject_as: argument
-      - name: timeout_ms
-        type: string
-        description: "Timeout in milliseconds (e.g., '1000', '2000')"
-        inject_as: option
-        option_name: --timeout
-
-  - name: shell_end
-    description: "Terminate shell session"
-    command: [delta-sessions, end]
-    parameters:
-      - name: session_id
-        type: string
-        inject_as: argument
-```
-
-**system_prompt.md**:
-```markdown
-# Shell Assistant
-
-You have access to a persistent bash shell.
-
-## Workflow
-
-1. Start session: `shell_start()`
-2. Wait for prompt: `shell_read(session_id, 1000)`
-3. Execute commands: `shell_write(session_id, "ls -la\n")`
-4. Read output: `shell_read(session_id, 2000)`
-5. End when done: `shell_end(session_id)`
-
-Always include `\n` at the end of commands to execute them.
-```
-
-### 3. Run the Agent
-
-```bash
-delta run --agent ./shell-agent --task "List files in /tmp and show disk usage"
-```
-
-**Agent execution**:
-1. Calls `shell_start()` → Returns `{"session_id": "sess_abc123"}`
-2. Calls `shell_read(sess_abc123, 1000)` → Gets prompt
-3. Calls `shell_write(sess_abc123, "ls -la /tmp\n")`
-4. Calls `shell_read(sess_abc123, 2000)` → Gets file listing
-5. Calls `shell_write(sess_abc123, "df -h\n")`
-6. Calls `shell_read(sess_abc123, 2000)` → Gets disk usage
-7. Calls `shell_end(sess_abc123)` → Terminates session
-
----
-
-## Common Patterns
-
-### Interactive Shell
-
-**Use Case**: Execute multiple shell commands with state preservation.
-
-**Tools**:
-- `shell_start()` - Start bash/zsh
-- `shell_write(session_id, input)` - Send commands
-- `shell_send_key(session_id, key)` - Send control keys (optional)
-- `shell_read(session_id, timeout_ms)` - Read output
-- `shell_end(session_id)` - Terminate
-
-**Example Task**: "Create directory, add files, then archive"
-
-```
-Agent workflow:
-1. shell_start() → sess_001
-2. shell_read(sess_001, 1000) → "user@host:~$ "
-3. shell_write(sess_001, "mkdir myproject\n")
-4. shell_read(sess_001, 1000) → prompt
-5. shell_write(sess_001, "cd myproject\n")
-6. shell_read(sess_001, 1000) → prompt
-7. shell_write(sess_001, "touch file1.txt file2.txt\n")
-8. shell_read(sess_001, 1000) → prompt
-9. shell_write(sess_001, "tar -czf ../myproject.tar.gz .\n")
-10. shell_read(sess_001, 2000) → completion
-11. shell_end(sess_001) → terminated
-```
-
-**Key Points**:
-- Working directory persists (`cd` affects subsequent commands)
-- Environment variables carry over
-- Always include `\n` to execute commands
-
-**See**: `examples/interactive-shell/`
-
----
-
-### Python REPL
-
-**Use Case**: Execute Python code with persistent variables and imports.
-
-**Tools**:
-- `python_start()` - Start Python interactive mode
-- `python_exec(session_id, code)` - Execute code (write + read in one)
-- `python_read(session_id, timeout_ms)` - Read output
-- `python_interrupt(session_id, "ctrl+c")` - Interrupt execution
-- `python_end(session_id)` - Terminate
-
-**Example Task**: "Calculate factorial using recursion"
-
-```
-Agent workflow:
-1. python_start() → sess_py1
-2. python_read(sess_py1, 1000) → "Python 3.9.7\n>>>"
-3. python_exec(sess_py1, "def factorial(n):\n    if n <= 1: return 1\n    return n * factorial(n-1)\n\n")
-4. python_read(sess_py1, 1000) → ">>>"
-5. python_exec(sess_py1, "result = factorial(10)\n")
-6. python_read(sess_py1, 1000) → ">>>"
-7. python_exec(sess_py1, "print(result)\n")
-8. python_read(sess_py1, 1000) → "3628800\n>>>"
-9. python_end(sess_py1) → terminated
-```
-
-**Key Points**:
-- Functions and variables persist across calls
-- Use `\n\n` to signal end of multi-line blocks
-- Imports remain loaded for entire session
-- Handle errors gracefully (output shows Python errors)
-
-**Multi-Line Code**:
-```python
-# Agent sends this as single string:
-python_exec(session_id, "def greet(name):\n    return f'Hello, {name}!'\n\n")
-```
-
-**See**: `examples/python-repl/`
-
----
-
-### Database Console
-
-**Use Case**: Connect to database, run queries, manage transactions.
-
-**Example: PostgreSQL**
-
-**config.yaml**:
+**`config.yaml`:**
 ```yaml
 tools:
-  - name: psql_start
-    description: "Connect to PostgreSQL"
-    command: [delta-sessions, start, psql, -h, localhost, -U, postgres, -d, mydb]
+  - name: session_start
+    command: [delta-sessions, start]
     parameters: []
 
-  - name: psql_query
-    description: "Execute SQL query"
-    command: [delta-sessions, write]
-    parameters:
-      - name: session_id
-        type: string
-        inject_as: argument
-      - name: query
-        type: string
-        description: "SQL query (include \\n)"
-        inject_as: stdin
-
-  - name: psql_read
-    description: "Read query results"
-    command: [delta-sessions, read]
-    parameters:
-      - name: session_id
-        type: string
-        inject_as: argument
-      - name: timeout_ms
-        type: string
-        description: "Timeout in milliseconds (e.g., '3000')"
-        inject_as: option
-        option_name: --timeout
-```
-
-**Example Task**: "Find users created in last 30 days"
-
-```
-Agent workflow:
-1. psql_start() → sess_db1
-2. psql_read(sess_db1, 2000) → "mydb=#"
-3. psql_query(sess_db1, "SELECT * FROM users WHERE created_at > NOW() - INTERVAL '30 days';\n")
-4. psql_read(sess_db1, 3000) → [query results]
-5. psql_query(sess_db1, "\\q\n")  # Quit psql
-6. psql_read(sess_db1, 1000) → session ends
-```
-
-**Key Points**:
-- Connection credentials in `start` command
-- Transactions persist across queries
-- Use `\n` to execute SQL statements
-- Special commands (`\dt`, `\q`) work as expected
-
----
-
-### SSH Sessions
-
-**Use Case**: Connect to remote server, run commands, maintain connection.
-
-**config.yaml**:
-```yaml
-tools:
-  - name: ssh_connect
-    description: "SSH to remote server"
-    command: [delta-sessions, start, ssh, user@example.com]
-    parameters: []
-
-  - name: ssh_exec
-    description: "Execute remote command"
-    command: [delta-sessions, write]
+  - name: session_exec
+    command: [delta-sessions, exec]
     parameters:
       - name: session_id
         type: string
@@ -333,669 +97,545 @@ tools:
         type: string
         inject_as: stdin
 
-  - name: ssh_read
-    description: "Read command output"
-    command: [delta-sessions, read]
+  - name: session_end
+    command: [delta-sessions, end]
     parameters:
       - name: session_id
         type: string
         inject_as: argument
-      - name: timeout_ms
-        type: string
-        description: "Timeout in milliseconds (e.g., '1000', '5000')"
-        inject_as: option
-        option_name: --timeout
 ```
 
-**Example Task**: "Deploy code to production server"
+### 2. Update System Prompt
 
-```
-Agent workflow:
-1. ssh_connect() → sess_ssh1
-2. ssh_read(sess_ssh1, 3000) → [connection prompt/success]
-3. ssh_exec(sess_ssh1, "cd /var/www/app\n")
-4. ssh_read(sess_ssh1, 1000) → prompt
-5. ssh_exec(sess_ssh1, "git pull origin main\n")
-6. ssh_read(sess_ssh1, 5000) → [git output]
-7. ssh_exec(sess_ssh1, "npm install\n")
-8. ssh_read(sess_ssh1, 30000) → [npm install output]
-9. ssh_exec(sess_ssh1, "pm2 restart app\n")
-10. ssh_read(sess_ssh1, 2000) → [pm2 output]
-11. ssh_exec(sess_ssh1, "exit\n")
-12. ssh_read(sess_ssh1, 1000) → session ends
+**`system_prompt.md`:**
+```markdown
+## Session Tools
+
+### session_start()
+Start a new bash session. Returns session_id.
+
+### session_exec(session_id, command)
+Execute command in session. Returns complete output immediately.
+
+### session_end(session_id)
+Terminate session when done.
+
+## Workflow
+
+1. Start: session_start() → get session_id
+2. Execute: session_exec(session_id, "command") → get output
+3. State preserved: Working directory persists
+4. End: session_end(session_id) when finished
 ```
 
-**Key Points**:
-- Single SSH connection for all commands
-- Working directory persists on remote
-- Use longer timeouts for slow operations (npm, git)
-- Session ends automatically on `exit`
+### 3. Run Your Agent
+
+```bash
+delta run -y --agent . --task "Create directory test and add 3 files"
+```
 
 ---
 
-## Tool Design Patterns
+## Core Concepts
 
-### Pattern 1: Separate Tools for Each Operation
+### 1. Session Lifecycle
 
-**Recommended for clarity**:
+```
+session_start()
+    ↓
+    Returns: {"session_id": "sess_abc123"}
+    ↓
+session_exec(sess_abc123, "cd /tmp")
+    ↓
+    Returns: {"stdout": "", "exit_code": 0}
+    ↓
+session_exec(sess_abc123, "pwd")
+    ↓
+    Returns: {"stdout": "/tmp", "exit_code": 0}
+    ↓
+session_end(sess_abc123)
+```
+
+**Key Point**: State (CWD) preserved between exec calls.
+
+### 2. Command Execution Model
+
+**Synchronous execution:**
+```
+exec("ls -la")
+    ↓ [command runs to completion]
+    ↓
+{"stdout": "total 48...", "stderr": "", "exit_code": 0}
+```
+
+**Not asynchronous** (no write/sleep/read):
+```
+❌ write("ls\n") → sleep(2) → read()
+✅ exec("ls -la") → immediate complete output
+```
+
+### 3. State Preservation
+
+**Working directory persists:**
+```bash
+session_exec(sess_abc, "cd /tmp")
+session_exec(sess_abc, "mkdir test")
+session_exec(sess_abc, "cd test")
+session_exec(sess_abc, "pwd")
+# Output: /tmp/test
+```
+
+**Environment variables inherited** (not captured in v1.5 MVP):
+```bash
+# Workaround: use combined commands
+session_exec(sess_abc, "VAR=hello; echo $VAR")
+```
+
+### 4. Output Structure
+
+Every `exec` returns:
+```json
+{
+  "stdout": "command output",
+  "stderr": "error output",
+  "exit_code": 0,
+  "execution_time_ms": 42
+}
+```
+
+- `exit_code == 0`: Success
+- `exit_code != 0`: Failure (check `stderr`)
+
+---
+
+## Tool Configuration
+
+### Minimal Configuration (3 tools)
+
+**`config.yaml`:**
 ```yaml
-tools:
-  - name: repl_start
-    command: [delta-sessions, start, python3, -i]
+name: my-agent
+version: 1.0.0
+description: Agent with session support
 
-  - name: repl_write
-    command: [delta-sessions, write]
+llm:
+  model: gpt-4o
+  temperature: 0.7
+
+tools:
+  - name: session_start
+    description: "Start a persistent bash session"
+    command: [delta-sessions, start]
+    parameters: []
+
+  - name: session_exec
+    description: |
+      Execute bash command in session.
+      Returns complete output (stdout, stderr, exit_code).
+    command: [delta-sessions, exec]
     parameters:
       - name: session_id
         type: string
+        description: "Session ID from session_start"
         inject_as: argument
-      - name: code
+      - name: command
         type: string
+        description: "Bash command (can be multi-line)"
         inject_as: stdin
 
-  - name: repl_read
-    command: [delta-sessions, read]
+  - name: session_end
+    description: "Terminate session when done"
+    command: [delta-sessions, end]
     parameters:
       - name: session_id
         type: string
         inject_as: argument
-      - name: timeout_ms
-        type: string
-        description: "Timeout in milliseconds (e.g., '2000')"
-        inject_as: option
-        option_name: --timeout
 ```
 
-**Benefits**:
-- Clear separation of concerns
-- Easier to document and understand
-- More flexible (agent controls timing)
+### Alternative Shell Support
+
+**Python shell:**
+```yaml
+- name: python_start
+  command: [delta-sessions, start, python3]
+```
+
+**Custom shell:**
+```yaml
+- name: shell_start
+  command: [delta-sessions, start, zsh]
+```
 
 ---
 
-### Pattern 2: Combined Write+Read Tool
+## Common Patterns
 
-**For convenience**:
+### Pattern 1: Sequential Commands
+
+**Use Case**: Commands depend on previous state
+
 ```yaml
-tools:
-  - name: repl_exec
-    description: "Execute code and return result"
-    command: [bash, -c]
-    parameters:
-      - name: exec_script
-        type: string
-        inject_as: stdin
-        # Script: echo "$code" | delta-sessions write "$session_id" && delta-sessions read "$session_id" --timeout 2000
+Task: "Setup project structure"
+
+Actions:
+1. session_start() → sess_abc
+2. session_exec(sess_abc, "mkdir -p src tests docs")
+3. session_exec(sess_abc, "cd src")
+4. session_exec(sess_abc, "touch index.js")
+5. session_exec(sess_abc, "cd ../tests")
+6. session_exec(sess_abc, "touch index.test.js")
+7. session_exec(sess_abc, "ls -R")
+8. session_end(sess_abc)
 ```
 
-**Benefits**:
-- Single tool call for common case
-- Less verbose agent workflows
+### Pattern 2: Combined Commands
 
-**Drawbacks**:
-- Less control over timing
-- Harder to debug
-- Can't handle streaming or complex interactions
+**Use Case**: Multiple operations, atomic execution
 
-**Recommendation**: Use Pattern 1 for maximum flexibility.
-
----
-
-### Pattern 3: Control Keys for Interactive Programs
-
-**Use `write-key` for semantic clarity**:
 ```yaml
-tools:
-  - name: shell_send_key
-    description: "Send keyboard control (arrow_up, enter, ctrl+c, etc.)"
-    command: [delta-sessions, write-key]
-    parameters:
-      - name: session_id
-        type: string
-        inject_as: argument
-      - name: key
-        type: string
-        description: "Key name (see key reference)"
-        inject_as: argument
+Task: "Install and verify"
+
+Action:
+session_exec(sess_abc, """
+npm install express &&
+node -e "require('express'); console.log('OK')"
+""")
 ```
 
-**Example usage**:
-```
-# Navigate interactive menu
-1. shell_send_key(sess, "arrow_down")
-2. shell_read(sess, 500)
-3. shell_send_key(sess, "enter")
-4. shell_read(sess, 1000)
+### Pattern 3: Error Recovery
+
+**Use Case**: Handle command failures
+
+```yaml
+Thought: Try to remove directory
+Action: session_exec(sess_abc, "rm -rf /tmp/test")
+Result: {"stderr": "No such file", "exit_code": 1}
+
+Thought: Directory doesn't exist, create it instead
+Action: session_exec(sess_abc, "mkdir /tmp/test")
+Result: {"exit_code": 0}
 ```
 
-**Alternative**: Use `write` with escape sequences:
-```
-shell_write(sess, "\x1b[B")  # arrow_down
-shell_write(sess, "\n")       # enter
+### Pattern 4: Multi-line Scripts
+
+**Use Case**: Complex logic
+
+```yaml
+Action: session_exec(sess_abc, """
+#!/bin/bash
+for i in {1..5}; do
+  echo "Processing $i"
+  mkdir -p dir_$i
+  cd dir_$i
+  touch file.txt
+  cd ..
+done
+ls -la
+""")
 ```
 
-**Recommendation**: Use `write-key` for common controls (better journal readability), fall back to `write` for uncommon sequences.
+### Pattern 5: Data Processing Pipeline
+
+**Use Case**: Chain transformations
+
+```yaml
+# Step 1: Download data
+session_exec(sess_abc, "curl https://api.example.com/data > data.json")
+
+# Step 2: Process
+session_exec(sess_abc, "jq '.items[] | .name' data.json > names.txt")
+
+# Step 3: Analyze
+session_exec(sess_abc, "wc -l names.txt")
+
+# Step 4: Verify
+session_exec(sess_abc, "cat names.txt")
+```
 
 ---
 
 ## Best Practices
 
-### 1. Always Include Newlines
+### 1. Session Lifecycle Management
 
-Commands need `\n` (Enter key) to execute:
-
+✅ **Do**: Always call `session_end()`
 ```yaml
-✅ CORRECT:
-shell_write(session_id, "ls -la\n")
-
-❌ WRONG:
-shell_write(session_id, "ls -la")
+session_start() → sess_abc
+# ... commands ...
+session_end(sess_abc)  # Always cleanup
 ```
 
-### 2. Use Appropriate Timeouts
-
-Match timeout to expected execution time:
-
+❌ **Don't**: Leave sessions open
 ```yaml
-Fast commands (pwd, echo):       1000ms (1 second)
-Medium commands (ls, grep):      2000ms (2 seconds)
-Slow commands (find, npm):       5000ms+ (5+ seconds)
-Interactive waits (prompts):     10000ms+ (10+ seconds)
+session_start() → sess_abc
+# ... commands ...
+# (forgot to end) → session orphaned
 ```
 
-### 3. Read After Every Write
+### 2. Error Handling
 
-Always read output after sending input:
-
+✅ **Do**: Check exit codes
 ```yaml
-✅ CORRECT:
-shell_write(session_id, "echo hello\n")
-output = shell_read(session_id, 1000)
-
-❌ WRONG:
-shell_write(session_id, "echo hello\n")
-shell_write(session_id, "echo world\n")  # Lost "hello" output!
+result = session_exec(sess_abc, "command")
+if result.exit_code != 0:
+    # Handle error
+    check stderr for details
 ```
 
-### 4. Clean Up Sessions
-
-Always call `end` when done:
-
+❌ **Don't**: Ignore failures
 ```yaml
-try:
-  session_id = shell_start()
-  # ... use session
-finally:
-  shell_end(session_id)  # Clean up
+session_exec(sess_abc, "command")
+# (didn't check exit_code) → silent failure
 ```
 
-### 5. Handle Errors Gracefully
+### 3. Command Composition
 
-Check output for error messages:
-
-```python
-output = shell_read(session_id, 2000)
-if "command not found" in output:
-  # Handle error
-elif "permission denied" in output:
-  # Handle permission issue
-```
-
-### 6. One Session Per Task
-
-Don't reuse sessions across different tasks:
-
+✅ **Do**: Use `&&` for dependent commands
 ```yaml
-✅ CORRECT:
-Task 1: Start session → Use → End
-Task 2: Start new session → Use → End
-
-❌ WRONG:
-Task 1: Start session → Use
-Task 2: Reuse same session  # Polluted state!
+session_exec(sess_abc, "cd /tmp && mkdir test && cd test")
 ```
 
-### 7. State Explicitly in Prompts
+❌ **Don't**: Use `;` without checking
+```yaml
+# This continues even if cd fails:
+session_exec(sess_abc, "cd /nonexistent; rm -rf *")
+```
 
-Document expected workflow in system prompt:
+### 4. State Verification
 
-```markdown
-## Workflow
+✅ **Do**: Verify state changes
+```yaml
+session_exec(sess_abc, "cd /tmp")
+result = session_exec(sess_abc, "pwd")
+# Verify: result.stdout.strip() == "/tmp"
+```
 
-1. Start session: `tool_start()`
-2. Wait for prompt: `tool_read(session_id, timeout_ms)`
-3. Execute commands: `tool_write(session_id, "command\n")`
-4. Read results: `tool_read(session_id, timeout_ms)`
-5. Clean up: `tool_end(session_id)`
+### 5. Resource Cleanup
+
+✅ **Do**: Clean up temporary files
+```yaml
+session_exec(sess_abc, "mktemp -d")
+# ... work ...
+session_exec(sess_abc, "rm -rf /tmp/tmpXXX")
+session_end(sess_abc)
 ```
 
 ---
 
 ## Troubleshooting
 
-### Problem: "Session not found or dead"
+### Issue: "Session not found"
 
-**Cause**: Session process crashed or was terminated externally.
+**Symptom**: Error when calling `exec` or `end`
 
-**Solutions**:
-1. Start a new session
-2. Check if process was killed (e.g., out of memory)
-3. Verify command is valid and accessible
+**Causes**:
+- Session ID typo
+- Session already terminated
+- Session crashed
 
-**Example**:
+**Solution**:
 ```bash
-# Manual check
+# Check active sessions
 delta-sessions list
-delta-sessions status sess_abc123
 
-# If dead, clean up
-delta-sessions cleanup
+# Create new session if needed
+session_start()
 ```
 
----
+### Issue: "No command provided (stdin is empty)"
 
-### Problem: No output from `read`
+**Symptom**: exec fails immediately
 
-**Possible Causes**:
-1. Command produces no output (e.g., `cd`, `export`)
-2. Timeout too short for slow commands
-3. Command waiting for input
-4. Process still running
+**Cause**: Command not passed via stdin
 
-**Solutions**:
-1. **Check if command outputs anything**:
-   ```bash
-   # Some commands are silent
-   cd /tmp        # No output expected
-   export VAR=1   # No output
-   ```
-
-2. **Increase timeout**:
-   ```yaml
-   # Before: shell_read(sess, 1000)
-   # After:
-   shell_read(sess, 5000)  # Wait longer
-   ```
-
-3. **Check if waiting for input**:
-   ```yaml
-   # Command may be prompting
-   output = shell_read(sess, 1000)
-   if "password:" in output.lower():
-     shell_write(sess, "mypassword\n")
-     shell_read(sess, 2000)
-   ```
-
-4. **Try `--wait` mode** (wait for command to complete):
-   ```bash
-   delta-sessions read sess_abc123 --wait
-   ```
-
----
-
-### Problem: Output truncated or incomplete
-
-**Cause**: Large output exceeds buffer, or command still running.
-
-**Solutions**:
-1. **Use `--follow` mode** for streaming:
-   ```bash
-   delta-sessions read sess_abc123 --follow
-   ```
-
-2. **Read in chunks**:
-   ```yaml
-   # Read multiple times
-   chunk1 = shell_read(sess, 1000)
-   chunk2 = shell_read(sess, 1000)
-   chunk3 = shell_read(sess, 1000)
-   ```
-
-3. **Redirect to file in command**:
-   ```yaml
-   shell_write(sess, "long_command > /tmp/output.txt\n")
-   shell_read(sess, 5000)  # Wait for completion
-   # Then read file with regular tool
-   ```
-
----
-
-### Problem: Process hangs or infinite loop
-
-**Cause**: Command entered infinite loop or blocking operation.
-
-**Solutions**:
-1. **Send interrupt (Ctrl+C)**:
-   ```yaml
-   shell_send_key(session_id, "ctrl+c")
-   shell_read(session_id, 1000)
-   # Output: "KeyboardInterrupt" or "^C"
-   ```
-
-2. **Terminate session** (last resort):
-   ```yaml
-   shell_end(session_id)  # Kills process
-   ```
-
-3. **Prevention**: Use timeouts in commands:
-   ```bash
-   timeout 10s long_running_command
-   ```
-
----
-
-### Problem: Multi-line code not executing (Python/REPLs)
-
-**Cause**: Missing blank line to signal end of block.
-
-**Solution**: Add `\n\n` after multi-line blocks:
-
-```python
-✅ CORRECT:
-python_exec(session_id, "def foo():\n    return 42\n\n")
-# Two newlines ^^ signals end of function
-
-❌ WRONG:
-python_exec(session_id, "def foo():\n    return 42\n")
-# Single newline - Python waits for more input
+**Solution**: Verify `config.yaml`:
+```yaml
+- name: session_exec
+  parameters:
+    - name: command
+      inject_as: stdin  # ← Must be stdin
 ```
 
----
+### Issue: Commands fail with exit_code 1
 
-### Problem: Escape sequences not working
+**Symptom**: Unexpected failures
 
-**Cause**: Incorrect escaping or unsupported key.
+**Cause**: Command error (normal behavior)
 
-**Solutions**:
-1. **Use `write-key` instead** (recommended):
-   ```yaml
-   # Instead of: shell_write(sess, "\x1b[A")
-   # Use:
-   shell_send_key(sess, "arrow_up")
-   ```
+**Solution**: Check `stderr` for details
+```yaml
+result = session_exec(sess_abc, "ls nonexistent")
+# result.exit_code == 1
+# result.stderr == "ls: nonexistent: No such file or directory"
+```
 
-2. **Check escape sequence syntax**:
-   ```yaml
-   ✅ CORRECT:
-   shell_write(sess, "line1\\nline2\\n")  # In YAML
-   shell_write(sess, "line1\nline2\n")   # In tool call
+### Issue: Working directory not preserved
 
-   ❌ WRONG:
-   shell_write(sess, "line1\nline2\n")   # In YAML (interpreted)
-   ```
+**Symptom**: `cd` commands don't persist
 
-3. **Verify key is supported**:
-   ```bash
-   # Check supported keys
-   delta-sessions write-key sess_abc123 invalid_key
-   # Error: Invalid key name: invalid_key
-   ```
+**Causes**:
+- Using separate sessions (each has own CWD)
+- Command failed (exit_code != 0)
 
----
+**Solution**:
+```yaml
+# ✅ Same session - CWD persists
+session_exec(sess_abc, "cd /tmp")
+session_exec(sess_abc, "pwd")  # /tmp
 
-### Problem: Permission denied or command not found
+# ❌ Different sessions - CWD independent
+session_exec(sess_abc, "cd /tmp")
+session_exec(sess_xyz, "pwd")  # Original CWD
+```
 
-**Cause**: Command not in PATH or lacks execute permissions.
+### Issue: Environment variables not preserved
 
-**Solutions**:
-1. **Use absolute paths**:
-   ```yaml
-   # Instead of: delta-sessions start python3
-   # Use:
-   delta-sessions start /usr/bin/python3
-   ```
+**Symptom**: `export VAR=value` doesn't persist
 
-2. **Check PATH in session**:
-   ```yaml
-   shell_write(sess, "echo $PATH\n")
-   output = shell_read(sess, 1000)
-   ```
+**Cause**: v1.5 MVP doesn't capture env changes
 
-3. **Set environment before starting**:
-   ```yaml
-   - name: custom_start
-     command: [bash, -c, "PATH=/custom/path:$PATH delta-sessions start myprogram"]
-   ```
+**Workaround**: Use inline variables
+```yaml
+# Instead of:
+session_exec(sess_abc, "export VAR=hello")
+session_exec(sess_abc, "echo $VAR")  # Empty
+
+# Use:
+session_exec(sess_abc, "VAR=hello; echo $VAR")  # hello
+```
 
 ---
 
 ## Advanced Topics
 
-### Custom Timeouts and Read Modes
-
-The `read` command supports multiple modes:
-
-**1. Immediate read** (return buffered output):
-```bash
-delta-sessions read sess_abc123
-# Returns immediately with whatever is in buffer
-```
-
-**2. Timeout wait** (wait up to N milliseconds):
-```bash
-delta-sessions read sess_abc123 --timeout 5000
-# Waits up to 5 seconds, returns when:
-# - Timeout expires, OR
-# - Prompt detected (shell prompt pattern)
-```
-
-**3. Wait for completion** (wait indefinitely):
-```bash
-delta-sessions read sess_abc123 --wait
-# Waits until prompt detected, no timeout
-```
-
-**4. Follow mode** (stream output):
-```bash
-delta-sessions read sess_abc123 --follow
-# Streams output as it arrives, like `tail -f`
-```
-
-**5. Limited lines** (return first N lines):
-```bash
-delta-sessions read sess_abc123 --lines 10
-# Returns first 10 lines of output
-```
-
----
-
-### Session Persistence and Limitations
-
-**Sessions do NOT survive**:
-- `delta-sessions` CLI process restarts
-- System reboots
-- Process crashes
-
-**Why**: Sessions are in-memory PTY processes. No restoration mechanism (by design - kept simple).
-
-**Workaround**: Design agents to be idempotent:
-```yaml
-# Check if session exists before starting
-sessions = shell_list()
-if session_id not in sessions:
-  session_id = shell_start()
-```
-
-**Alternative**: Use connection caching at application level (e.g., keep SSH connection alive in agent process, not session).
-
----
-
-### Session Cleanup Strategies
-
-**Manual cleanup** (recommended):
-```yaml
-# In system prompt
-Always call tool_end(session_id) when task completes.
-```
-
-**Automatic cleanup** (via cron or scheduled task):
-```bash
-# Cron job: Clean up dead sessions daily
-0 2 * * * delta-sessions cleanup
-```
-
-**Lazy cleanup** (on-demand):
-```yaml
-# Only clean up when needed
-- name: cleanup_sessions
-  description: "Remove dead sessions"
-  command: [delta-sessions, cleanup]
-```
-
-**Best practice**: Combine manual cleanup (agent responsibility) with periodic automated cleanup (safety net).
-
----
-
 ### Debugging Sessions
 
-**Enable verbose logging**:
-```bash
-# Set log level (if supported)
-DELTA_LOG_LEVEL=debug delta-sessions start bash
-```
-
-**Inspect session files**:
-```bash
-# List session metadata
-cat ~/.sessions/sess_abc123/metadata.json
-
-# View session logs
-cat ~/.sessions/sess_abc123/output.log
-cat ~/.sessions/sess_abc123/input.log
-```
-
-**Monitor active sessions**:
+**View session state:**
 ```bash
 # List all sessions
 delta-sessions list
 
-# Check specific session
-delta-sessions status sess_abc123
+# Inspect metadata
+cat .sessions/sess_abc123/metadata.json
 
-# Read raw output
-delta-sessions read sess_abc123
+# View state (working directory)
+cat .sessions/sess_abc123/state.json
+
+# View execution history
+cat .sessions/sess_abc123/history.log
 ```
 
----
+**Session metadata structure:**
+```json
+{
+  "session_id": "sess_abc123",
+  "command": "bash",
+  "created_at": "2025-10-02T10:30:00Z",
+  "last_executed_at": "2025-10-02T10:35:00Z",
+  "status": "active",
+  "work_dir": "/current/directory",
+  "execution_count": 5
+}
+```
 
-### Custom PTY Programs
+### Long-Running Commands
 
-Sessions support any program that can run in a terminal:
-
-**Example: Custom REPL**:
+For commands that take time:
 ```yaml
-- name: myrepl_start
-  command: [delta-sessions, start, /path/to/myrepl, --flag, value]
+# Background execution
+session_exec(sess_abc, "nohup long_command > output.log 2>&1 &")
+
+# Check progress
+session_exec(sess_abc, "tail -10 output.log")
+
+# Check if still running
+session_exec(sess_abc, "ps aux | grep long_command")
 ```
 
-**Example: Docker container**:
+### Multiple Sessions
+
+Agents can manage multiple sessions:
 ```yaml
-- name: docker_start
-  command: [delta-sessions, start, docker, exec, -it, container_name, bash]
+# Different purposes
+sess_build = session_start()  # Build environment
+sess_test = session_start()   # Test environment
+
+# Parallel operations
+session_exec(sess_build, "npm run build")
+session_exec(sess_test, "npm test")
+
+# Cleanup
+session_end(sess_build)
+session_end(sess_test)
 ```
 
-**Example: Vim editor** (advanced):
-```yaml
-- name: vim_start
-  command: [delta-sessions, start, vim, file.txt]
+### Session Cleanup
 
-- name: vim_command
-  description: "Send vim command (e.g., ':wq')"
-  command: [delta-sessions, write]
-  parameters:
-    - name: session_id
-      type: string
-      inject_as: argument
-    - name: command
-      type: string
-      inject_as: stdin
-```
-
-**Key requirement**: Program must be interactive (read from stdin, write to stdout/stderr).
-
----
-
-### Security Considerations
-
-**1. Credential Handling**:
-```yaml
-❌ WRONG: Hardcode credentials
-- name: psql_start
-  command: [delta-sessions, start, psql, -U, admin, -p, "password123"]
-
-✅ CORRECT: Use environment variables
-- name: psql_start
-  command: [bash, -c, "delta-sessions start psql -U $DB_USER"]
-  # Requires: export DB_USER=admin DB_PASSWORD=secret
-```
-
-**2. Command Injection**:
-```yaml
-# Validate user inputs before passing to shell
-# Avoid: shell_write(session_id, user_input + "\n")
-# Better: Sanitize user_input first
-```
-
-**3. Privilege Escalation**:
-```yaml
-# Avoid: sudo commands without user approval
-# If needed, document clearly in system prompt:
-## Security Note
-This agent may run commands with sudo. User approval required.
-```
-
-**4. Session Isolation**:
-- Each agent should use separate sessions
-- Don't share session IDs between agents
-- Clean up sessions after use
-
----
-
-## Examples Summary
-
-| Use Case | Example Agent | Key Tools |
-|----------|---------------|-----------|
-| Shell scripting | `examples/interactive-shell/` | `shell_start`, `shell_write`, `shell_read`, `shell_end` |
-| Python coding | `examples/python-repl/` | `python_start`, `python_exec`, `python_read`, `python_end` |
-| Database queries | (Custom) | `psql_start`, `psql_query`, `psql_read` |
-| Remote servers | (Custom) | `ssh_connect`, `ssh_exec`, `ssh_read` |
-
-All examples are fully functional and can be run with:
+**Manual cleanup:**
 ```bash
-delta run --agent examples/<agent-name> --task "<your task>"
+# From command line
+delta-sessions list
+delta-sessions end sess_abc123
+```
+
+**Automatic cleanup (agent hook):**
+```yaml
+# config.yaml
+hooks:
+  on_error:
+    command: [bash, -c, "delta-sessions list | jq -r '.[].session_id' | xargs -I {} delta-sessions end {}"]
 ```
 
 ---
 
-## API Reference
+## Migration from v1.4
 
-For detailed CLI command documentation, see: [delta-sessions API Reference](../api/delta-sessions.md)
+If you have agents using v1.4 PTY-based sessions, see the complete [v1.4 to v1.5 Migration Guide](../migration/v1.4-to-v1.5.md).
 
-For architectural details, see: [Session Management Design](../architecture/v1.4-sessions-design.md)
+### Quick Comparison
 
----
+| Aspect | v1.4 (PTY) | v1.5 (Simplified) |
+|--------|------------|-------------------|
+| **API** | start, write, read, write-key, end | start, exec, end |
+| **Interaction** | write → sleep → read | exec → immediate output |
+| **Escape sequences** | Required (`\n`, `\x1b[A`) | Not needed |
+| **Timing** | Must guess wait times | Automatic |
+| **Tools count** | 5-8 tools | 3 tools |
 
-## FAQ
+### Migration Steps
 
-**Q: Can sessions be shared between different agent runs?**
-A: No. Sessions are tied to the `delta-sessions` process. When the process restarts, sessions are lost.
+1. Update tool definitions (5 → 3 tools)
+2. Update system prompts (remove timing/escape guidance)
+3. Test with `delta run`
 
-**Q: How many sessions can I run concurrently?**
-A: Limited by system resources (PTY limits, memory). Typically 100+ sessions on modern systems.
-
-**Q: Can I use sessions in hooks?**
-A: Yes, but be careful - hooks run synchronously. Long-running sessions may block engine execution.
-
-**Q: Are sessions restored after crash?**
-A: No. Sessions are in-memory processes. Design agents to handle session loss gracefully.
-
-**Q: Can I SSH into a remote server and run sessions there?**
-A: Yes - SSH itself can be a session (`delta-sessions start ssh user@host`), then run commands remotely.
-
-**Q: Do sessions work on Windows?**
-A: Partially. `node-pty` has limited Windows support. WSL recommended.
+**Time estimate**: 10-30 minutes per agent
 
 ---
 
-**Last Updated**: v1.4.2
-**See Also**: [API Reference](../api/delta-sessions.md) | [Architecture Design](../architecture/v1.4-sessions-design.md)
+## Examples
+
+See complete working examples:
+- **[interactive-shell](../../examples/interactive-shell/)** - Bash session patterns
+- **[python-repl](../../examples/python-repl/)** - Python execution
+
+---
+
+## See Also
+
+- **[delta-sessions CLI Reference](../api/delta-sessions.md)** - Complete API documentation
+- **[v1.5 Architecture Design](../architecture/v1.5-sessions-simplified.md)** - Design rationale
+- **[v1.4 PTY Deprecation](../architecture/v1.4-pty-deprecation.md)** - Why PTY was deprecated
+- **[Migration Guide](../migration/v1.4-to-v1.5.md)** - Upgrade from v1.4
+
+---
+
+## Summary
+
+**v1.5 simplified sessions** provide command-based execution optimized for LLM agents:
+
+- ✅ **Simple**: 3 tools, no escape sequences
+- ✅ **Fast**: Single call, complete output
+- ✅ **Reliable**: No timing issues
+- ✅ **LLM-friendly**: Request-response model
+
+For real-time PTY interaction (vim, top), use experimental `delta-sessions-pty`.

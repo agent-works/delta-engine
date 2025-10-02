@@ -1,134 +1,120 @@
-import * as path from 'node:path';
+/**
+ * Session Manager - High-level session lifecycle management
+ */
+
 import { v4 as uuidv4 } from 'uuid';
-import { Session } from './session.js';
-import {
-  SessionConfig,
-  SessionNotFoundError,
+import type {
+  SessionMetadata,
+  SessionManagerConfig,
+  ExecutionResult,
   ListSessionInfo,
 } from './types.js';
-import {
-  loadMetadata,
-  updateMetadata,
-  listSessionDirs,
-  sessionExists,
-  removeSessionDir,
-} from './storage.js';
+import { SessionStorage } from './storage.js';
+import { CommandExecutor } from './executor.js';
 
 /**
- * SessionManager
- * High-level API for managing multiple sessions
+ * Session manager for creating, executing, and terminating sessions
  */
 export class SessionManager {
-  private sessions: Map<string, Session> = new Map();
+  private storage: SessionStorage;
 
-  constructor(private config: SessionConfig) {}
+  constructor(config: SessionManagerConfig) {
+    this.storage = new SessionStorage(config.sessions_dir);
+  }
 
   /**
    * Create a new session
-   * @returns session_id
+   * @param command Shell command (default: 'bash')
+   * @returns Session ID
    */
-  async createSession(command: string[]): Promise<string> {
-    const sessionId = `sess_${uuidv4().replace(/-/g, '').slice(0, 12)}`;
-    const sessionDir = path.join(this.config.sessions_dir, sessionId);
+  async createSession(command: string = 'bash'): Promise<string> {
+    const sessionId = this.generateSessionId();
+    const workDir = process.cwd();
 
-    // Create session
-    const session = await Session.create(
-      sessionId,
-      sessionDir,
-      command
-    );
+    // Create session directory
+    await this.storage.createSessionDir(sessionId);
 
-    // Store in memory
-    this.sessions.set(sessionId, session);
+    // Create metadata
+    const metadata: SessionMetadata = {
+      session_id: sessionId,
+      command,
+      created_at: new Date().toISOString(),
+      status: 'active',
+      work_dir: workDir,
+      execution_count: 0,
+    };
+
+    await this.storage.saveMetadata(metadata);
 
     return sessionId;
   }
 
   /**
-   * Get a session by ID
-   * Returns null if session doesn't exist or holder is dead
+   * Get session metadata
    */
-  async getSession(sessionId: string): Promise<Session | null> {
-    // Check in-memory cache first
-    if (this.sessions.has(sessionId)) {
-      const session = this.sessions.get(sessionId)!;
+  async getSession(sessionId: string): Promise<SessionMetadata | null> {
+    return await this.storage.loadMetadata(sessionId);
+  }
 
-      // Verify session is still alive
-      if (!await session.isAlive()) {
-        // Holder died, update status
-        const sessionDir = path.join(this.config.sessions_dir, sessionId);
-        await updateMetadata(sessionDir, { status: 'dead' });
-        this.sessions.delete(sessionId);
-        return null;
-      }
-
-      return session;
+  /**
+   * Execute command in session
+   */
+  async executeCommand(sessionId: string, command: string): Promise<ExecutionResult> {
+    // Validate session exists
+    const metadata = await this.storage.loadMetadata(sessionId);
+    if (!metadata) {
+      throw new Error(`Session ${sessionId} not found`);
     }
 
-    // Check if session exists on disk
-    const exists = await sessionExists(this.config.sessions_dir, sessionId);
-
-    if (!exists) {
-      return null;
+    if (metadata.status === 'terminated') {
+      throw new Error(`Session ${sessionId} is terminated`);
     }
 
-    // Load session from disk and reconnect via socket
-    const sessionDir = path.join(this.config.sessions_dir, sessionId);
-    const metadata = await loadMetadata(sessionDir);
+    // Execute command
+    const sessionDir = this.storage.getSessionDir(sessionId);
+    const executor = new CommandExecutor(sessionId, sessionDir);
+    const result = await executor.execute(command);
 
-    // Check if holder is alive
-    if (!Session.isProcessAlive(metadata.holder_pid)) {
-      // Holder is dead, update status
-      await updateMetadata(sessionDir, { status: 'dead' });
-      return null;
+    // Update metadata (execution count + last executed time)
+    metadata.execution_count += 1;
+    metadata.last_executed_at = new Date().toISOString();
+    await this.storage.saveMetadata(metadata);
+
+    return result;
+  }
+
+  /**
+   * Terminate session
+   */
+  async terminateSession(sessionId: string): Promise<void> {
+    const metadata = await this.storage.loadMetadata(sessionId);
+    if (!metadata) {
+      throw new Error(`Session ${sessionId} not found`);
     }
 
-    // Reconnect to session via socket - use /tmp path (same as create)
-    const socketPath = `/tmp/delta-sock-${sessionId}.sock`;
-    const session = await Session.reconnect(sessionId, sessionDir, socketPath, metadata);
-
-    // Cache in memory
-    this.sessions.set(sessionId, session);
-
-    return session;
+    // Update status to terminated
+    metadata.status = 'terminated';
+    await this.storage.saveMetadata(metadata);
   }
 
   /**
    * List all sessions
    */
   async listSessions(): Promise<ListSessionInfo[]> {
-    const sessionDirs = await listSessionDirs(this.config.sessions_dir);
+    const sessionIds = await this.storage.listSessionIds();
+
     const sessions: ListSessionInfo[] = [];
-
-    for (const sessionId of sessionDirs) {
-      try {
-        const sessionDir = path.join(this.config.sessions_dir, sessionId);
-        const metadata = await loadMetadata(sessionDir);
-
-        // Check if holder is still alive
-        const alive = Session.isProcessAlive(metadata.holder_pid);
-
-        // Update status if changed
-        if (alive && metadata.status === 'dead') {
-          metadata.status = 'running';
-          await updateMetadata(sessionDir, { status: 'running' });
-        } else if (!alive && metadata.status === 'running') {
-          metadata.status = 'dead';
-          await updateMetadata(sessionDir, { status: 'dead' });
-        }
-
+    for (const sessionId of sessionIds) {
+      const metadata = await this.storage.loadMetadata(sessionId);
+      if (metadata) {
         sessions.push({
           session_id: metadata.session_id,
-          command: metadata.command.join(' '),
+          command: metadata.command,
           status: metadata.status,
-          pid: metadata.pid,
-          holder_pid: metadata.holder_pid,
           created_at: metadata.created_at,
-          last_accessed_at: metadata.last_accessed_at,
+          last_executed_at: metadata.last_executed_at,
+          execution_count: metadata.execution_count,
         });
-      } catch (error) {
-        // Skip sessions with invalid metadata
-        console.error(`Failed to load session ${sessionId}: ${(error as Error).message}`);
       }
     }
 
@@ -136,84 +122,19 @@ export class SessionManager {
   }
 
   /**
-   * Terminate a session
-   */
-  async terminateSession(sessionId: string): Promise<void> {
-    // Check if session exists
-    const exists = await sessionExists(this.config.sessions_dir, sessionId);
-    if (!exists) {
-      throw new SessionNotFoundError(sessionId);
-    }
-
-    // Get session from memory
-    let session = this.sessions.get(sessionId);
-
-    if (session) {
-      // Terminate the session
-      await session.terminate();
-      this.sessions.delete(sessionId);
-    } else {
-      // Session not in memory, try to kill holder directly
-      const sessionDir = path.join(this.config.sessions_dir, sessionId);
-      const metadata = await loadMetadata(sessionDir);
-
-      if (Session.isProcessAlive(metadata.holder_pid)) {
-        // Holder is still alive, kill it
-        try {
-          process.kill(metadata.holder_pid, 'SIGTERM');
-
-          // Wait up to 2 seconds
-          const maxWait = 2000;
-          const startTime = Date.now();
-
-          while (Session.isProcessAlive(metadata.holder_pid) && Date.now() - startTime < maxWait) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-
-          // Force kill if still alive
-          if (Session.isProcessAlive(metadata.holder_pid)) {
-            process.kill(metadata.holder_pid, 'SIGKILL');
-          }
-        } catch (error) {
-          // Process might already be dead
-          console.error(`Failed to kill holder ${metadata.holder_pid}: ${(error as Error).message}`);
-        }
-
-        // Update metadata
-        await updateMetadata(sessionDir, { status: 'dead' });
-      }
-    }
-
-    // Remove session directory
-    await removeSessionDir(this.config.sessions_dir, sessionId);
-  }
-
-  /**
-   * Cleanup dead sessions
-   * Removes directories for sessions whose holders are no longer running
+   * Cleanup terminated sessions
    * @returns Array of cleaned session IDs
    */
   async cleanup(): Promise<string[]> {
-    const sessionDirs = await listSessionDirs(this.config.sessions_dir);
+    const sessionIds = await this.storage.listSessionIds();
     const cleaned: string[] = [];
 
-    for (const sessionId of sessionDirs) {
-      try {
-        const sessionDir = path.join(this.config.sessions_dir, sessionId);
-        const metadata = await loadMetadata(sessionDir);
+    for (const sessionId of sessionIds) {
+      const metadata = await this.storage.loadMetadata(sessionId);
 
-        // Check if holder is dead
-        if (!Session.isProcessAlive(metadata.holder_pid)) {
-          // Remove session
-          await removeSessionDir(this.config.sessions_dir, sessionId);
-          this.sessions.delete(sessionId);
-          cleaned.push(sessionId);
-        }
-      } catch (error) {
-        // If we can't load metadata, consider it dead and clean it up
-        console.error(`Failed to check session ${sessionId}, cleaning up: ${(error as Error).message}`);
-        await removeSessionDir(this.config.sessions_dir, sessionId);
-        this.sessions.delete(sessionId);
+      // Delete if terminated or metadata corrupt
+      if (!metadata || metadata.status === 'terminated') {
+        await this.storage.deleteSession(sessionId);
         cleaned.push(sessionId);
       }
     }
@@ -222,46 +143,11 @@ export class SessionManager {
   }
 
   /**
-   * Get session status
+   * Generate unique session ID
    */
-  async getSessionStatus(sessionId: string): Promise<{
-    session_id: string;
-    status: 'running' | 'dead';
-    pid: number;
-    holder_pid: number;
-    alive: boolean;
-    uptime_seconds: number;
-    command: string[];
-  }> {
-    const exists = await sessionExists(this.config.sessions_dir, sessionId);
-    if (!exists) {
-      throw new SessionNotFoundError(sessionId);
-    }
-
-    const sessionDir = path.join(this.config.sessions_dir, sessionId);
-    const metadata = await loadMetadata(sessionDir);
-    const alive = Session.isProcessAlive(metadata.holder_pid);
-
-    // Update status if changed
-    if (alive !== (metadata.status === 'running')) {
-      const newStatus = alive ? 'running' : 'dead';
-      await updateMetadata(sessionDir, { status: newStatus });
-      metadata.status = newStatus;
-    }
-
-    // Calculate uptime
-    const createdAt = new Date(metadata.created_at).getTime();
-    const now = Date.now();
-    const uptimeSeconds = Math.floor((now - createdAt) / 1000);
-
-    return {
-      session_id: sessionId,
-      status: metadata.status,
-      pid: metadata.pid,
-      holder_pid: metadata.holder_pid,
-      alive,
-      uptime_seconds: uptimeSeconds,
-      command: metadata.command,
-    };
+  private generateSessionId(): string {
+    const uuid = uuidv4();
+    const shortId = uuid.split('-')[0]; // Use first segment for brevity
+    return `sess_${shortId}`;
   }
 }
