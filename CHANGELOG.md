@@ -5,6 +5,182 @@ All notable changes to Delta Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2025-10-08
+
+### Added - Context Composition Layer
+
+**New declarative system for building LLM context from multiple sources:**
+
+- **Core Concept:**
+  - Replaces hardcoded context construction with flexible, composable sources
+  - Context defined via `context.yaml` manifest (or `DEFAULT_MANIFEST` when absent)
+  - Three source types: `file`, `computed_file`, `journal`
+  - Variable substitution support: `${AGENT_HOME}`, `${CWD}`, `${RUN_ID}`
+
+- **Source Types:**
+
+  1. **File Sources** (`type: file`):
+     - Static file content (e.g., `system_prompt.md`, `DELTA.md`)
+     - Path with variable substitution
+     - `on_missing` behavior: `error` (default) or `skip`
+     - Optional `id` for source identification
+
+  2. **Computed File Sources** (`type: computed_file`):
+     - Dynamic content generation via external commands
+     - Generator command executed at context build time
+     - Timeout support (default: 30s)
+     - Output written to `output_path`, then read as content
+     - Use cases: memory summarization, metrics collection, dynamic documentation
+
+  3. **Journal Sources** (`type: journal`):
+     - Reconstructs conversation history from journal events
+     - Returns OpenAI-format messages (user, assistant, tool)
+     - `max_iterations` parameter to limit conversation history (undefined = unlimited)
+     - Processes USER_MESSAGE, THOUGHT, ACTION_RESULT events
+     - Skips SYSTEM_MESSAGE and other non-conversational events
+
+- **Default Manifest (Zero-Config):**
+  ```yaml
+  sources:
+    - type: file
+      id: system_prompt
+      path: ${AGENT_HOME}/system_prompt.md
+      on_missing: error
+
+    - type: file
+      id: workspace_guide
+      path: ${CWD}/DELTA.md
+      on_missing: skip
+
+    - type: journal
+      id: conversation_history
+      # max_iterations: undefined (unlimited - rebuild all)
+  ```
+
+- **Context Builder API:**
+  - `ContextBuilder` class orchestrates source processing
+  - Processes sources sequentially, combines results
+  - Variable substitution: `AGENT_HOME`, `CWD`, `RUN_ID`
+  - Type-safe with Zod schemas for all configs
+  - Exported processors for testing: `processFileSource`, `processComputedFileSource`, `processJournalSource`
+
+- **New Files:**
+  - `src/context/builder.ts` - Main orchestration logic
+  - `src/context/types.ts` - Schemas and DEFAULT_MANIFEST
+  - `src/context/sources/file-source.ts` - Static file processor
+  - `src/context/sources/computed-source.ts` - Dynamic generator processor
+  - `src/context/sources/journal-source.ts` - Conversation reconstructor
+  - `src/context/index.ts` - Public API exports
+
+- **Documentation:**
+  - `docs/architecture/v1.6-context-composition.md` - Technical design document
+  - `docs/guides/context-management.md` - User guide with examples
+  - `docs/implementation/v1.6-context-layer.md` - Implementation details
+
+- **Example Use Cases:**
+  - **Memory Folding**: `computed_file` generators that summarize long conversations
+  - **Dynamic Context**: Real-time metrics, current time, environment info
+  - **Token Budget Control**: `journal` source with `max_iterations` to limit history
+  - **Custom System Prompts**: Different prompts per workspace via DELTA.md
+
+### Fixed - Initial Task Placement Bug
+
+**Critical bug in conversation history reconstruction:**
+
+- **Problem:**
+  - Initial task was added AFTER conversation history (when journal source exists)
+  - LLM interpreted initial task as a repeated instruction at each iteration
+  - Example: "Create 5 files" agent created 30 files instead of stopping at 5
+
+- **Root Causes:**
+  1. Initial task was NOT recorded in journal.jsonl
+  2. Engine had dual logic: journal source path + fallback path (architectural flaw)
+  3. Initial task treated specially instead of as first user message
+
+- **Design Philosophy Clarification:**
+  - "Initial task 也是 journal 的一部分，而且是开始的部分" (Initial task is part of journal, at the beginning)
+  - "不存在没有 journal source 的情况，只有缺省 journal source" (Journal source ALWAYS exists, just defaults to unlimited)
+  - "永远只有重建 journal source 的逻辑" (Always only ONE rebuild logic through journal source)
+  - No special treatment for initial task - it's just the first user message
+
+- **Solution:**
+  - Added `USER_MESSAGE` event type to journal schema
+  - Record initial task as `USER_MESSAGE` at journal start (seq 2, after RUN_START)
+  - Journal source processor handles `USER_MESSAGE` → OpenAI user message
+  - Updated `DEFAULT_MANIFEST` to ALWAYS include journal source (unlimited by default)
+  - Removed all fallback logic from engine (single rebuild path)
+
+### Changed - Engine Context Building
+
+**Simplified engine architecture with Context Composition Layer:**
+
+- **Before (v1.5):**
+  - Hardcoded context construction in `rebuildConversationFromJournal()`
+  - System prompt injected manually in engine
+  - Dual logic for journal source presence vs absence
+  - Initial task added separately from conversation
+  - ~60 lines of complex logic
+
+- **After (v1.6):**
+  - Delegates all context building to `ContextBuilder`
+  - Engine calls `buildContext()` which returns complete message array
+  - Single rebuild path through journal source (always present)
+  - Initial task is first USER_MESSAGE in journal
+  - ~15 lines of simple delegation
+
+- **Architectural Benefits:**
+  - ✅ Eliminated dual rebuild logic
+  - ✅ Single source of truth: `ContextBuilder` + `DEFAULT_MANIFEST`
+  - ✅ Initial task correctly placed at conversation start
+  - ✅ Simplified engine.ts (removed 45+ lines)
+  - ✅ Better separation of concerns
+
+### Added - Journal Event Type
+
+**New USER_MESSAGE event for recording user messages:**
+
+- `USER_MESSAGE` event type in journal schema
+- `UserMessagePayloadSchema`: `{ content: string }`
+- `journal.logUserMessage(content)` method
+- Recorded at journal start (seq 2, after RUN_START)
+- Processed by journal source into OpenAI user messages
+
+### Technical Implementation
+
+- **Modified Files:**
+  - `src/journal-types.ts` - Added USER_MESSAGE event type
+  - `src/journal.ts` - Added logUserMessage() method
+  - `src/engine.ts` - Replaced rebuildConversationFromJournal() with buildContext()
+  - `docs/guides/agent-development.md` - Updated with context.yaml examples
+
+- **New Tests:**
+  - `tests/unit/context/types.test.ts` - Schema validation tests
+  - `tests/unit/context/sources/file-source.test.ts` - File source processing
+  - `tests/unit/context/sources/computed-source.test.ts` - Generator execution
+  - `tests/unit/context/sources/journal-source.test.ts` - Conversation reconstruction
+  - All tests passing ✅
+
+- **Verification:**
+  - Memory-folding example creates exactly 5 files (not 30) ✅
+  - Journal structure: USER_MESSAGE at seq 2 ✅
+  - Conversation order: user → assistant → tool → ... ✅
+
+### Breaking Changes
+
+None. This is backward compatible:
+- Agents without `context.yaml` use `DEFAULT_MANIFEST` (same behavior as v1.5)
+- Existing journal files work unchanged
+- New USER_MESSAGE events added automatically for new runs
+
+### Documentation Updates
+
+- Added Context Composition Layer architecture docs
+- Updated CLAUDE.md with v1.6 context management
+- Moved v1.5 docs to `docs/implementation/` directory
+- Updated agent development guide with context.yaml examples
+
+---
+
 ## [1.4.3] - 2025-10-02
 
 ### Improved - CLI Output Visibility

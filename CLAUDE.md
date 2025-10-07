@@ -106,13 +106,17 @@ Delta Engine follows Unix philosophy applied to AI agents. The core design is **
 
 ### Key Components
 
-- **engine.ts** - Core Think-Act-Observe loop. `rebuildConversationFromJournal()` rebuilds state from journal. Max iterations: `MAX_ITERATIONS = 30`
+- **engine.ts** - Core Think-Act-Observe loop. `buildContext()` rebuilds state from journal and context sources. Max iterations: `MAX_ITERATIONS = 30`
 - **journal.ts** - JSONL-based event logging (append-only, line-by-line)
 - **executor.ts** - Tool execution with three injection modes: `argument`, `stdin`, `option`
 - **ask-human.ts** - v1.2 human-in-the-loop support (two modes: `-i` CLI sync, async file-based)
 - **hook-executor.ts** - Lifecycle hooks: `pre_llm_req`, `post_llm_resp`, `pre_tool_exec`, `post_tool_exec`, `on_llm_response`
 - **workspace-manager.ts** - v1.2.1 workspace selection and management (interactive/silent modes)
 - **types.ts** - Zod schemas for all configs and types (strict validation)
+- **context/** - v1.6 context composition layer:
+  - **builder.ts** - ContextBuilder orchestrates context assembly from multiple sources
+  - **types.ts** - Context manifest schemas and DEFAULT_MANIFEST
+  - **sources/** - Source processors: file-source, computed-source, journal-source
 - **sessions/** - v1.5 simplified session management (command-based execution):
   - **manager.ts** - SessionManager (CRUD, execution)
   - **executor.ts** - Command execution with state preservation
@@ -175,6 +179,83 @@ hooks:  # Optional lifecycle hooks
     timeout_ms: 5000
 ```
 
+### Context Composition (v1.6)
+
+Delta Engine supports **declarative context building** through `context.yaml`. This enables memory folding, dynamic context generation, and fine-grained control over what the LLM sees.
+
+#### Zero-Config Operation
+
+Without `context.yaml`, the engine uses a sensible default strategy:
+1. `system_prompt.md` (required)
+2. `DELTA.md` in workspace (optional, auto-loaded if exists)
+3. Full journal history
+
+#### Custom Context Manifest
+
+Create `${AGENT_HOME}/context.yaml` to customize context sources:
+
+```yaml
+sources:
+  - type: file
+    id: system_prompt
+    path: "${AGENT_HOME}/system_prompt.md"
+    on_missing: error  # or 'skip'
+
+  - type: file
+    id: workspace_guide
+    path: "${CWD}/DELTA.md"
+    on_missing: skip  # Won't fail if missing
+
+  - type: computed_file
+    id: compressed_memory
+    generator:
+      command: ["python3", "${AGENT_HOME}/tools/summarize.py"]
+      timeout_ms: 10000
+    output_path: "${CWD}/.delta/context_artifacts/summary.md"
+    on_missing: skip
+
+  - type: journal
+    id: recent_conversation
+    max_iterations: 5  # Only last 5 turns (for token efficiency)
+```
+
+#### Source Types
+
+1. **`file`** - Static file content
+   - Supports `${AGENT_HOME}` and `${CWD}` variable expansion
+   - `on_missing`: `error` (fail) or `skip` (ignore if missing)
+
+2. **`computed_file`** - Dynamic content via external generator
+   - Generator receives env vars: `DELTA_RUN_ID`, `DELTA_AGENT_HOME`, `DELTA_CWD`
+   - Use for memory folding, RAG, knowledge graph queries, etc.
+   - Output written to `output_path` before LLM invocation
+
+3. **`journal`** - Recent conversation history
+   - `max_iterations`: Limit to N most recent turns (optional)
+   - Omit `max_iterations` for full history
+
+#### DELTA.md Auto-Loading
+
+If a file named `DELTA.md` exists in the workspace root, it's automatically injected into context (when using default manifest). This file can contain:
+- Workspace-specific instructions
+- Project conventions
+- Task context
+- Dynamic notes for the agent
+
+The agent can update `DELTA.md` during execution to persist knowledge across runs.
+
+#### Memory Folding Example
+
+See `examples/memory-folding/` for a complete demonstration:
+- Uses Python script to compress journal history into summary
+- Keeps only last 5 turns in full detail
+- Maintains context window efficiency over long tasks
+
+**Key files**:
+- `context.yaml` - Defines computed_file source
+- `tools/summarize.py` - Extracts key facts from journal
+- Output: `.delta/context_artifacts/summary.md`
+
 ## Critical Development Conventions
 
 ### Code Patterns to Follow ✅
@@ -234,8 +315,16 @@ const handle = await fs.open(path);
 
 ### Stateless Core Implementation
 - Never store state in memory between iterations
-- Always rebuild from journal via `rebuildConversationFromJournal()`
+- Always rebuild from journal via `buildContext()` (v1.6+) or `rebuildConversationFromJournal()` (legacy)
 - Journal is Single Source of Truth (SSOT)
+
+### Context Composition Implementation (v1.6)
+- **ContextBuilder** orchestrates context assembly from multiple sources
+- All context sources injected as `system` role messages
+- Sources processed in order (sequence matters for LLM perception)
+- Path variables `${AGENT_HOME}` and `${CWD}` expanded at runtime
+- Generators executed synchronously before LLM invocation
+- Default manifest provides zero-config operation
 
 ### Session Management (v1.5)
 - **Command-based execution**: Synchronous `exec` returns complete output immediately
@@ -284,7 +373,7 @@ When modifying core features:
 
 ## Version Context
 
-Current: **v1.5** (Simplified Session Management)
+Current: **v1.6** (Context Composition Layer)
 - v1.0: MVP with basic Think-Act-Observe
 - v1.1: Stateless core + journal.jsonl + I/O separation
 - v1.2: Human interaction (`ask_human` tool, interactive/async modes)
@@ -292,6 +381,7 @@ Current: **v1.5** (Simplified Session Management)
 - v1.3: Directory structure simplification and `delta init` command
 - v1.4: PTY-based sessions (deprecated, moved to experimental)
 - v1.5: Command-based simplified sessions (production-ready)
+- v1.6: Context composition layer with memory folding and dynamic context
 - v2.0 (planned): Multi-agent orchestration
 
 ## Key Documentation Locations
@@ -299,6 +389,7 @@ Current: **v1.5** (Simplified Session Management)
 - **Architecture Design**: `docs/architecture/v1.1-design.md`
 - **v1.2 Specification**: `docs/architecture/v1.2-human-interaction.md`
 - **v1.5 Session Design**: `docs/architecture/v1.5-sessions-simplified.md`
+- **v1.6 Context Composition**: `docs/architecture/v1.6-context-composition.md`
 - **v1.4 PTY Deprecation**: `docs/architecture/v1.4-pty-deprecation.md`
 - **Agent Development**: `docs/guides/agent-development.md`
 - **Session Management Guide**: `docs/guides/session-management.md`
@@ -316,21 +407,29 @@ OPENAI_BASE_URL=<optional>  # Custom API endpoint
 
 ## Example Agents
 
-Located in `examples/` - each demonstrates different capabilities:
-- `hello-world/` - Basic example
-- `interactive-shell/` - **v1.5** Persistent bash session with simplified commands
-- `python-repl/` - **v1.5** Python REPL with command-based execution
-- `claude-code-workflow/` - **Experimental** PTY-based Claude Code orchestration
-- `file-organizer/` - File operations
-- `test-runner/` - Test automation
-- `doc-generator/` - Documentation generation
-- `api-tester/` - API testing
-- `git-analyzer/` - Git operations
+Located in `examples/` - organized by learning progression:
 
-Each agent has:
-- `config.yaml` - Tool definitions, LLM config, hooks
-- `system_prompt.md` - Agent instructions
-- `README.md` - Usage documentation
+### Level 1: Basics (Quick Start)
+- `1-basics/hello-world/` - ⭐⭐⭐⭐.3 Entry point, demonstrates Three Pillars
+
+### Level 2: Core Features
+- `2-core-features/interactive-shell/` - ⭐⭐⭐⭐⭐ **v1.5** Persistent bash sessions
+- `2-core-features/python-repl/` - ⭐⭐⭐⭐.5 **v1.5** Python REPL with state preservation
+- `memory-folding/` - ⭐⭐⭐⭐ **v1.6** Memory folding with context.yaml (🔒 temporarily at root)
+
+### Advanced Examples (Production-Grade)
+- `examples/3-advanced/delta-agent-generator/` - ⭐⭐⭐⭐⭐ **v2.1 Production** AI-powered agent generator (formerly claude-code-workflow)
+
+### Archived (Reference Only)
+- `examples/.archive/` - Generic examples removed during restructure (file-organizer, git-analyzer, test-runner, api-tester, doc-generator)
+
+Each active example has:
+- `config.yaml` - Tool definitions, LLM config, hooks (with inline comments)
+- `system_prompt.md` - Agent instructions (100+ lines, Delta-aware)
+- `README.md` - Usage documentation (100+ lines, How It Works, Troubleshooting)
+- `context.yaml` - (Optional) Custom context composition strategy
+
+**Quality Standard**: All examples meet ⭐⭐⭐⭐ (4/5) threshold
 
 ## Design Philosophy Reminders
 

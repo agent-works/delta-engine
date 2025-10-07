@@ -491,8 +491,183 @@ Run agents in containers or VMs for isolation:
 docker run -v $(pwd):/workspace delta-engine run --agent /workspace/my-agent
 ```
 
+## Advanced: Context Composition (v1.6)
+
+### When to Use context.yaml
+
+For most agents, the default context strategy is sufficient. However, you should consider custom context composition when:
+
+- **Long-running tasks** (>10 iterations) - Risk of context window overflow
+- **Large knowledge bases** - Need to inject documentation, API references
+- **Multi-file operations** - Refactoring, testing across many files
+- **Token optimization** - Want to compress history while maintaining memory
+
+### Quick Start: DELTA.md Workspace Guide
+
+The simplest way to add context is through `DELTA.md` in the workspace root:
+
+```bash
+# In your workspace (W001/, W002/, etc.)
+cat > DELTA.md << 'EOF'
+# Project Context
+
+## Tech Stack
+- TypeScript 5.0
+- React 18
+- Jest for testing
+
+## Current Task
+Migrating authentication to OAuth2
+
+## Conventions
+- Use camelCase for variables
+- Prefix test files with .test.ts
+EOF
+```
+
+**No configuration needed** - `DELTA.md` is automatically loaded into context!
+
+The agent will see this content in every LLM call, providing persistent workspace memory.
+
+### Custom Context with context.yaml
+
+Create `${AGENT_HOME}/context.yaml` to customize context sources:
+
+```yaml
+sources:
+  # 1. System prompt (always include)
+  - type: file
+    id: system_prompt
+    path: "${AGENT_HOME}/system_prompt.md"
+
+  # 2. API documentation (static knowledge)
+  - type: file
+    id: api_docs
+    path: "${AGENT_HOME}/knowledge/api-reference.md"
+    on_missing: skip  # Won't fail if missing
+
+  # 3. Compressed memory (dynamic generation)
+  - type: computed_file
+    id: compressed_memory
+    generator:
+      command: ["python3", "${AGENT_HOME}/tools/summarize.py"]
+      timeout_ms: 10000
+    output_path: "${CWD}/.delta/context_artifacts/summary.md"
+    on_missing: skip
+
+  # 4. Recent conversation (last 5 turns only)
+  - type: journal
+    id: recent_conversation
+    max_iterations: 5
+```
+
+### Example: Memory Folding
+
+For long-running agents, implement memory folding to compress old history:
+
+**1. Create summarizer script** (`tools/summarize.py`):
+```python
+#!/usr/bin/env python3
+import json, os
+from pathlib import Path
+
+# Read journal from current run
+run_id = os.environ['DELTA_RUN_ID']
+cwd = os.environ['DELTA_CWD']
+journal_path = Path(cwd) / '.delta' / run_id / 'journal.jsonl'
+
+# Extract key facts
+events = []
+with open(journal_path, 'r') as f:
+    for line in f:
+        events.append(json.loads(line))
+
+facts = []
+for event in events:
+    if event['type'] == 'ACTION_REQUEST':
+        tool = event['payload']['tool_name']
+        args = event['payload']['tool_args']
+        facts.append(f"- Used {tool}: {args}")
+
+# Write compressed summary
+output_dir = Path(cwd) / '.delta' / 'context_artifacts'
+output_dir.mkdir(parents=True, exist_ok=True)
+
+summary = f"# Memory Summary\n\n{len(events)} events so far.\n\n" + "\n".join(facts[-20:])
+(output_dir / 'summary.md').write_text(summary)
+```
+
+**2. Configure context.yaml** (as shown above)
+
+**3. Run your agent:**
+```bash
+delta run --agent ./my-agent --task "Long complex task with many steps"
+```
+
+The agent will maintain memory across 100+ iterations while using tokens efficiently.
+
+### Source Types Overview
+
+1. **file**: Load static content (docs, guides, examples)
+2. **computed_file**: Generate dynamic content (summaries, RAG, knowledge graphs)
+3. **journal**: Include recent conversation (with optional turn limit)
+
+### Path Variables
+
+Use these variables in `context.yaml` paths:
+- `${AGENT_HOME}`: Agent directory (where config.yaml lives)
+- `${CWD}`: Current workspace directory
+
+### Example: RAG Integration
+
+```yaml
+sources:
+  - type: file
+    path: "${AGENT_HOME}/system_prompt.md"
+
+  # Retrieve relevant docs via vector search
+  - type: computed_file
+    id: relevant_knowledge
+    generator:
+      command: ["node", "${AGENT_HOME}/tools/vector-search.js"]
+    output_path: "${CWD}/.delta/context_artifacts/knowledge.md"
+
+  - type: journal
+    max_iterations: 10
+```
+
+The generator receives environment variables:
+- `DELTA_RUN_ID`: Current run ID
+- `DELTA_AGENT_HOME`: Agent directory path
+- `DELTA_CWD`: Workspace path
+
+### Best Practices
+
+1. **Start simple**: Use default context first, add complexity only when needed
+2. **Test generators independently**: Debug outside of Delta Engine first
+3. **Use descriptive IDs**: `id: compressed_memory_last_50_turns` is better than `id: memory`
+4. **Monitor context size**: Check `.delta/{run_id}/io/invocations/*.json` for token usage
+5. **Graceful degradation**: Use `on_missing: skip` for optional sources
+
+### Complete Example
+
+See `examples/memory-folding/` for a fully working implementation demonstrating:
+- Custom context.yaml with all 3 source types
+- Python-based journal summarizer
+- Token-efficient context strategy
+- Complete README with usage instructions
+
+### Learn More
+
+- **[Context Management Guide](./context-management.md)** - Comprehensive guide to context composition
+- **[v1.6 Architecture](../architecture/v1.6-context-composition.md)** - Design details and philosophy
+- **[memory-folding example](../../examples/memory-folding/)** - Working implementation
+
+---
+
 ## Next Steps
 
 - Review [example agents](../../examples/) for inspiration
+- Learn about [Context Management](./context-management.md) for long-running tasks (v1.6)
 - Learn about [Lifecycle Hooks](./hooks.md) for advanced customization
 - Check [Configuration Reference](../api/config.md) for all options

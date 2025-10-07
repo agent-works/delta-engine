@@ -172,6 +172,15 @@ export class Journal {
   }
 
   /**
+   * Log USER_MESSAGE event (e.g., initial task or mid-conversation user input)
+   */
+  async logUserMessage(content: string): Promise<void> {
+    await this.writeEvent(JournalEventType.USER_MESSAGE, {
+      content,
+    });
+  }
+
+  /**
    * Log RUN_END event
    */
   async logRunEnd(status: 'COMPLETED' | 'FAILED' | 'INTERRUPTED'): Promise<void> {

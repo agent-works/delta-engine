@@ -14,13 +14,12 @@ import {
   type AskHumanParams
 } from './ask-human.js';
 import {
-  ThoughtEvent,
-  ActionResultEvent,
   LLMInvocationRequest,
   LLMInvocationResponse,
   LLMInvocationMetadata,
   ToolExecutionRecord,
 } from './journal-types.js';
+import { ContextBuilder } from './context/index.js';
 
 /**
  * Default maximum number of iterations to prevent infinite loops
@@ -68,51 +67,40 @@ export class Engine {
    * Rebuild conversation history from journal (v1.1 stateless core)
    * @returns Messages array for LLM
    */
-  private async rebuildConversationFromJournal(): Promise<ChatCompletionMessageParam[]> {
-    const events = await this.journal.readJournal();
-    const messages: ChatCompletionMessageParam[] = [];
+  /**
+   * Build LLM context using v1.6 Context Composition Layer
+   *
+   * This replaces the old hardcoded context construction with a flexible,
+   * declarative system that supports:
+   * - Static files (system_prompt.md, DELTA.md)
+   * - Dynamic content (computed_file generators)
+   * - Conversation history (journal source, or engine fallback)
+   *
+   * See docs/architecture/v1.6-context-composition.md for design details.
+   */
+  /**
+   * Build LLM context using v1.6 Context Composition Layer
+   *
+   * This method delegates all context building to ContextBuilder, which processes
+   * sources from context.yaml (or DEFAULT_MANIFEST). The journal source is ALWAYS
+   * present (either user-configured or default with unlimited history), so there's
+   * no fallback logic needed.
+   *
+   * See docs/architecture/v1.6-context-composition.md for design details.
+   */
+  private async buildContext(): Promise<ChatCompletionMessageParam[]> {
+    const contextBuilder = new ContextBuilder(
+      this.context.agentPath,
+      this.context.workDir,
+      this.context.runId,
+      this.journal
+    );
 
-    // Add initial user task
-    messages.push({
-      role: 'user',
-      content: this.context.initialTask,
-    });
+    // Build context from manifest (ALWAYS includes journal source)
+    // No fallback logic needed - journal source is always present in DEFAULT_MANIFEST
+    const contextMessages = await contextBuilder.build();
 
-    // Process events to rebuild conversation
-    for (const event of events) {
-      switch (event.type) {
-        case 'THOUGHT': {
-          const thoughtEvent = event as ThoughtEvent;
-
-          // Add assistant message with original tool_calls from LLM
-          messages.push({
-            role: 'assistant',
-            content: thoughtEvent.payload.content || null,
-            tool_calls: thoughtEvent.payload.tool_calls,
-          } as ChatCompletionMessageParam);
-          break;
-        }
-
-        case 'ACTION_RESULT': {
-          const actionResult = event as ActionResultEvent;
-          // Add tool response
-          messages.push({
-            role: 'tool',
-            content: actionResult.payload.observation_content,
-            tool_call_id: actionResult.payload.action_id,
-          });
-          break;
-        }
-
-        case 'SYSTEM_MESSAGE': {
-          // System messages can be added to context if needed
-          // For now, we'll skip them in conversation reconstruction
-          break;
-        }
-      }
-    }
-
-    return messages;
+    return contextMessages;
   }
 
   /**
@@ -237,6 +225,8 @@ export class Engine {
 
     if (isNewRun) {
       await this.journal.logRunStart(this.context.initialTask, this.context.agentPath);
+      // Log initial task as the first USER_MESSAGE event
+      await this.journal.logUserMessage(this.context.initialTask);
     }
     await this.journal.writeEngineLog(`Engine started: ${this.context.runId}`);
 
@@ -265,9 +255,9 @@ export class Engine {
         }
 
         // ============================================
-        // STATELESS CORE: Rebuild context from journal
+        // STATELESS CORE: Build context (v1.6)
         // ============================================
-        const messages = await this.rebuildConversationFromJournal();
+        const messages = await this.buildContext();
 
         // ============================================
         // THINK: Call LLM with current conversation
@@ -275,20 +265,14 @@ export class Engine {
         console.log('🤔 Thinking...');
 
         // Prepare baseline LLM request (P_base)
-        // Include system prompt at the beginning
+        // Note: System prompt and DELTA.md are now handled by ContextBuilder
         const baselineRequest: LLMInvocationRequest = {
-          messages: [
-            {
-              role: 'system' as const,
-              content: this.context.systemPrompt,
-            },
-            ...messages.map(m => ({
-              role: m.role as 'system' | 'user' | 'assistant' | 'tool',
-              content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-              tool_call_id: (m as any).tool_call_id,
-              tool_calls: (m as any).tool_calls,
-            })),
-          ],
+          messages: messages.map(m => ({
+            role: m.role as 'system' | 'user' | 'assistant' | 'tool',
+            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+            tool_call_id: (m as any).tool_call_id,
+            tool_calls: (m as any).tool_calls,
+          })),
           model: this.context.config.llm.model,
           temperature: this.context.config.llm.temperature,
           max_tokens: this.context.config.llm.max_tokens,

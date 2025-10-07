@@ -57,7 +57,13 @@ export const ActionResultPayloadSchema = z.object({
   execution_ref: z.string(), // Reference to io/tool_executions/<ACTION_ID>/
 });
 
-// C. System & Audit Events
+// C. User Interaction Events
+
+export const UserMessagePayloadSchema = z.object({
+  content: z.string(), // User message content (e.g., initial task)
+});
+
+// D. System & Audit Events
 
 export const SystemMessagePayloadSchema = z.object({
   level: z.enum(['INFO', 'WARN', 'ERROR']),
@@ -86,6 +92,12 @@ export const JournalEventSchema = z.discriminatedUnion('type', [
     timestamp: z.string(),
     type: z.literal('RUN_END'),
     payload: RunEndPayloadSchema,
+  }),
+  z.object({
+    seq: z.number().positive().int(),
+    timestamp: z.string(),
+    type: z.literal('USER_MESSAGE'),
+    payload: UserMessagePayloadSchema,
   }),
   z.object({
     seq: z.number().positive().int(),
@@ -125,6 +137,7 @@ export type JournalEvent = z.infer<typeof JournalEventSchema>;
 // Individual event types for better type inference
 export type RunStartEvent = Extract<JournalEvent, { type: 'RUN_START' }>;
 export type RunEndEvent = Extract<JournalEvent, { type: 'RUN_END' }>;
+export type UserMessageEvent = Extract<JournalEvent, { type: 'USER_MESSAGE' }>;
 export type ThoughtEvent = Extract<JournalEvent, { type: 'THOUGHT' }>;
 export type ActionRequestEvent = Extract<JournalEvent, { type: 'ACTION_REQUEST' }>;
 export type ActionResultEvent = Extract<JournalEvent, { type: 'ACTION_RESULT' }>;
@@ -135,6 +148,7 @@ export type HookExecutionAuditEvent = Extract<JournalEvent, { type: 'HOOK_EXECUT
 export enum JournalEventType {
   RUN_START = 'RUN_START',
   RUN_END = 'RUN_END',
+  USER_MESSAGE = 'USER_MESSAGE',
   THOUGHT = 'THOUGHT',
   ACTION_REQUEST = 'ACTION_REQUEST',
   ACTION_RESULT = 'ACTION_RESULT',

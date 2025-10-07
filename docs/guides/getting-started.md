@@ -114,6 +114,44 @@ Each run creates an isolated workspace:
 - Complete audit trail in `.delta/`
 - Can be reused with `--work-dir` flag
 
+### Context Management (v1.6)
+Delta Engine provides flexible context composition for LLM calls:
+
+**DELTA.md - Workspace Guide** (Auto-loaded):
+- Create a `DELTA.md` file in your workspace root
+- Automatically injected into every LLM call
+- Perfect for project-specific instructions, conventions, task context
+
+**Example:**
+```bash
+# In your workspace (W001/, W002/, etc.)
+cat > DELTA.md << 'EOF'
+# Project Context
+
+## Tech Stack
+- TypeScript, React, Jest
+
+## Current Task
+Refactoring authentication module
+
+## Important
+- Never modify schema without migration
+- All API changes need OpenAPI docs
+EOF
+
+# Run agent - DELTA.md is automatically included
+delta run --agent my-agent --task "Add new login endpoint"
+```
+
+**Custom Context Strategies**:
+For advanced scenarios (long tasks, large knowledge bases), use `context.yaml` for:
+- Memory folding (compress old history)
+- RAG integration (vector search)
+- Dynamic documentation
+- Token optimization
+
+See [Context Management Guide](./context-management.md) for details.
+
 ### Human-in-the-Loop (v1.2)
 Two modes for human interaction:
 
@@ -136,6 +174,7 @@ Two modes for human interaction:
 ## Next Steps
 
 - [Agent Development Guide](./agent-development.md) - Learn to build complex agents
+- [Context Management Guide](./context-management.md) - Memory folding and dynamic context (v1.6)
 - [Hooks Guide](./hooks.md) - Extend agent behavior with lifecycle hooks
 - [CLI Reference](../api/cli.md) - Complete command reference
 

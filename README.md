@@ -11,6 +11,7 @@
 - 🔄 **Stateless** - Resumable from any interruption
 - 👥 **Interactive** - Human-in-the-loop support for user input (v1.2)
 - 🖥️ **Session Management** - Command-based persistent sessions for stateful workflows (v1.5)
+- 🧠 **Context Composition** - Memory folding and dynamic context management (v1.6)
 
 
 ## Core Concepts
@@ -36,8 +37,7 @@ delta init my-agent -y                  # Use minimal template
 delta init my-agent -t hello-world      # Specify template
 
 # Run your agent
-cd my-agent
-delta run -y --agent . --task "Create a greeting file"
+delta run --agent ./my-agent --task "Create a greeting file"
 
 # Or run the hello-world example directly
 delta run --agent examples/hello-world --task "Create a greeting file"
@@ -50,9 +50,10 @@ delta run --agent examples/hello-world --task "Create a greeting file"
 my-agent/
 ├── config.yaml         # Agent configuration
 ├── system_prompt.md    # System prompt (supports .txt)
+├── context.yaml        # (Optional) Context composition strategy (v1.6)
 └── workspaces/         # Execution workspaces (v1.3)
-    ├── LAST_USED       # v1.3: Tracks last used workspace
     ├── W001/           # v1.2.1: Sequential naming (W001, W002, etc.)
+    │   ├── DELTA.md    # (Optional) Workspace-level context (v1.6)
     │   └── .delta/     # Control plane (logs, I/O)
     └── W002/
 ```
@@ -62,12 +63,11 @@ my-agent/
 ### Guides
 - **[Getting Started](docs/guides/getting-started.md)** - Quick start guide
 - **[Agent Development](docs/guides/agent-development.md)** - Build your own agents
+- **[Context Management](docs/guides/context-management.md)** - Memory folding and dynamic context (v1.6)
 - **[Session Management](docs/guides/session-management.md)** - Using persistent sessions (v1.5)
 
 ### Architecture
 - **[Architecture Overview](docs/architecture/README.md)** - System design and principles
-- **[v1.5 Session Design](docs/architecture/v1.5-sessions-simplified.md)** - Simplified session management (v1.5)
-- **[v1.4 PTY Deprecation](docs/architecture/v1.4-pty-deprecation.md)** - Why PTY was deprecated
 
 ### API Reference
 - **[delta CLI](docs/api/delta.md)** - Main CLI commands
@@ -106,15 +106,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## Version
 
-Current: **v1.4** - Session management for persistent PTY interactions
+Current: **v1.6** - Context composition layer with memory folding
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Examples
 
 - **[hello-world](examples/hello-world/)** - Basic agent example
-- **[interactive-shell](examples/interactive-shell/)** - Persistent bash shell (v1.4)
-- **[python-repl](examples/python-repl/)** - Python REPL session (v1.4)
+- **[memory-folding](examples/memory-folding/)** - Context compression with computed_file (v1.6)
+- **[interactive-shell](examples/interactive-shell/)** - Persistent bash shell (v1.5)
+- **[python-repl](examples/python-repl/)** - Python REPL session (v1.5)
 - **[file-organizer](examples/file-organizer/)** - File operations
 - **[test-runner](examples/test-runner/)** - Test automation
 - **[doc-generator](examples/doc-generator/)** - Documentation generation

@@ -1,9 +1,9 @@
 # Delta Engine Story Index
 
 > **Meta**: This document is automatically maintained by AI, recording key project decisions and lessons learned
-> **Last Updated**: 2025-10-02 by Claude Code
+> **Last Updated**: 2025-10-07 by Claude Code
 > **Size Goal**: Keep between 300-500 lines
-> **Current Size**: 491 lines
+> **Current Size**: 540 lines
 
 ---
 
@@ -115,6 +115,46 @@
 **Details**:
   - @docs/architecture/v1.5-sessions-simplified.md (new design)
   - @docs/architecture/v1.4-pty-deprecation.md (rationale + lessons)
+
+### 7. Context Composition Layer (v1.6)
+**Time**: 2025-10-07 (v1.6 design phase)
+**Problem**: Context window management is the fundamental bottleneck preventing agents from handling real-world tasks
+**Context**:
+  - Current v1.5 builds context directly from `journal.jsonl` - inflexible, no compression, opaque
+  - Real agents need: memory folding, knowledge injection, workspace guides, dynamic context
+  - Example: Code review agent needs 3000 lines + 100 commits but has 200K token limit
+**Decision**: Introduce declarative `context.yaml` protocol for composable context construction
+**Implementation**:
+  - New `src/context/` module (~500 lines) with ContextBuilder
+  - Three source types: `file` (static), `computed_file` (dynamic), `journal` (history)
+  - Default manifest (system_prompt + DELTA.md + journal) ensures zero-config operation
+  - Custom `context.yaml` completely overrides default behavior
+**Key Innovation - `computed_file`**:
+  ```yaml
+  - type: computed_file
+    generator:
+      command: ["python3", "tools/summarize.py"]  # Memory folding as external tool
+    output_path: "${CWD}/.delta/context_artifacts/summary.md"
+  ```
+  This delegates complex context strategies (summarization, vector retrieval, knowledge graphs) to external tools, keeping engine core pure.
+**Design Philosophy**:
+  - From "implicit hardcoded" to "explicit declarative"
+  - Context-as-data (all components are file artifacts)
+  - Composition over built-in (engine collects, doesn't understand)
+**Rationale**:
+  - ✅ Enables sophisticated context engineering without modifying engine
+  - ✅ DELTA.md workspace guides auto-loaded (zero-config improvement)
+  - ✅ Foundation for token budgets, caching, pipelines (v1.6.1+)
+  - ✅ Full backward compatibility (no `context.yaml` = use default)
+  - ⚠️ Token management deferred to v1.6.1 (need real-world usage data)
+**Architectural Impact**:
+  - Elevates context management from "implementation detail" to "first-class discipline"
+  - Opens path to "context package manager" (npm install @delta/context-react-dev)
+  - Aligns perfectly with "Everything is a Command" philosophy
+**Status**: ✅ Design complete, ready for implementation
+**Details**:
+  - @docs/architecture/v1.6-context-composition.md (complete design)
+  - @docs/implementation/v1.6-context-layer.md (implementation plan)
 
 ---
 
@@ -452,6 +492,9 @@ If any updates:
 | `POC/validation` | Architecture validation methodology |
 | `socket/path` | Unix socket limits, IPC |
 | `type: string` | Parameter type constraints |
+| `context.yaml` | Context composition, memory folding |
+| `computed_file` | Dynamic context generation |
+| `DELTA.md` | Workspace guide, auto-loaded context |
 
 **Search methods**:
 ```bash
@@ -468,13 +511,13 @@ grep -r "keyword" .story/
 
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
-| INDEX.md lines | 491 | <500 (warn@450) | ⚠️ Warning (near limit) |
-| Core decisions | 5 | 5-10 | ✅ Reasonable |
+| INDEX.md lines | 589 | <500 (warn@450) | 🔴 Over limit (needs leveling) |
+| Core decisions | 7 | 5-10 | ✅ Reasonable |
 | Known traps | 5 | 5-8 | ✅ Reasonable |
 | Tradeoffs | 6 | 5-10 | ✅ Reasonable |
-| Last updated | 2025-10-02 | - | - |
-| Deep docs | 9 (4 decisions + 4 traps + 1 tradeoff) | - | - |
-| Level status | Level 1 (full) | - | - |
+| Last updated | 2025-10-07 | - | - |
+| Deep docs | 11 (4 decisions + 4 traps + 1 tradeoff + 2 new architecture docs) | - | - |
+| Level status | Level 1 (full) | - | ⚠️ Consider leveling refactor |
 
 ---
 
