@@ -194,6 +194,22 @@ try {
 **Test**: `npm run test:stateless` covers this scenario
 **Key Point**: JSONL append ensures order, but reading must validate
 
+### Journal Format Corruption by External Tools
+**Symptom**: Resume fails with parse errors; file named `journal.json` instead of `journal.jsonl`; file contains JSON array `[{...}]` instead of JSONL
+**Root Cause**: VSCode JSONL viewer plugins (and similar tools) auto-convert files when opened
+**Real Incident**: 2025-10-09 - VSCode plugin renamed `journal.jsonl` → `journal.json` and converted to JSON array format
+**Impact**: 🔴 CRITICAL - All state reconstruction fails, run cannot be resumed
+**Solution**:
+  1. Runtime validation in `journal.ts:validateJournalFormat()` (3 checks: filename, array format, pretty-print)
+  2. 15 unit tests in `tests/unit/journal-format-validation.test.ts`
+  3. Clear error messages mentioning VSCode/formatters
+**Prevention**:
+  - ❌ DON'T open journal files in VSCode with JSONL viewer plugins
+  - ✅ DO use `cat`, `less`, `jq` for inspection
+**Detection**: Immediate error on next `delta run` with corrupted file
+**Status**: ✅ Fixed with runtime validation (2025-10-09)
+**Details**: @traps/journal-format-corruption.md
+
 ### Hook Execution Blocking Main Loop
 **Symptom**: Hook timeout causes Agent to hang
 **Root Cause**: Hooks execute synchronously without timeout protection

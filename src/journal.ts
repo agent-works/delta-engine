@@ -58,6 +58,9 @@ export class Journal {
     await fs.mkdir(path.join(this.runtimeIoDir, 'invocations'), { recursive: true });
     await fs.mkdir(path.join(this.runtimeIoDir, 'tool_executions'), { recursive: true });
 
+    // 🔒 CRITICAL: Validate journal file format before reading
+    await this.validateJournalFormat();
+
     // Load existing sequence number if journal exists
     try {
       const events = await this.readJournal();
@@ -78,6 +81,78 @@ export class Journal {
       await this.engineLogStream.close();
     }
     this.engineLogStream = await fs.open(this.engineLogPath, 'a');
+  }
+
+  /**
+   * Validate journal file format to prevent corruption from external tools
+   *
+   * ⚠️ CRITICAL: This prevents data corruption from external tools like:
+   * - VSCode JSONL viewer plugins (can convert to JSON array)
+   * - JSON formatters (can change filename and format)
+   * - Other IDE plugins
+   *
+   * See: .story/traps/journal-format-corruption.md
+   */
+  private async validateJournalFormat(): Promise<void> {
+    // Check 1: Verify filename is exactly "journal.jsonl"
+    const filename = path.basename(this.journalPath);
+    if (filename !== 'journal.jsonl') {
+      throw new Error(
+        `FATAL: Journal filename is "${filename}", expected "journal.jsonl". ` +
+        `This indicates severe corruption. Path: ${this.journalPath}\n` +
+        `Possible cause: External tool (e.g., VSCode plugin) renamed the file.`
+      );
+    }
+
+    // Check 2: If file exists, verify it's JSONL format (not JSON array)
+    try {
+      const stats = await fs.stat(this.journalPath);
+      if (stats.isFile() && stats.size > 0) {
+        // Read first character
+        const handle = await fs.open(this.journalPath, 'r');
+        const buffer = Buffer.alloc(1);
+        await handle.read(buffer, 0, 1, 0);
+        await handle.close();
+
+        const firstChar = buffer.toString('utf-8');
+        if (firstChar === '[') {
+          throw new Error(
+            `FATAL: journal.jsonl contains JSON array format (starts with '[').\n` +
+            `Expected JSONL format (one JSON object per line).\n` +
+            `File corrupted: ${this.journalPath}\n` +
+            `Possible cause: External tool (e.g., VSCode JSONL viewer) converted format.\n` +
+            `Solution: Restore from backup or delete corrupted run directory.`
+          );
+        }
+
+        // Additional check: Verify the file doesn't have pretty-printed JSON
+        // (each line should be compact, no indentation)
+        const secondBuffer = Buffer.alloc(10);
+        const handle2 = await fs.open(this.journalPath, 'r');
+        await handle2.read(secondBuffer, 0, 10, 0);
+        await handle2.close();
+
+        const firstTenChars = secondBuffer.toString('utf-8');
+        if (firstTenChars.includes('\n  ') || firstTenChars.includes('\n{')) {
+          throw new Error(
+            `FATAL: journal.jsonl contains pretty-printed JSON with indentation.\n` +
+            `Expected JSONL format (compact, one JSON per line).\n` +
+            `File corrupted: ${this.journalPath}\n` +
+            `Possible cause: JSON formatter modified the file.\n` +
+            `Solution: Restore from backup or delete corrupted run directory.`
+          );
+        }
+      }
+    } catch (err) {
+      // If it's our validation error, re-throw it
+      if ((err as Error).message?.includes('FATAL')) {
+        throw err;
+      }
+      // If file doesn't exist (ENOENT), that's fine - it's a new run
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
   }
 
 
