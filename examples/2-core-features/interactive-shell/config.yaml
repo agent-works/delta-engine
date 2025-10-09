@@ -1,0 +1,42 @@
+name: bash-session
+version: 1.0.0
+description: Agent with persistent bash session (v1.5 simplified)
+
+llm:
+  model: gpt-5-mini
+  temperature: 0.7
+  max_tokens: 2000
+
+tools:
+  # Start a persistent bash session
+  - name: session_start
+    description: "Start a persistent bash session. Returns a session_id for subsequent commands."
+    command: [delta-sessions, start]
+    parameters: []
+
+  # Execute command in session
+  - name: session_exec
+    description: |
+      Execute a bash command in the session.
+      Returns complete output immediately (stdout, stderr, exit_code).
+      Working directory and environment are preserved across commands.
+    command: [delta-sessions, exec]
+    parameters:
+      - name: session_id
+        type: string
+        description: "Session ID from session_start"
+        inject_as: argument
+      - name: command
+        type: string
+        description: "Bash command to execute (can be multi-line)"
+        inject_as: stdin
+
+  # Terminate session
+  - name: session_end
+    description: "Terminate the session. Always call this when done."
+    command: [delta-sessions, end]
+    parameters:
+      - name: session_id
+        type: string
+        description: "Session ID"
+        inject_as: argument

@@ -5,6 +5,40 @@ All notable changes to Delta Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed - Examples Structure and Improvements
+
+**Restructured examples into 3-tier learning path:**
+
+- **Examples Reorganization:**
+  - Moved examples into 3 directories: `1-basics/`, `2-core-features/`, `3-advanced/`
+  - Updated all documentation to reflect new structure
+  - Removed outdated examples (api-tester, doc-generator, file-organizer, git-analyzer, test-runner)
+  - Archive directory (`.archive/`) removed
+
+- **New Advanced Examples:**
+  - **code-reviewer** - Demonstrates lifecycle hooks with complete audit trail (pre_llm_req, post_tool_exec)
+  - **research-agent** - Demonstrates v1.6 context composition with memory folding for long-running research tasks
+
+- **Model Standardization:**
+  - Updated all 8 examples to use `gpt-5-mini` model
+  - Consistent model configuration across all examples
+  - Examples: hello-world, interactive-shell, memory-folding, python-repl, code-reviewer, delta-agent-generator (including experience-analyzer sub-agent), research-agent
+
+- **Documentation Improvements:**
+  - Enhanced README files with progressive examples (Simple → Medium → Complex)
+  - Removed unnecessary CLI parameters (`--work-dir`, `-y`) from examples
+  - Updated all cross-references to use new example paths
+  - Added comprehensive troubleshooting sections
+
+- **Quality Standards:**
+  - All 7 active examples meet ⭐⭐⭐⭐+ quality standard
+  - Average quality: 4.76/5
+  - Complete learning path from basics to production patterns
+
+---
+
 ## [1.6.0] - 2025-10-08
 
 ### Added - Context Composition Layer

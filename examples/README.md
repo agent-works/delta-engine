@@ -1,157 +1,306 @@
 # Delta Engine Examples
 
-A collection of example agents demonstrating various capabilities of Delta Engine.
+High-quality examples showcasing Delta Engine's unique capabilities and philosophy.
+
+---
+
+## 🎯 Philosophy
+
+These examples demonstrate Delta's **Three Pillars**:
+1. **Everything is a Command** - All capabilities are external CLI tools
+2. **Environment as Interface** - Agents interact through their working directory
+3. **Stateless Core** - Perfect resumability through journal-based state
+
+**Quality > Quantity**: Each example meets strict standards (⭐⭐⭐⭐ 4/5) and teaches Delta-specific patterns.
+
+---
+
+## 📚 Examples by Level
+
+### 1️⃣ Basics - Quick Start (5 minutes)
+
+**[hello-world](./1-basics/hello-world/)** ⭐⭐⭐⭐.3 (4.3/5)
+- **What**: Simplest agent with 5 basic tools
+- **Teaches**: Think-Act-Observe loop, Three Pillars, journal-based resumability
+- **Use When**: First time using Delta Engine
+- **Highlights**: Educational focus, shows stateless core, interrupt/resume demo
+
+```bash
+delta run --agent examples/1-basics/hello-world --task "Create a greeting file"
+```
+
+---
+
+### 2️⃣ Core Features - Delta's Strengths
+
+**[interactive-shell](./2-core-features/interactive-shell/)** ⭐⭐⭐⭐⭐ (4.9/5)
+- **What**: Persistent bash session with v1.5 simplified sessions
+- **Teaches**: Command-based execution, state preservation, no timing complexity
+- **Use When**: Need persistent shell environment across commands
+- **Highlights**: 3 tools (start/exec/end), immediate output, working directory persists
+
+```bash
+delta run --agent examples/2-core-features/interactive-shell \
+  --task "Navigate to /tmp, create 3 files, then count them"
+```
+
+**[python-repl](./2-core-features/python-repl/)** ⭐⭐⭐⭐.5 (4.7/5)
+- **What**: Persistent Python REPL with v1.5 sessions
+- **Teaches**: REPL state management, variables/imports persistence
+- **Use When**: Need Python code execution with memory between calls
+- **Highlights**: JSON output format, exit codes, stderr handling
+
+```bash
+delta run --agent examples/2-core-features/python-repl \
+  --task "Calculate factorial of 10 using a recursive function"
+```
+
+**[memory-folding](./2-core-features/memory-folding/)** ⭐⭐⭐⭐⭐ (4.7/5) 🎓
+- **What**: v1.6 context composition with computed_file generators
+- **Teaches**: Memory folding, dynamic context generation, token efficiency
+- **Use When**: Long-running tasks need context summarization
+- **Highlights**: `context.yaml`, Python summarizer, keeps last N turns
+- **New**: Enhanced docs (519 line README, 279 line system_prompt)
+
+```bash
+delta run --agent examples/2-core-features/memory-folding --task "Long research task with memory compression"
+```
+
+---
+
+### 3️⃣ Advanced - Production Patterns
+
+**[delta-agent-generator](./3-advanced/delta-agent-generator/)** ⭐⭐⭐⭐⭐ (5.0/5)
+- **What**: AI-powered agent generator using Claude Code CLI (production-grade)
+- **Teaches**: AI orchestrating AI, experience learning, cost prediction
+- **Use When**: Need to quickly scaffold Delta agents with comprehensive docs
+- **Highlights**: 8 tools, Phase 3 intelligence (pattern analysis), iterative refinement
+
+```bash
+delta run --agent examples/3-advanced/delta-agent-generator \
+  --task "Generate a Delta agent that reads and writes files"
+```
+
+**[code-reviewer](./3-advanced/code-reviewer/)** ⭐⭐⭐⭐⭐ (4.7/5) 🔍
+- **What**: Automated code review with lifecycle hooks for audit trail
+- **Teaches**: pre_llm_req & post_tool_exec hooks, multi-file review patterns
+- **Use When**: Need systematic code reviews with complete audit logging
+- **Highlights**: 6 tools (git_diff, search_code, write_review), hooks demo, resumable reviews
+
+```bash
+delta run --agent examples/3-advanced/code-reviewer \
+  --task "Review changes in last commit (HEAD~1..HEAD)" --work-dir /path/to/repo
+```
+
+**[research-agent](./3-advanced/research-agent/)** ⭐⭐⭐⭐⭐ (4.7/5) 🎓
+- **What**: Long-running research with v1.6 context composition
+- **Teaches**: Memory folding, incremental summarization, multi-day resumability
+- **Use When**: Comprehensive research projects spanning hours/days/weeks
+- **Highlights**: 5 tools, context.yaml with computed_file, constant context size
+
+```bash
+delta run --agent examples/3-advanced/research-agent \
+  --task "Research RAG techniques comprehensively. Summarize when notes exceed 500 lines."
+```
+
+---
 
 ## 🚀 Quick Start
 
+### 1. Install Delta Engine
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/delta-engine.git
-cd delta-engine
-
-# Install dependencies
 npm install
-
-# Run an example
-delta run --agent examples/git-analyzer --task "Analyze this repository"
+npm run build
+npm link
 ```
 
-## 📚 Available Examples
-
-### 1. [Hello World](./hello-world/) ⭐ Start Here
-The simplest example to get started with Delta Engine.
-
-**Use Cases:**
-- Learning basic tool definition
-- Understanding parameter injection
-- First agent experience
-
+### 2. Run Your First Example
 ```bash
-delta run --agent examples/hello-world --task "Say hello and create a greeting file"
+# Start with hello-world
+delta run --agent examples/1-basics/hello-world --task "Say hello and create a file"
+```
+
+### 3. Explore the Three Pillars
+```bash
+# See the journal (stateless core)
+RUN_ID=$(cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/LATEST)
+cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.jsonl | jq .
+
+# See the workspace (environment as interface)
+ls -la examples/1-basics/hello-world/workspaces/LAST_USED/
+
+# See the tools (everything is a command)
+cat examples/1-basics/hello-world/config.yaml
 ```
 
 ---
-
-### 2. [Git Repository Analyzer](./git-analyzer/)
-Analyzes git repositories and provides insights about code changes, contributors, and repository health.
-
-**Use Cases:**
-- Repository health checks
-- Contributor activity analysis
-- Large file detection
-- Commit pattern analysis
-
-```bash
-delta run --agent examples/git-analyzer --task "Analyze this git repository"
-```
-
----
-
-### 3. [Automated Test Runner](./test-runner/)
-Automatically detects and runs tests across multiple programming languages and frameworks.
-
-**Use Cases:**
-- CI/CD pipeline integration
-- Cross-language test execution
-- Coverage report generation
-- Test framework detection
-
-```bash
-delta run --agent examples/test-runner --task "Find and run all tests"
-```
-
----
-
-### 4. [Documentation Generator](./doc-generator/)
-Generates comprehensive documentation for codebases including README, API docs, and architecture overviews.
-
-**Use Cases:**
-- README generation
-- API documentation
-- Code structure analysis
-- Usage examples creation
-
-```bash
-delta run --agent examples/doc-generator --task "Generate complete documentation"
-```
-
----
-
-### 5. [File Organizer](./file-organizer/)
-Intelligently organizes files and directories based on type, date, or custom rules.
-
-**Use Cases:**
-- Downloads folder cleanup
-- Project file organization
-- Duplicate file detection
-- Archive creation
-
-```bash
-delta run -i --agent examples/file-organizer --task "Organize my files by type"
-```
-
----
-
-### 6. [API Testing Client](./api-tester/)
-Interactive API testing client with support for REST APIs, authentication, and test suite generation.
-
-**Use Cases:**
-- API endpoint testing
-- Performance measurement
-- Test suite creation
-- API documentation
-
-```bash
-delta run -i --agent examples/api-tester --task "Test my REST API"
-```
-
-## 🎯 Choose by Use Case
-
-### For Developers
-- **Git Analyzer** - Understand your codebase
-- **Test Runner** - Automate testing
-- **Doc Generator** - Create documentation
-
-### For DevOps
-- **Test Runner** - CI/CD integration
-- **API Tester** - Service validation
-
-### For General Use
-- **File Organizer** - Clean up directories
-- **Doc Generator** - Document any project
-
-## 🔧 Creating Your Own Agent
-
-Each example demonstrates different Delta Engine features:
-
-1. **Tool Configuration** - See how different tools are defined in `config.yaml`
-2. **System Prompts** - Learn prompt engineering from `system_prompt.md`
-3. **Human Interaction** - Examples using `ask_human` for user input
-4. **Complex Workflows** - Multi-step task execution patterns
 
 ## 📖 Learning Path
 
-1. **Start Simple**: Begin with `file-organizer` to understand basic tool usage
-2. **Add Complexity**: Study `git-analyzer` for multiple tool coordination
-3. **User Interaction**: Explore `api-tester` for interactive features
-4. **Advanced Patterns**: Review `test-runner` for framework detection logic
+### For Beginners
+1. **Start**: `hello-world` - Understand fundamentals
+2. **Explore**: Read generated journal to see Think-Act-Observe
+3. **Experiment**: Try interrupt (Ctrl+C) and resume
 
-## 💡 Tips
+### For Intermediate Users
+4. **Sessions**: `2-core-features/interactive-shell` - Learn v1.5 session management
+5. **REPLs**: `2-core-features/python-repl` - Persistent state across executions
+6. **Context**: `2-core-features/memory-folding` - v1.6 context composition
 
-- Use `-i` flag for interactive mode when you want real-time feedback
-- Combine agents for complex workflows
-- Modify system prompts to customize behavior
-- Check generated reports for detailed insights
+### For Advanced Users
+7. **Orchestration**: `3-advanced/delta-agent-generator` - AI-to-AI patterns, production tool
+8. **Create Your Own**: Use quality checklist in `.quality-assessments/`
 
-## 🤝 Contributing
+---
 
-Have an interesting agent example? We welcome contributions!
+## 🎨 What Makes a Good Delta Example?
 
-1. Create a new directory under `examples/`
-2. Include `config.yaml`, `system_prompt.md`, and `README.md`
-3. Document clear use cases and usage examples
-4. Submit a pull request
+### ✅ Required Qualities
 
-## 📝 License
+1. **Delta-Unique Value** (30%)
+   - Showcases stateless core, sessions, or context composition
+   - Can't be easily replicated with generic tools
+   - Demonstrates at least one of the Three Pillars
 
-All examples are provided under the same license as Delta Engine (MIT).
+2. **Documentation Quality** (25%)
+   - Comprehensive README (100+ lines)
+   - "How It Works" section with Think-Act-Observe
+   - "Troubleshooting" section with debug commands
+   - System prompt (100+ lines) with Delta concepts
+
+3. **Working Out-of-Box** (20%)
+   - Tested and functional
+   - Clear expected outputs
+   - Handles errors gracefully
+
+4. **Real-World Applicability** (15%)
+   - Solves actual problems
+   - Production-ready patterns
+   - Practical use cases
+
+5. **Code Quality** (10%)
+   - Clean config with comments
+   - Well-structured tools
+   - Appropriate LLM settings
+
+**Threshold**: ⭐⭐⭐⭐ (4.0/5) to be included
+
+### ❌ Anti-Patterns (Archived)
+
+Examples archived to `.archive/` because they:
+- Wrapped generic tools without Delta value
+- Had minimal documentation
+- Didn't teach Delta principles
+- Could be done with any shell script
+
+See [.archive/README.md](./.archive/README.md) for details.
+
+---
+
+## 🔍 Example Comparison Matrix
+
+| Example | Complexity | Innovation | Delta Value | Docs Quality | Best For |
+|---------|-----------|------------|-------------|--------------|----------|
+| **hello-world** | ⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Learning fundamentals |
+| **interactive-shell** | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Bash automation |
+| **python-repl** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Python scripting |
+| **memory-folding** | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Long tasks |
+| **delta-agent-generator** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | AI orchestration |
+
+---
+
+## 🛠️ Creating Your Own Example
+
+### Step 1: Check Quality Standards
+Review `.quality-assessments/` for detailed criteria.
+
+### Step 2: Use Template Structure
+```
+your-example/
+├── config.yaml           # Tool definitions, LLM settings
+├── system_prompt.md      # Agent instructions (100+ lines)
+├── README.md             # Usage guide (100+ lines)
+├── context.yaml          # Optional: v1.6 context composition
+└── tools/                # Optional: Helper scripts
+```
+
+### Step 3: Document Delta Value
+- Explain which of the Three Pillars you demonstrate
+- Show journal usage and resumability
+- Include "How It Works" section
+- Add troubleshooting guidance
+
+### Step 4: Test Quality
+Run against the checklist:
+- [ ] ⭐⭐⭐⭐ (4/5) or higher score
+- [ ] Showcases Delta-unique capability
+- [ ] Comprehensive documentation
+- [ ] Working examples
+- [ ] Teaches Delta philosophy
+
+---
+
+## 📂 Directory Structure
+
+```
+examples/
+├── README.md                    # This file
+├── RESTRUCTURE_PLAN.md          # Restructure documentation
+│
+├── .archive/                    # Removed examples (reference only)
+│   ├── README.md                # Why they were archived
+│   ├── file-organizer/
+│   ├── git-analyzer/
+│   ├── test-runner/
+│   ├── api-tester/
+│   └── doc-generator/
+│
+├── .quality-assessments/        # Quality evaluation reports
+│   ├── SUMMARY.md
+│   ├── hello-world-IMPROVED.md
+│   ├── interactive-shell.md
+│   └── python-repl-FIXED.md
+│
+├── 1-basics/                    # Quick start (5 min)
+│   └── hello-world/             # ⭐⭐⭐⭐.3
+│
+├── 2-core-features/             # Delta's key capabilities
+│   ├── interactive-shell/       # ⭐⭐⭐⭐⭐ (v1.5 sessions)
+│   ├── python-repl/             # ⭐⭐⭐⭐.5 (v1.5 REPL)
+│   └── memory-folding/          # ⭐⭐⭐⭐⭐ (v1.6 context) ✨ ENHANCED
+│
+└── 3-advanced/                  # Production patterns
+    └── delta-agent-generator/   # ⭐⭐⭐⭐⭐ (v3.0 production tool)
+```
+
+---
+
+## 🔗 Related Documentation
+
+- **Architecture**: [v1.1 Design](../docs/architecture/v1.1-design.md), [v1.5 Sessions](../docs/architecture/v1.5-sessions-simplified.md), [v1.6 Context](../docs/architecture/v1.6-context-composition.md)
+- **Guides**: [Agent Development](../docs/guides/agent-development.md), [Session Management](../docs/guides/session-management.md)
+- **API Reference**: [delta-sessions CLI](../docs/api/delta-sessions.md)
+
+---
+
+## 📞 Questions & Contributions
+
+- **Found an issue?** Open a GitHub issue
+- **Have an example idea?** Check quality standards first, then submit PR
+- **Need help?** See documentation or ask in discussions
+
+---
+
+## 📊 Restructure History
+
+**Date**: 2025-10-08
+**Changes**:
+- ✅ Archived 5 generic examples (file-organizer, git-analyzer, test-runner, api-tester, doc-generator)
+- ✅ Created 3-tier structure (1-basics, 2-core-features, 3-advanced)
+- ✅ Improved hello-world quality (⭐⭐⭐ → ⭐⭐⭐⭐.3)
+- ✅ Fixed python-repl critical issue (⭐⭐ → ⭐⭐⭐⭐.5)
+- ✅ Established quality standards (⭐⭐⭐⭐ 4/5 threshold)
+
+**Result**: 5 high-quality examples showcasing Delta's unique value.
+
+See [RESTRUCTURE_PLAN.md](./RESTRUCTURE_PLAN.md) for full details.

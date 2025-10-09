@@ -1,0 +1,48 @@
+# Memory Folding Example Agent
+# Demonstrates Delta Engine v1.6's context composition with dynamic memory compression
+# Uses computed_file source type to generate summaries on-the-fly
+
+name: memory-folding
+version: 1.0.0
+description: Demonstrates context compression using computed_file generators
+
+llm:
+  model: gpt-5-mini              # Fast model for demo purposes
+  temperature: 0.7                # Balanced creativity for multi-step tasks
+  max_tokens: 4000                # Sufficient for file operations + reasoning
+
+tools:
+  # File operations for workspace manipulation
+  # These tools allow the agent to persist information across iterations
+
+  - name: write_file
+    description: Write content to a file in the workspace
+    command: [tee]                # Unix tee command: read stdin, write to file, echo to stdout
+    parameters:
+      - name: filename
+        type: string
+        description: Path to file (relative to workspace)
+        inject_as: argument       # Passed as CLI argument
+      - name: content
+        type: string
+        description: Content to write
+        inject_as: stdin          # Piped via standard input
+
+  - name: read_file
+    description: Read content from a file
+    command: [cat]                # Unix cat command: read and output file
+    parameters:
+      - name: filename
+        type: string
+        description: Path to file to read
+        inject_as: argument
+
+  - name: list_files
+    description: List files in a directory (detailed format)
+    command: [ls, -la]            # List all files with details (permissions, size, timestamp)
+    parameters:
+      - name: directory
+        type: string
+        description: Directory to list
+        default: "."              # Current workspace directory if not specified
+        inject_as: argument

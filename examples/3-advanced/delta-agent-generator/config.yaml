@@ -1,0 +1,285 @@
+# Delta Agent Generator (formerly claude-code-workflow)
+# Production-grade tool for generating Delta Engine agents using Claude Code
+# v3.0: Intelligent experience analysis via sub-agent (demonstrates agent composition)
+
+name: delta-agent-generator
+version: 3.0.0
+description: |
+  AI orchestrator that uses Claude Code CLI to generate and maintain Delta Engine agents.
+
+  v3.0 features intelligent experience analysis powered by a dedicated sub-agent,
+  demonstrating Delta's agent composition capability.
+
+# LLM Configuration
+llm:
+  model: gpt-5-mini  # Latest Claude model for best results
+  temperature: 0.7                    # Balanced creativity for agent generation
+  max_tokens: 4000                    # Sufficient for complex agent descriptions
+
+# Tools - 8 tools (including sub-agent call in v3.0)
+tools:
+  # ===== Core Claude Code Integration (3 tools) =====
+
+  - name: claude_task
+    description: |
+      Execute a task with Claude Code in headless mode.
+
+      **Command-line based** - No PTY, no timing issues, structured JSON output.
+
+      Returns:
+      - session_id: For future resume operations
+      - result: Claude Code's response/output
+      - num_turns: Conversation complexity
+      - total_cost_usd: API cost
+
+      Use for:
+      - Initial agent generation
+      - One-off tasks
+      - Starting new conversations
+
+      IMPORTANT: Save session_id for refinement via claude_resume.
+    command: [bash, -c]
+    parameters:
+      - name: cmd_with_task
+        type: string
+        description: |
+          Complete bash command. Format:
+          claude -p "task description" --output-format json --permission-mode plan
+
+          Safety: Default to --permission-mode plan for preview first.
+          Only use --dangerously-skip-permissions if user explicitly approves.
+
+          Example:
+          claude -p "Create a Delta agent with file read/write tools" \
+            --output-format json --permission-mode plan
+        inject_as: argument
+
+  - name: claude_resume
+    description: |
+      Resume existing Claude Code session for iterative refinement.
+
+      Maintains conversation context. Use for:
+      - Adding features to generated agent
+      - Fixing issues
+      - Clarifying requirements
+      - Incremental improvements
+
+      Returns: Updated JSON with same structure as claude_task.
+    command: [bash, -c]
+    parameters:
+      - name: cmd_with_resume
+        type: string
+        description: |
+          Complete bash command. Format:
+          claude --resume "session-id" -p "refinement request" --output-format json
+
+          Example:
+          claude --resume "abc-123" -p "Add error handling to all tools" \
+            --output-format json --no-interactive
+        inject_as: argument
+
+  - name: claude_plan
+    description: |
+      Generate execution plan without making changes (preview mode).
+
+      Use when:
+      - Task is complex or unclear
+      - Want to verify understanding before execution
+      - Need to analyze approach
+      - High-risk changes
+
+      Returns: Plan description in result field. No files modified.
+    command: [bash, -c]
+    parameters:
+      - name: cmd_with_plan
+        type: string
+        description: |
+          Complete bash command. Format:
+          claude -p "task description" --permission-mode plan --output-format json
+
+          Example:
+          claude -p "Refactor agent to use v1.6 context composition" \
+            --permission-mode plan --output-format json
+        inject_as: argument
+
+  # ===== Experience System (2 tools) =====
+
+  - name: read_experience
+    description: |
+      Read recent experience log entries to learn from past agent generations.
+
+      Automatically creates .claude-lab/ if missing (no init_lab needed).
+
+      Analyze for:
+      - Success/failure patterns
+      - Cost trends by agent type
+      - Common tool combinations
+      - Resume iteration frequency
+      - Effective task descriptions
+
+      Returns: Last 50 log entries (or empty if no history).
+    command: [sh, -c, 'mkdir -p .claude-lab && if [ -f .claude-lab/sessions.jsonl ]; then tail -50 .claude-lab/sessions.jsonl; else echo "No history yet"; fi']
+    parameters: []
+
+  - name: analyze_experience
+    description: |
+      🤖 **Intelligent Experience Analysis (Sub-Agent) - v3.0**
+
+      Call a dedicated Delta sub-agent to perform deep semantic analysis of generation history.
+
+      Unlike simple statistics, this agent UNDERSTANDS:
+      - Why certain agents succeeded/failed (semantic analysis)
+      - What task descriptions work best (pattern recognition)
+      - Which tool combinations are effective (contextual insights)
+      - How to improve future generations (actionable recommendations)
+
+      Use BEFORE starting new generation to:
+      - Predict costs with reasoning (not just averages)
+      - Learn from past failures (root cause analysis)
+      - Get personalized recommendations (based on YOUR history)
+      - Understand success patterns (evidence-based insights)
+
+      Returns: Comprehensive JSON with summary, insights, cost predictions, and recommendations.
+
+      **Architecture**: This demonstrates Delta's agent composition - calling another Delta agent as a tool.
+    command: [bash, -c, 'delta run --agent "${AGENT_HOME}/experience-analyzer" --work-dir "${CWD}" --task "$1" -y', --]
+    parameters:
+      - name: analysis_request
+        type: string
+        description: |
+          What to analyze (in natural language). Examples:
+
+          - "Predict cost for a file-processing agent with 4 tools"
+          - "Why did the last 3 agents fail?"
+          - "What patterns do you see in my generation history?"
+          - "Compare success rates between simple and complex agents"
+          - "What task description style leads to best results?"
+
+          The sub-agent will read sessions.jsonl and provide intelligent insights.
+        inject_as: argument
+
+  - name: record_interaction
+    description: |
+      Record execution to experience log for pattern learning.
+
+      Auto-creates .claude-lab/ and sessions.jsonl if missing.
+
+      Action types:
+      - "execute": Initial task execution
+      - "resume": Refinement iteration
+      - "plan": Plan review
+      - "validate": Validation check
+      - "complete": Successful completion
+      - "failed": Failure with reason
+
+      Example log entry:
+      {"timestamp":"2025-10-08T10:00:00Z","action":"execute","session_id":"abc-123",
+       "task":"Generate file-organizer agent","num_turns":5,"cost_usd":0.12,
+       "result":"success","agent_type":"file-tools"}
+    command: [sh, -c, 'mkdir -p .claude-lab && echo "$1" >> .claude-lab/sessions.jsonl', --]
+    parameters:
+      - name: log_entry
+        type: string
+        description: |
+          JSON string (single line) containing:
+          - timestamp: ISO 8601 format
+          - action: Action type (execute/resume/plan/validate/complete/failed)
+          - session_id: Claude Code session ID
+          - task/prompt: Request description
+          - num_turns: Conversation turns (optional)
+          - cost_usd: Execution cost (optional)
+          - result: "success" or "failed"
+          - details: Additional context
+          - agent_type: Category for pattern analysis (optional)
+
+          Must be valid JSON on a single line.
+        inject_as: argument
+
+  # ===== Validation & Inspection (2 tools) =====
+
+  - name: validate_agent
+    description: |
+      Comprehensive validation of generated Delta agent.
+
+      Checks:
+      1. Required files exist (config.yaml, system_prompt.md, README.md)
+      2. config.yaml is valid YAML
+      3. All tools have descriptions
+      4. system_prompt.md has sufficient content (>100 lines)
+      5. README.md exists and has content
+
+      Returns: Validation report with pass/fail for each check.
+
+      Replaces: file_exists, run_tests (consolidated validation).
+    command: [bash, -c]
+    parameters:
+      - name: validation_script
+        type: string
+        description: |
+          Bash script that performs validation checks. Format:
+
+          cd AGENT_PATH && \
+          echo "=== Validation Report ===" && \
+          echo -n "config.yaml: " && (test -f config.yaml && echo "✓" || echo "✗") && \
+          echo -n "system_prompt.md: " && (test -f system_prompt.md && echo "✓" || echo "✗") && \
+          echo -n "README.md: " && (test -f README.md && echo "✓" || echo "✗") && \
+          echo -n "Valid YAML: " && (python3 -c "import yaml; yaml.safe_load(open('config.yaml'))" 2>/dev/null && echo "✓" || echo "✗") && \
+          echo -n "Prompt length: " && wc -l system_prompt.md && \
+          echo "=== End Report ==="
+
+          Adjust AGENT_PATH to the generated agent directory.
+        inject_as: argument
+
+  - name: inspect_file
+    description: |
+      Read file contents for inspection (simplified from read_file/list_files).
+
+      Use for:
+      - Checking generated config.yaml
+      - Reading system_prompt.md
+      - Viewing README.md
+      - Inspecting any output file
+
+      For directory listing, use: ls -la path/
+      For file content: cat path/file
+    command: [bash, -c]
+    parameters:
+      - name: bash_command
+        type: string
+        description: |
+          Bash command for file inspection. Examples:
+
+          # Read file
+          cat examples/my-agent/config.yaml
+
+          # List directory
+          ls -la examples/my-agent/
+
+          # Check file size
+          wc -l examples/my-agent/system_prompt.md
+
+          # Show first 20 lines
+          head -20 examples/my-agent/README.md
+
+          Use standard bash commands for flexibility.
+        inject_as: argument
+
+# ===== Lifecycle Hooks (Optional) =====
+# Auto-record interactions without explicit tool calls
+
+hooks:
+  # Auto-initialize .claude-lab/ on first run
+  pre_llm_req:
+    command: [sh, -c, 'mkdir -p .claude-lab']
+    timeout_ms: 1000
+
+# Notes on removed tools:
+# - init_lab: Auto-created by read_experience and record_interaction
+# - create_lab_readme: Not needed, .claude-lab/ is self-explanatory
+# - run_tests: Merged into validate_agent
+# - file_exists: Use inspect_file with test -f
+# - list_files: Use inspect_file with ls -la
+
+# Configuration reduced from 205 lines to ~140 lines (32% reduction)
+# Tools reduced from 11 to 7 (36% reduction)
+# Functionality preserved and enhanced through consolidation

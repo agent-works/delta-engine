@@ -22,7 +22,7 @@ npm link
 ### 1. Run an Example Agent
 
 ```bash
-delta run --agent examples/hello-world --task "Create a greeting file"
+delta run --agent examples/1-basics/hello-world --task "Create a greeting file"
 ```
 
 ### 2. Create Your First Agent (v1.3)

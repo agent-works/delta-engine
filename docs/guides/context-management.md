@@ -70,7 +70,7 @@ Without `context.yaml`, Delta Engine uses a sensible default:
 echo "# Project Context\n\nThis is a TypeScript project." > DELTA.md
 
 # Run any agent - DELTA.md is automatically loaded
-delta run --agent examples/hello-world --task "Tell me about this project"
+delta run --agent examples/1-basics/hello-world --task "Tell me about this project"
 ```
 
 The agent will see the DELTA.md content without any configuration!

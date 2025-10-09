@@ -1,0 +1,101 @@
+# Research Agent
+# Demonstrates context composition and long-running knowledge accumulation
+# Showcases Delta's v1.6 context management for efficient multi-phase research
+
+name: research-agent
+version: 1.0.0
+description: |
+  Long-running research agent with context composition for knowledge accumulation.
+
+  Demonstrates Delta's unique strengths:
+  - Context composition via context.yaml (v1.6)
+  - Incremental summarization for managing growing context
+  - Long-running multi-phase research workflows
+  - Stateless resumability across days/weeks
+
+llm:
+  model: gpt-5-mini                    # Advanced reasoning for research synthesis
+  temperature: 0.5                 # Moderate temp for creative but grounded research
+  max_tokens: 10000                 # Sufficient for detailed summaries
+
+tools:
+  # Note Taking
+
+  - name: write_note
+    description: |
+      Write or append research notes to a markdown file.
+      Use this to capture findings, insights, and sources.
+    command: [tee, -a]
+    parameters:
+      - name: filename
+        type: string
+        description: "Note filename (default: notes.md)"
+        default: "notes.md"
+        inject_as: argument
+      - name: content
+        type: string
+        description: "Note content to write (markdown format)"
+        inject_as: stdin
+
+  - name: read_note
+    description: |
+      Read existing research notes.
+      Use this to review what you've already researched.
+    command: [cat]
+    parameters:
+      - name: filename
+        type: string
+        description: "Note filename to read"
+        default: "notes.md"
+        inject_as: argument
+
+  # File Operations
+
+  - name: list_notes
+    description: |
+      List all files in the research workspace.
+      Use this to see what notes and reports exist.
+    command: [ls, -lh]
+    parameters:
+      - name: directory
+        type: string
+        description: "Directory to list"
+        default: "."
+        inject_as: argument
+
+  - name: search_notes
+    description: |
+      Search for patterns across all research notes.
+      Use this to find specific topics or references.
+    command: [grep, -rn, --color=never]
+    parameters:
+      - name: pattern
+        type: string
+        description: "Search pattern"
+        inject_as: argument
+      - name: path
+        type: string
+        description: "Path to search"
+        default: "."
+        inject_as: argument
+
+  # Research Summary
+
+  - name: create_summary
+    description: |
+      Generate a compressed summary of research progress.
+      Use this periodically to fold old notes into concise summaries.
+
+      This tool runs a Python script that reads notes and creates summaries.
+    command: [python3, "${AGENT_HOME}/tools/summarize_research.py"]
+    parameters:
+      - name: notes_file
+        type: string
+        description: "Notes file to summarize"
+        default: "notes.md"
+        inject_as: argument
+      - name: summary_file
+        type: string
+        description: "Output summary file"
+        default: "research_summary.md"
+        inject_as: argument

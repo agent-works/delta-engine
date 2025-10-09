@@ -1,0 +1,153 @@
+# Code Reviewer Agent
+# Demonstrates lifecycle hooks and multi-file code review patterns
+# Showcases Delta's audit trail and resumability for long code reviews
+
+name: code-reviewer
+version: 1.0.0
+description: |
+  Automated code review agent with lifecycle hooks for audit logging.
+
+  Demonstrates Delta's unique strengths:
+  - Lifecycle hooks for pre-loading context and post-logging decisions
+  - Stateless resumability (pause/resume long reviews)
+  - Complete audit trail via journal
+  - Multi-file context management
+
+llm:
+  model: gpt-5-mini                    # Advanced reasoning for code review
+  temperature: 0.3                 # Low temperature for consistent, precise reviews
+  max_tokens: 4000                 # Sufficient for detailed code analysis
+
+tools:
+  # File Operations
+
+  - name: read_file
+    description: |
+      Read contents of a source file for review.
+      Use this to examine individual files in detail.
+    command: [cat]
+    parameters:
+      - name: file_path
+        type: string
+        description: "Path to file to read (relative to workspace or absolute)"
+        inject_as: argument
+
+  - name: list_files
+    description: |
+      List files in a directory.
+      Use this to understand project structure before reviewing.
+    command: [ls, -la]
+    parameters:
+      - name: directory
+        type: string
+        description: "Directory to list (default: current directory)"
+        default: "."
+        inject_as: argument
+
+  # Git Operations
+
+  - name: git_diff
+    description: |
+      Show changes in git working directory or between commits.
+      Use this to focus review on what changed.
+
+      Examples:
+      - HEAD~1..HEAD: Changes in last commit
+      - main..feature: Changes in feature branch
+      - (no args): Uncommitted changes
+    command: [git, diff]
+    parameters:
+      - name: range_or_args
+        type: string
+        description: "Git diff arguments (commit range, file paths, etc.)"
+        default: ""
+        inject_as: argument
+
+  - name: git_log
+    description: |
+      Show commit history with messages.
+      Use this to understand context of changes.
+    command: [git, log, --oneline, --graph]
+    parameters:
+      - name: args
+        type: string
+        description: "Git log arguments (e.g., -n 5 for last 5 commits)"
+        default: "-n 10"
+        inject_as: argument
+
+  # Code Search
+
+  - name: search_code
+    description: |
+      Search for patterns in code using grep.
+      Use this to find similar patterns, check usage, or locate definitions.
+
+      Examples:
+      - Search for function name: "function_name"
+      - Find TODO comments: "TODO"
+      - Find potential bugs: "null|undefined"
+    command: [grep, -rn, --color=never]
+    parameters:
+      - name: pattern
+        type: string
+        description: "Pattern to search for (supports regex)"
+        inject_as: argument
+      - name: path
+        type: string
+        description: "Path to search (default: current directory)"
+        default: "."
+        inject_as: argument
+
+  # Review Output
+
+  - name: write_review
+    description: |
+      Write review findings to a markdown file.
+      Use this to create/append to the review report.
+
+      Report should include:
+      - Issue severity (CRITICAL, MAJOR, MINOR, SUGGESTION)
+      - File and line number
+      - Description of issue
+      - Suggested fix
+    command: [tee, -a]
+    parameters:
+      - name: filename
+        type: string
+        description: "Review report filename (default: REVIEW.md)"
+        default: "REVIEW.md"
+        inject_as: argument
+      - name: content
+        type: string
+        description: "Review content to write (markdown format)"
+        inject_as: stdin
+
+# Lifecycle Hooks - Demonstrate Delta's unique capability
+
+lifecycle_hooks:
+  # Pre-LLM hook: Load project context before each review iteration
+  pre_llm_req:
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p .delta
+        echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Pre-LLM: Starting iteration" >> .delta/review-audit.log
+    timeout_ms: 3000
+
+  # Post-tool execution hook: Log each review decision for audit trail
+  post_tool_exec:
+    command:
+      - sh
+      - -c
+      - |
+        # Log tool execution for audit
+        mkdir -p .delta
+        TOOL_NAME=$(python3 -c "import json; print(json.load(open('$DELTA_HOOK_IO_PATH/input/payload.json'))['tool_name'])")
+        echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Tool executed: $TOOL_NAME" >> .delta/review-audit.log
+
+        # If this was a write_review, note it
+        if [ "$TOOL_NAME" = "write_review" ]; then
+          echo "  → Review finding recorded" >> .delta/review-audit.log
+        fi
+    timeout_ms: 2000

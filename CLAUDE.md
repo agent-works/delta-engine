@@ -246,7 +246,7 @@ The agent can update `DELTA.md` during execution to persist knowledge across run
 
 #### Memory Folding Example
 
-See `examples/memory-folding/` for a complete demonstration:
+See `examples/2-core-features/memory-folding/` for a complete demonstration:
 - Uses Python script to compress journal history into summary
 - Keeps only last 5 turns in full detail
 - Maintains context window efficiency over long tasks
@@ -415,10 +415,12 @@ Located in `examples/` - organized by learning progression:
 ### Level 2: Core Features
 - `2-core-features/interactive-shell/` - ⭐⭐⭐⭐⭐ **v1.5** Persistent bash sessions
 - `2-core-features/python-repl/` - ⭐⭐⭐⭐.5 **v1.5** Python REPL with state preservation
-- `memory-folding/` - ⭐⭐⭐⭐ **v1.6** Memory folding with context.yaml (🔒 temporarily at root)
+- `2-core-features/memory-folding/` - ⭐⭐⭐⭐⭐ **v1.6** Memory folding with context.yaml ✨ ENHANCED
 
-### Advanced Examples (Production-Grade)
-- `examples/3-advanced/delta-agent-generator/` - ⭐⭐⭐⭐⭐ **v2.1 Production** AI-powered agent generator (formerly claude-code-workflow)
+### Level 3: Advanced (Production-Grade)
+- `3-advanced/delta-agent-generator/` - ⭐⭐⭐⭐⭐ AI orchestrating AI with sub-agent architecture (v3.0)
+- `3-advanced/code-reviewer/` - ⭐⭐⭐⭐⭐ Lifecycle hooks demonstration with audit trail ✨ NEW
+- `3-advanced/research-agent/` - ⭐⭐⭐⭐⭐ Context composition for long-running research ✨ NEW
 
 ### Archived (Reference Only)
 - `examples/.archive/` - Generic examples removed during restructure (file-organizer, git-analyzer, test-runner, api-tester, doc-generator)

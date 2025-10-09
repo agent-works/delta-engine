@@ -1,0 +1,59 @@
+name: hello-world
+version: 1.0.0
+description: A simple hello world agent demonstrating Delta Engine's Three Pillars
+
+# LLM Configuration
+llm:
+  model: gpt-5-mini              # Fast and capable model for simple tasks
+  temperature: 0.7           # Balanced creativity (0=deterministic, 1=creative)
+  max_tokens: 2000           # Enough for educational, verbose responses
+
+# Tools - Everything is a Command
+# Each tool wraps a simple bash command with parameters for the LLM
+
+tools:
+  # Print a message to stdout
+  - name: print_message
+    description: Print a message to standard output
+    command: [echo]
+    parameters:
+      - name: message
+        type: string
+        description: The message text to display
+        inject_as: argument   # Pass as command argument: echo "message"
+
+  # Create an empty file
+  - name: create_file
+    description: Create an empty file (idempotent - won't fail if exists)
+    command: [touch]
+    parameters:
+      - name: filename
+        type: string
+        description: Name/path of file to create
+        inject_as: argument   # Pass as argument: touch filename
+
+  # Write content to a file
+  - name: write_to_file
+    description: Write or overwrite content to a file
+    command: [tee]
+    parameters:
+      - name: filename
+        type: string
+        description: Target file path
+        inject_as: argument   # Pass as argument: tee filename
+      - name: content
+        type: string
+        description: Content to write (will overwrite existing)
+        inject_as: stdin      # Pipe via stdin: echo "content" | tee filename
+
+  # List files in current directory
+  - name: list_files
+    description: List all files and directories with details
+    command: [ls, -la]
+    # No parameters needed - operates on current working directory
+
+  # Show current date and time
+  - name: show_date
+    description: Display current system date and time
+    command: [date]
+    # No parameters needed
