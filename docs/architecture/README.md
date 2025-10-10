@@ -18,13 +18,13 @@ The current architecture implements these core principles:
 ## Architecture Documents
 
 ### Core Philosophy
-- [Delta Engine Whitepaper v1.1](./delta-engine-whitepaper-v1.1.md) - Project manifesto and architectural philosophy
+- [Delta Engine Philosophy](./PHILOSOPHY.md) - Complete whitepaper: manifesto and architectural philosophy
+- [Core Principles & Code Mapping](./core-principles.md) - How philosophy translates to implementation
 
 ### Design Specifications
 - [v1.1 Design Specification](./v1.1-design.md) - Stateless core architecture
 - [v1.2 Human Interaction Specification](./v1.2-human-interaction.md) - Human-in-the-loop feature
 - [v1.3 Design Specification](./v1.3-design.md) - Directory structure simplification
-- [v1.4 Sessions Design](./v1.4-sessions-design.md) - PTY-based sessions (deprecated)
 - [v1.4 PTY Deprecation](./v1.4-pty-deprecation.md) - PTY session deprecation rationale
 - [v1.5 Simplified Sessions](./v1.5-sessions-simplified.md) - Command-based execution model
 - [v1.6 Context Composition](./v1.6-context-composition.md) - Declarative context management

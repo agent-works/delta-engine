@@ -384,17 +384,37 @@ Current: **v1.6** (Context Composition Layer)
 
 ## Key Documentation Locations
 
-- **Architecture Design**: `docs/architecture/v1.1-design.md`
-- **v1.2 Specification**: `docs/architecture/v1.2-human-interaction.md`
+### Core Philosophy
+- **Design Philosophy Whitepaper**: `docs/architecture/PHILOSOPHY.md` (complete manifesto)
+- **Philosophy Summary**: `docs/PHILOSOPHY_SUMMARY.md` (5-minute overview)
+- **Core Principles & Code Mapping**: `docs/architecture/core-principles.md` (philosophy → implementation)
+
+### Getting Started
+- **Quick Start**: `docs/QUICKSTART.md` (5-minute tutorial)
+- **Getting Started Guide**: `docs/guides/getting-started.md` (comprehensive)
+- **Agent Development Guide**: `docs/guides/agent-development.md`
+
+### Architecture Specifications
+- **v1.1 Stateless Core**: `docs/architecture/v1.1-design.md`
+- **v1.2 Human Interaction**: `docs/architecture/v1.2-human-interaction.md`
+- **v1.3 Workspace Structure**: `docs/architecture/v1.3-design.md`
 - **v1.5 Session Design**: `docs/architecture/v1.5-sessions-simplified.md`
 - **v1.6 Context Composition**: `docs/architecture/v1.6-context-composition.md`
 - **v1.4 PTY Deprecation**: `docs/architecture/v1.4-pty-deprecation.md`
-- **Agent Development**: `docs/guides/agent-development.md`
-- **Session Management Guide**: `docs/guides/session-management.md`
-- **API Reference (delta-sessions)**: `docs/api/delta-sessions.md`
-- **Migration Guides**:
-  - `docs/migration/v1.0-to-v1.1.md`
-  - `docs/migration/v1.4-to-v1.5.md` (PTY → Simplified sessions)
+
+### User Guides
+- **Session Management**: `docs/guides/session-management.md`
+- **Context Management**: `docs/guides/context-management.md`
+- **Lifecycle Hooks**: `docs/guides/hooks.md`
+
+### API References
+- **CLI Reference**: `docs/api/cli.md`
+- **Configuration Reference**: `docs/api/config.md`
+- **delta-sessions CLI**: `docs/api/delta-sessions.md`
+
+### Migration Guides
+- **v1.0 → v1.1**: `docs/migration/v1.0-to-v1.1.md`
+- **v1.4 → v1.5**: `docs/migration/v1.4-to-v1.5.md` (PTY → Simplified sessions)
 
 ## Environment Variables
 
@@ -485,3 +505,101 @@ Instead of hardcoding file paths, use pattern references:
 # ❌ Example-based (can confuse)
 .delta/20250930_112833_ddbdb0/journal.jsonl
 ```
+
+---
+
+## Documentation Verification Protocol
+
+> **Critical**: After the `@delta-engine/core` hallucination incident (2025-10-10), all documentation MUST follow strict verification protocols.
+
+### Mandatory Pre-Flight Checks
+
+Before writing ANY documentation containing factual claims, you MUST:
+
+**1. Package Names & npm Commands**
+```bash
+# ✅ ALWAYS read package.json first
+cat package.json | grep '"name"'
+# Then use exact name: npm install -g delta-engine
+```
+
+**2. File & Directory Paths**
+```bash
+# ✅ ALWAYS verify paths exist
+ls -la examples/1-basics/hello-world/
+# Then document: examples/1-basics/hello-world
+```
+
+**3. Code References**
+```bash
+# ✅ ALWAYS grep source code
+grep -rn "buildContext" src/
+# Then reference: src/engine.ts:buildContext()
+```
+
+**4. CLI Commands**
+```bash
+# ✅ ALWAYS test commands
+node dist/index.js --help
+# Then document verified flags
+```
+
+**5. External URLs**
+```bash
+# ✅ ALWAYS check existing docs or ask user
+grep -r "github.com" docs/ README.md
+# NEVER invent GitHub URLs
+```
+
+### Verification Checklist
+
+**Reference**: `docs/FACT_CHECK.md`
+- Comprehensive verification guide for all factual claims
+- AI-specific guidance for avoiding hallucinations
+- Manual verification commands for each fact type
+- Tracking system for known issues
+
+### If Verification Fails
+
+**DO**:
+- Mark unverified facts as `[TODO: Verify]`
+- Explain what you couldn't verify
+- Ask user for confirmation
+
+**DON'T**:
+- Make up plausible-sounding values
+- Assume based on common patterns (e.g., `@scope/package`)
+- Skip verification to "save time"
+
+### Example: Correct Workflow
+
+```markdown
+<!-- Task: Document installation -->
+
+<!-- Step 1: Verify package name -->
+$ cat package.json | grep '"name"'
+"name": "delta-engine"
+
+<!-- Step 2: Write documentation -->
+Install the package:
+\`\`\`bash
+npm install -g delta-engine
+\`\`\`
+
+<!-- ✅ Verified before writing -->
+```
+
+### Hallucination Incident Log
+
+| Date | Issue | Impact | Fix |
+|------|-------|--------|-----|
+| 2025-10-10 | Used fictional `@delta-engine/core` | 🔴 Critical - blocked user onboarding | Fixed + added verification protocol |
+
+**Root Cause**: Over-confidence in common patterns (`@scope/package` format) without verification.
+
+**Prevention**: Mandatory pre-flight checks for all factual claims.
+
+### Related Documentation
+
+- **Verification Checklist**: `docs/FACT_CHECK.md` - Complete fact-checking guide
+- **Incident Log**: See "Hallucination Incident Log" above
