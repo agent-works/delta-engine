@@ -4,7 +4,7 @@
 
 Delta Engine is a minimalist platform for AI Agent development, following Unix philosophy and emphasizing simplicity, transparency, and composability.
 
-## Current Version: v1.2
+## Current Version: v1.6
 
 The current architecture implements these core principles:
 
@@ -12,12 +12,26 @@ The current architecture implements these core principles:
 2. **Environment as Interface** - CWD as the physical embodiment
 3. **I/O Separation** - Clear separation between execution flow and I/O details
 4. **Human-in-the-Loop** - Interactive and asynchronous user input support (v1.2)
+5. **Simplified Sessions** - Command-based execution model (v1.5)
+6. **Context Composition** - Declarative context building with memory folding (v1.6)
 
 ## Architecture Documents
 
-- [v1.1 Design Specification](./v1.1-design.md) - Complete v1.1 architecture design
-- [v1.2 Human Interaction Specification](./v1.2-human-interaction.md) - Human-in-the-loop feature specification
-- [Migration Guide](../migration/v1.0-to-v1.1.md) - Migration from v1.0 to v1.1
+### Core Philosophy
+- [Delta Engine Whitepaper v1.1](./delta-engine-whitepaper-v1.1.md) - Project manifesto and architectural philosophy
+
+### Design Specifications
+- [v1.1 Design Specification](./v1.1-design.md) - Stateless core architecture
+- [v1.2 Human Interaction Specification](./v1.2-human-interaction.md) - Human-in-the-loop feature
+- [v1.3 Design Specification](./v1.3-design.md) - Directory structure simplification
+- [v1.4 Sessions Design](./v1.4-sessions-design.md) - PTY-based sessions (deprecated)
+- [v1.4 PTY Deprecation](./v1.4-pty-deprecation.md) - PTY session deprecation rationale
+- [v1.5 Simplified Sessions](./v1.5-sessions-simplified.md) - Command-based execution model
+- [v1.6 Context Composition](./v1.6-context-composition.md) - Declarative context management
+
+### Migration Guides
+- [Migration: v1.0 → v1.1](../migration/v1.0-to-v1.1.md) - Stateless core migration
+- [Migration: v1.4 → v1.5](../migration/v1.4-to-v1.5.md) - PTY to simplified sessions
 
 ## Key Components
 
@@ -53,8 +67,12 @@ Complexity emerges through composing simple Agents (processes).
 
 - **v1.0** (MVP) - Basic Think-Act-Observe loop with trace.jsonl
 - **v1.1** - Stateless core with journal.jsonl and runtime I/O separation
-- **v1.2** (Current) - Human-in-the-loop interaction support
-- **v2.0** (Future) - Multi-agent orchestration and distributed execution
+- **v1.2** - Human-in-the-loop interaction support (interactive & async modes)
+- **v1.3** - Directory structure simplification and `delta init` command
+- **v1.4** - PTY-based sessions (deprecated, moved to experimental)
+- **v1.5** - Command-based simplified sessions (production-ready)
+- **v1.6** (Current) - Context composition layer with memory folding
+- **v2.0** (Planned) - Multi-agent orchestration and ecosystem features
 
 ## See Also
 

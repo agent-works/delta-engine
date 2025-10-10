@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**🔗 Required Reading**: Before starting work, read `.story/INDEX.md` for critical project decisions, known traps, and lessons learned. This helps avoid repeating past mistakes and understand "why" behind current designs.
-
 ## Build and Test Commands
 
 ```bash
@@ -159,7 +157,7 @@ version: 1.0.0
 description: Agent description
 
 llm:
-  model: gpt-4o
+  model: gpt-5-mini
   temperature: 0.7
   max_tokens: 2000
 
@@ -421,15 +419,6 @@ Located in `examples/` - organized by learning progression:
 - `3-advanced/delta-agent-generator/` - ⭐⭐⭐⭐⭐ AI orchestrating AI with sub-agent architecture (v3.0)
 - `3-advanced/code-reviewer/` - ⭐⭐⭐⭐⭐ Lifecycle hooks demonstration with audit trail ✨ NEW
 - `3-advanced/research-agent/` - ⭐⭐⭐⭐⭐ Context composition for long-running research ✨ NEW
-
-### Archived (Reference Only)
-- `examples/.archive/` - Generic examples removed during restructure (file-organizer, git-analyzer, test-runner, api-tester, doc-generator)
-
-Each active example has:
-- `config.yaml` - Tool definitions, LLM config, hooks (with inline comments)
-- `system_prompt.md` - Agent instructions (100+ lines, Delta-aware)
-- `README.md` - Usage documentation (100+ lines, How It Works, Troubleshooting)
-- `context.yaml` - (Optional) Custom context composition strategy
 
 **Quality Standard**: All examples meet ⭐⭐⭐⭐ (4/5) threshold
 
