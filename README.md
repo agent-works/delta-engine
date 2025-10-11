@@ -1,143 +1,419 @@
 # Delta Engine
 
-> A minimalist platform for AI Agent development - Everything is a Command, The Environment is the Interface
+English | [简体中文](README.zh-CN.md)
 
-## Features
+**A minimalist AI Agent development platform - Build AI agents the Unix way**
 
-- 🎯 **Simple** - Unix philosophy applied to AI agents
-- 🔧 **Transparent** - Complete execution visibility via journal
-- 🔌 **Extensible** - Lifecycle hooks for customization
-- 📦 **Portable** - Single directory contains everything
-- 🔄 **Stateless** - Resumable from any interruption
-- 👥 **Interactive** - Human-in-the-loop support for user input (v1.2)
-- 🖥️ **Session Management** - Command-based persistent sessions for stateful workflows (v1.5)
-- 🧠 **Context Composition** - Memory folding and dynamic context management (v1.6)
-- ✨ **Simplified Tool Syntax** - 77% reduction in configuration verbosity with exec:/shell: modes (v1.7)
+Delta lets you create AI agents the simplest way possible: all capabilities are external commands, all interactions go through the file system, and all state can be resumed anytime.
 
+---
 
-## Core Concepts
-
-### Everything is a Command
-All agent capabilities are implemented through external commands - no built-in functions, just Unix tools.
-
-### Environment as Interface
-Agents interact with the world through their working directory (CWD) - files are the universal interface.
-
-### Stateless Core
-No in-memory state - everything is persisted to disk immediately, enabling perfect resumability.
-
-
-## Quick Start
+## 5-Minute Quick Start
 
 ```bash
-npm install delta-engine -g
+# 1. Install
+npm install -g delta-engine
 
-# Initialize a new agent
-delta init my-agent -t hello-world      # Specify template
+# 2. Create your first agent
+delta init my-agent -t hello-world
 
-# Run your agent
+# 3. Run it
 delta run --agent ./my-agent --task "Create a greeting file"
-
-# Or run the hello-world example directly
-delta run --agent examples/1-basics/hello-world --task "Create a greeting file"
 ```
 
-### Tool Configuration
+**What just happened?**
+- Agent read your task
+- Used LLM to think about what to do
+- Executed commands like `echo` and `ls` to complete the task
+- Logged everything to `.delta/journal.jsonl`
+
+**Try more:**
+```bash
+# Let the agent analyze data with Python
+delta run --agent ./my-agent --task "Calculate the sum of squares from 1 to 100"
+
+# Resume anytime after interruption (run after Ctrl+C)
+delta run --agent ./my-agent --task "Same task"  # Auto-resume from checkpoint
+```
+
+---
+
+## What Can You Build?
+
+### 1. DevOps Automation
+Let agents execute system commands, analyze logs, generate reports
+
+**Example**: [hello-world](examples/1-basics/hello-world/) - Simple agent using basic Unix commands
+
+### 2. Data Analysis & Processing
+Iteratively explore data in Python REPL while agent maintains session state
+
+**Example**: [python-repl](examples/2-core-features/python-repl/) - Persistent Python interactive environment
+
+### 3. Code Review & Generation
+Customize audit workflows with lifecycle hooks, generate complete review reports
+
+**Example**: [code-reviewer](examples/3-advanced/code-reviewer/) - Code review tool with audit trail
+
+### 4. Long-Running Research
+Compress conversation history with memory folding to complete long tasks within token limits
+
+**Example**: [research-agent](examples/3-advanced/research-agent/) - Research assistant with context compression
+
+### 5. AI Orchestrating AI
+Create meta-agents that can invoke other agents for complex multi-step workflows
+
+**Example**: [delta-agent-generator](examples/3-advanced/delta-agent-generator/) - Agent that generates agents
+
+---
+
+## Why Choose Delta?
+
+### Comparison with Traditional AI Agent Frameworks
+
+| Feature | Delta Engine | Traditional Frameworks |
+|---------|--------------|----------------------|
+| **Capability Extension** | Write any shell script | Requires framework plugin code |
+| **State Management** | Fully stateless, resumable | Memory-dependent, fails on interrupt |
+| **Debugging** | Read `.delta/journal.jsonl` directly | Requires specialized debugging tools |
+| **Learning Curve** | Command-line knowledge sufficient | Must learn framework APIs |
+| **Tool Reuse** | All Unix tools work directly | Need to re-wrap existing tools |
+
+### Core Advantages
+
+1. **Ultimate Simplicity**: All agent capabilities are external commands (`ls`, `cat`, `python`, etc.) - no framework API to learn
+2. **Complete Transparency**: All execution details logged in `.delta/` directory - inspect, analyze, trace anytime
+3. **Perfect Resumability**: Resume from any interruption (Ctrl+C, power loss, crash)
+
+### Ideal For You If...
+
+- ✅ Comfortable with command-line tools, want to quickly build AI agents
+- ✅ Need agents to execute long-running tasks that may be interrupted
+- ✅ Require complete audit logs and execution records
+- ✅ Want agents to invoke any existing command-line tools
+- ✅ Need human-in-the-loop reviews during agent execution
+
+---
+
+## How Does It Work?
+
+Delta is built on three core principles (Three Pillars):
+
+### 1️⃣ Everything is a Command
+
+All agent capabilities are implemented through external commands, with no built-in functions.
 
 ```yaml
+# config.yaml - Define what your agent can do
 tools:
   - name: list_files
     exec: "ls -la ${directory}"
-  - name: read_file
-    exec: "cat ${filename}"
+
+  - name: analyze_data
+    shell: "python analyze.py ${data_file} | tee report.txt"
 ```
 
-**Two execution modes**:
-- `exec:` - Direct execution (safest, no shell involvement)
-- `shell:` - Shell interpretation for pipes/redirects (`cat ${file} | wc -l`)
+**Benefit**: Any command-line tool (`grep`, `awk`, `docker`, custom scripts) can directly become an agent capability
 
-See [Tool Configuration](docs/api/config.md#v17-simplified-syntax) for complete syntax.
+### 2️⃣ Environment as Interface
 
+Agents interact with the world through their working directory (CWD) - the file system is the universal interface.
 
-## Agent Structure
+```
+my-agent/workspaces/W001/  ← Agent's working directory
+├── input.txt              ← Input files
+├── output.json            ← Agent-generated results
+├── DELTA.md               ← Dynamic instructions for agent
+└── .delta/                ← Control plane (logs, state)
+    ├── journal.jsonl      ← Complete execution history
+    └── metadata.json      ← Run status
+```
+
+**Benefit**: All data is visible, modifiable, version-controllable - agent execution is completely transparent
+
+### 3️⃣ Stateless Core
+
+The engine stores no state in memory - all information is immediately written to `journal.jsonl`.
+
+```bash
+# Interrupt execution (Ctrl+C)
+^C
+
+# Resume anytime - engine rebuilds state from journal
+delta run --agent ./my-agent --task "Continue previous task"
+# ✅ Auto-detects interruption and resumes from checkpoint
+```
+
+**Benefit**: Perfect recoverability, debuggability, auditability
+
+---
+
+## Core Features
+
+### 🔄 Checkpoint Resume
+Resume seamlessly from any interruption (Ctrl+C, crash, shutdown):
+```bash
+delta run --agent ./my-agent --task "Long-running task"
+# Execution interrupted...
+delta run --agent ./my-agent --task "Long-running task"  # Auto-continue
+```
+
+### 👥 Human-in-the-Loop
+Agent can ask you questions mid-execution and wait for your reply:
+```bash
+delta run -i --agent ./my-agent --task "Task requiring confirmation"
+# Agent: "Delete these files? [yes/no]"
+# You type answer, agent continues
+```
+
+### 🖥️ Persistent Sessions
+Create persistent Shell/REPL environments with `delta-sessions`:
+```bash
+delta-sessions start bash           # Create bash session
+echo "cd /data && ls" | delta-sessions exec <session_id>
+# Working directory persists at /data
+```
+
+### 🧠 Memory Folding
+Compress conversation history with external scripts for long-term tasks:
+```yaml
+# context.yaml - Define context composition strategy
+sources:
+  - type: computed_file
+    generator:
+      command: ["python", "tools/summarize.py"]  # Compress history
+    output_path: ".delta/context_artifacts/summary.md"
+
+  - type: journal
+    max_iterations: 5  # Keep only last 5 full conversation rounds
+```
+
+### 🔌 Lifecycle Hooks
+Inject custom logic at critical moments:
+```yaml
+hooks:
+  pre_llm_req:
+    command: ["./check-budget.sh"]  # Check budget before each LLM call
+  post_tool_exec:
+    command: ["./log-to-audit.sh"]  # Log to audit after each tool execution
+```
+
+### ✨ Simplified Tool Configuration
+v1.7 introduces minimalist syntax with 77% reduction in configuration verbosity:
+
+```yaml
+# Old syntax (v1.0-v1.6): 9 lines
+- name: count_lines
+  command: [sh, -c, "cat \"$1\" | wc -l", --]
+  parameters:
+    - name: file
+      type: string
+      inject_as: argument
+      position: 0
+
+# New syntax (v1.7): 2 lines ✨
+- name: count_lines
+  shell: "cat ${file} | wc -l"
+```
+
+---
+
+## Learning Path
+
+### 🎯 Beginner (5-15 minutes)
+1. **[Quick Start](docs/QUICKSTART.md)** - 5-minute tutorial to create your first agent
+2. **[hello-world example](examples/1-basics/hello-world/)** - Understand Delta's three pillars
+
+### 📚 Intermediate (30-60 minutes)
+3. **[Agent Development Guide](docs/guides/agent-development.md)** - Complete agent development guide
+4. **[interactive-shell example](examples/2-core-features/interactive-shell/)** - Learn session management
+5. **[memory-folding example](examples/2-core-features/memory-folding/)** - Learn context management
+
+### 🚀 Advanced (1-2 hours)
+6. **[code-reviewer example](examples/3-advanced/code-reviewer/)** - Learn lifecycle hooks
+7. **[Architecture Overview](docs/architecture/README.md)** - Understand system design principles
+8. **[delta-agent-generator example](examples/3-advanced/delta-agent-generator/)** - Advanced AI-orchestrating-AI patterns
+
+### 📖 Complete Documentation
+- **[All Examples](examples/README.md)** - 8 examples from beginner to advanced
+- **[API Reference](docs/api/)** - Complete CLI commands and configuration format docs
+- **[Architecture Docs](docs/architecture/)** - Design philosophy and technical details
+
+---
+
+## Quick Reference
+
+### Common Commands
+
+```bash
+# Initialize
+delta init <agent-name> -t <template>  # Create from template
+delta init <agent-name>                # Blank agent
+
+# Run
+delta run --agent <path> --task "Task description"    # Basic run
+delta run -i --agent <path> --task "..."              # Interactive mode
+delta run -y --agent <path> --task "..."              # Silent mode (auto-create workspace)
+
+# Version info
+delta --version
+
+# Session management
+delta-sessions start [shell]         # Create session (default: bash)
+delta-sessions exec <session_id>     # Execute command (read from stdin)
+delta-sessions end <session_id>      # Terminate session
+delta-sessions list                  # List all sessions
+```
+
+### Debug and Inspection
+
+```bash
+# View run status
+RUN_ID=$(cat .delta/LATEST)
+cat .delta/$RUN_ID/metadata.json
+
+# View execution history
+tail -50 .delta/$RUN_ID/journal.jsonl
+
+# View LLM invocation logs
+ls -lht .delta/$RUN_ID/io/invocations/ | head -5
+
+# View tool execution logs
+ls -lht .delta/$RUN_ID/io/tool_executions/ | head -5
+
+# Check pending human interactions
+ls -la .delta/interaction/
+```
+
+### Agent Directory Structure
 
 ```
 my-agent/
-├── config.yaml         # Agent configuration
-├── system_prompt.md    # System prompt (supports .txt)
-├── context.yaml        # (Optional) Context composition strategy (v1.6)
-└── workspaces/         # Execution workspaces (v1.3)
-    ├── W001/           # v1.2.1: Sequential naming (W001, W002, etc.)
-    │   ├── DELTA.md    # (Optional) Workspace-level context (v1.6)
-    │   └── .delta/     # Control plane (logs, I/O)
-    └── W002/
+├── config.yaml              # Required: Agent config (LLM, tools, hooks)
+├── system_prompt.md         # Required: System prompt (can be .txt)
+├── context.yaml             # Optional: Context composition strategy (v1.6)
+├── tools/                   # Optional: Custom tool scripts
+│   ├── analyze.py
+│   └── summarize.sh
+└── workspaces/              # Runtime generated: Execution workspaces
+    ├── LAST_USED            # Tracks last used workspace
+    ├── W001/                # Workspace 1 (sequential numbering)
+    │   ├── DELTA.md         # Optional: Workspace-level context
+    │   ├── [your files]     # Files agent operates on
+    │   └── .delta/          # Control plane
+    │       ├── VERSION      # Data format version
+    │       ├── LATEST       # Latest run ID
+    │       └── <run_id>/    # Single run records
+    │           ├── journal.jsonl        # Execution log (core)
+    │           ├── metadata.json        # Run metadata
+    │           ├── engine.log           # Engine logs
+    │           └── io/                  # I/O audit
+    │               ├── invocations/     # LLM invocations
+    │               ├── tool_executions/ # Tool executions
+    │               └── hooks/           # Hook executions
+    └── W002/                # Workspace 2
 ```
 
-## Documentation
+### Tool Configuration Syntax Cheatsheet
 
-### Guides
-- **[Getting Started](docs/guides/getting-started.md)** - Quick start guide
-- **[Agent Development](docs/guides/agent-development.md)** - Build your own agents
-- **[Context Management](docs/guides/context-management.md)** - Memory folding and dynamic context (v1.6)
-- **[Session Management](docs/guides/session-management.md)** - Using persistent sessions (v1.5)
+```yaml
+# Method 1: exec - Direct execution (recommended, safest)
+- name: list_files
+  exec: "ls -F ${directory}"
 
-### Architecture
-- **[Architecture Overview](docs/architecture/README.md)** - System design and principles
+# Method 2: shell - Shell interpretation (for pipes, redirects)
+- name: count_lines
+  shell: "cat ${file} | wc -l"
 
-### API Reference
-- **[delta CLI](docs/api/delta.md)** - Main CLI commands
-- **[delta-sessions CLI](docs/api/delta-sessions.md)** - Session management CLI (v1.5)
+# Using stdin parameter
+- name: write_file
+  exec: "tee ${filename}"
+  stdin: content  # content parameter injected via stdin
 
-## Development
+# :raw modifier (for passing flag lists)
+- name: run_docker
+  shell: "docker run ${flags:raw} ${image}"
+  # LLM passes: flags="-p 8080:80 -d"
+  # Actual execution: docker run -p 8080:80 -d nginx
+
+# Full syntax (complex scenarios)
+- name: search
+  command: [grep, -r]
+  parameters:
+    - name: pattern
+      type: string
+      inject_as: argument
+    - name: directory
+      type: string
+      inject_as: argument
+```
+
+See: [Configuration Reference](docs/api/config.md)
+
+---
+
+## Requirements
+
+- **Node.js** 20+
+- **TypeScript** 5+ (development only)
+- **OS**: Linux / macOS / WSL
+
+---
+
+## Project Info
+
+- **Current Version**: v1.7 - Tool Configuration Simplification
+- **License**: MIT
+- **Repository**: [GitHub](https://github.com/deltathink/delta-engine)
+- **Issue Tracker**: [Issues](https://github.com/deltathink/delta-engine/issues)
+- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## For Developers
 
 ```bash
-# Run tests
-npm test
+# Clone repository
+git clone https://github.com/deltathink/delta-engine.git
+cd delta-engine
 
-# Development mode
+# Install dependencies
+npm install
+
+# Run tests
+npm test                 # All tests
+npm run test:unit        # Unit tests
+npm run test:integration # Integration tests
+
+# Development mode (watch for changes)
 npm run dev
 
 # Build
 npm run build
+
+# Test CLI locally
+npm link
+delta --version
 ```
 
-## Requirements
+---
 
-- Node.js 20+
-- TypeScript 5+
-- Unix-like environment (Linux, macOS, WSL)
+## Community & Support
 
-## License
+- **Documentation**: [docs/](docs/)
+- **Examples**: [examples/](examples/)
+- **Discussions**: [GitHub Discussions](https://github.com/deltathink/delta-engine/discussions)
+- **Blog**: See `docs/architecture/PHILOSOPHY.md` for design philosophy
 
-MIT
+---
 
-## Contributing
+## Inspiration
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+Delta Engine's design is deeply influenced by:
 
-## Version
+- **Unix Philosophy**: Do one thing well, compose through text streams
+- **Erlang OTP**: Fault tolerance through message passing and restart strategies
+- **Git**: Immutable logs and complete historical traceability
 
-Current: **v1.7** - Tool configuration simplification (77% verbosity reduction)
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
-
-## Examples
-
-Organized by learning progression - see [examples/README.md](examples/README.md) for detailed documentation.
-
-### Level 1: Basics (Quick Start)
-- **[hello-world](examples/1-basics/hello-world/)** ⭐⭐⭐⭐.3 - 5-minute introduction to Delta's Three Pillars (v1.7 ✨)
-
-### Level 2: Core Features
-- **[interactive-shell](examples/2-core-features/interactive-shell/)** ⭐⭐⭐⭐⭐ - v1.5 persistent bash sessions
-- **[python-repl](examples/2-core-features/python-repl/)** ⭐⭐⭐⭐.5 - v1.5 Python REPL with state preservation
-- **[memory-folding](examples/2-core-features/memory-folding/)** ⭐⭐⭐⭐⭐ - v1.6 context composition & memory folding (v1.7 ✨)
-
-### Level 3: Advanced (Production Patterns)
-- **[delta-agent-generator](examples/3-advanced/delta-agent-generator/)** ⭐⭐⭐⭐⭐ - AI-powered agent generator with sub-agent architecture
-- **[code-reviewer](examples/3-advanced/code-reviewer/)** ⭐⭐⭐⭐⭐ - Lifecycle hooks demonstration with complete audit trail (v1.7 ✨)
-- **[research-agent](examples/3-advanced/research-agent/)** ⭐⭐⭐⭐⭐ - Long-running research with incremental summarization (v1.7 ✨)
-
-**v1.7 Migration Status**: 5/8 examples migrated to simplified syntax (40 tools converted, 91% adoption rate)
-
-All active examples meet ⭐⭐⭐⭐+ quality standard. Average quality: 4.76/5
+If you believe "simplicity over complexity", welcome to try Delta!
