@@ -256,6 +256,53 @@ See `examples/2-core-features/memory-folding/` for a complete demonstration:
 
 ## Critical Development Conventions
 
+### Known Traps (Must Avoid)
+
+#### ESM Import Must Include .js Extension
+**Symptom**: `import { Engine } from './engine'` compiles but fails at runtime
+**Root Cause**: TypeScript doesn't validate ESM paths, Node.js runtime requires extension
+**Solution**: All imports must explicitly use `.js`: `import { Engine } from './engine.js'`
+**Detection**: Runtime error "Cannot find module"
+
+#### File Descriptor Leak
+**Symptom**: After long runs "Too many open files" / "EMFILE"
+**Root Cause**: FileHandle not properly closed
+**Solution**:
+```typescript
+// ✅ Correct
+const handle = await fs.open(path);
+try {
+  // ... operations
+} finally {
+  await handle.close();
+}
+```
+**High-risk areas**: `journal.ts`, `ask-human.ts` (frequent file operations)
+**Detection**: `lsof -p <pid> | wc -l` continuously growing
+
+#### Journal Format Corruption
+**Symptom**: Resume fails with parse errors; file renamed to `journal.json`
+**Root Cause**: External tools (VSCode JSONL viewer plugins) can auto-convert format
+**Impact**: 🔴 CRITICAL - All state reconstruction fails
+**Prevention**:
+- ❌ DON'T open `journal.jsonl` files in VSCode with JSONL viewer plugins
+- ✅ DO use `cat`, `less`, `jq` for inspection
+- ✅ Runtime validation in `journal.ts:validateJournalFormat()`
+
+**See**: `.story/incidents/2025-10-09-journal-corruption.md` for full post-mortem
+
+#### Unix Socket Path Length Limit (104 bytes)
+**Symptom**: Socket file truncated, connection timeout
+**Platform**: macOS and most Unix systems
+**Root Cause**: POSIX `sockaddr_un` defines `sun_path[104]`
+**Solution**: Use `/tmp/` for socket files (short path), keep metadata in project dir
+
+#### LLM Real-time Interaction Mismatch
+**Symptom**: Agent spends excessive time polling/waiting
+**Root Cause**: LLMs operate in request-response model, cannot monitor real-time PTY output
+**Solution**: Use command-based execution (v1.5 sessions) instead of PTY
+**See**: `docs/architecture/v1.4-pty-deprecation.md`
+
 ### Code Patterns to Follow ✅
 ```typescript
 // Correct: ESM imports with .js extension
@@ -394,6 +441,13 @@ Current: **v1.6** (Context Composition Layer)
 - **Getting Started Guide**: `docs/guides/getting-started.md` (comprehensive)
 - **Agent Development Guide**: `docs/guides/agent-development.md`
 
+### Architecture Decisions
+- **ADR Index**: `docs/decisions/README.md` - Architecture Decision Records
+- **ADR-001**: Stateless Core Architecture
+- **ADR-002**: Journal Format - JSONL
+- **ADR-003**: Two-Mode Human Interaction
+- **ADR-004**: POC-First Architecture Validation
+
 ### Architecture Specifications
 - **v1.1 Stateless Core**: `docs/architecture/v1.1-design.md`
 - **v1.2 Human Interaction**: `docs/architecture/v1.2-human-interaction.md`
@@ -401,6 +455,12 @@ Current: **v1.6** (Context Composition Layer)
 - **v1.5 Session Design**: `docs/architecture/v1.5-sessions-simplified.md`
 - **v1.6 Context Composition**: `docs/architecture/v1.6-context-composition.md`
 - **v1.4 PTY Deprecation**: `docs/architecture/v1.4-pty-deprecation.md`
+
+### Incident Reports & Experiments
+- **Index**: `.story/README.md` - Real-world incidents and validation experiments
+- **Incident**: 2025-10-09 Journal Corruption (VSCode plugin)
+- **Incident**: 2025-10-01 Unix Socket Path Limit
+- **Experiment**: 2025-10-01 POC-First Validation (v1.4.2 sessions)
 
 ### User Guides
 - **Session Management**: `docs/guides/session-management.md`
