@@ -59,30 +59,20 @@ version: 1.0.0
 description: A minimal agent with basic capabilities
 
 llm:
-  model: gpt-4o
+  model: gpt-5-mini
   temperature: 0.7
   max_tokens: 1000
 
+# Tools - v1.7 Simplified Syntax
 tools:
   - name: echo
-    command: [echo]
-    parameters:
-      - name: message
-        type: string
-        description: Message to print
-        inject_as: argument
+    description: Message to print
+    exec: "echo \${message}"      # v1.7: Simplified syntax
 
   - name: write_to_file
-    command: [tee]
-    parameters:
-      - name: filename
-        type: string
-        description: File to write to
-        inject_as: argument
-      - name: content
-        type: string
-        description: Content to write
-        inject_as: stdin
+    description: File to write to
+    exec: "tee \${filename}"      # v1.7: Simplified syntax
+    stdin: content                # Declare 'content' as stdin parameter
 `,
   systemPrompt: `# Minimal Agent
 
@@ -161,46 +151,32 @@ version: 1.0.0
 description: A simple hello world agent to demonstrate basic Delta Engine capabilities
 
 llm:
-  model: gpt-4o
+  model: gpt-5-mini
   temperature: 0.7
   max_tokens: 1000
 
+# Tools - v1.7 Simplified Syntax
 tools:
   - name: print_message
-    command: [echo]
-    parameters:
-      - name: message
-        type: string
-        description: Message to print
-        inject_as: argument
+    description: Message to print
+    exec: "echo \${message}"      # v1.7: Simplified syntax
 
   - name: create_file
-    command: [touch]
-    parameters:
-      - name: filename
-        type: string
-        description: Name of file to create
-        inject_as: argument
+    description: Name of file to create
+    exec: "touch \${filename}"    # v1.7: Simplified syntax
 
   - name: write_to_file
-    command: [tee]
-    parameters:
-      - name: filename
-        type: string
-        description: File to write to
-        inject_as: argument
-      - name: content
-        type: string
-        description: Content to write
-        inject_as: stdin
+    description: File to write to
+    exec: "tee \${filename}"      # v1.7: Simplified syntax
+    stdin: content                # Declare 'content' as stdin parameter
 
   - name: list_files
-    command: [ls, -la]
-    parameters: []
+    description: List all files in current directory
+    exec: "ls -la"                # v1.7: Parameterless tool
 
   - name: show_date
-    command: [date]
-    parameters: []
+    description: Display current date and time
+    exec: "date"                  # v1.7: Parameterless tool
 `,
   systemPrompt: `# Hello World Agent
 
@@ -311,74 +287,40 @@ version: 1.0.0
 description: Intelligently organizes files and directories based on type, date, or custom rules
 
 llm:
-  model: gpt-4o
+  model: gpt-5-mini
   temperature: 0.3
   max_tokens: 2000
 
+# Tools - v1.7 Simplified Syntax
 tools:
   - name: list_files
-    command: [ls, -la]
-    parameters: []
+    description: List all files in current directory
+    exec: "ls -la"                # v1.7: Parameterless tool
 
   - name: create_directory
-    command: [mkdir, -p]
-    parameters:
-      - name: dirname
-        type: string
-        description: Directory name to create
-        inject_as: argument
+    description: Directory name to create
+    exec: "mkdir -p \${dirname}"  # v1.7: Simplified syntax
 
   - name: move_file
-    command: [mv]
-    parameters:
-      - name: source
-        type: string
-        description: Source file
-        inject_as: argument
-      - name: destination
-        type: string
-        description: Destination path
-        inject_as: argument
+    description: Move/rename file or directory
+    exec: "mv \${source} \${destination}"  # v1.7: Multiple parameters
 
   - name: copy_file
-    command: [cp, -r]
-    parameters:
-      - name: source
-        type: string
-        description: Source file
-        inject_as: argument
-      - name: destination
-        type: string
-        description: Destination path
-        inject_as: argument
+    description: Copy file or directory recursively
+    exec: "cp -r \${source} \${destination}"  # v1.7: Multiple parameters
 
   - name: find_files
-    command: [find, ., -name]
-    parameters:
-      - name: pattern
-        type: string
-        description: File name pattern
-        inject_as: argument
+    description: Search for files by pattern
+    exec: "find . -name \${pattern}"  # v1.7: Simplified syntax
 
   - name: check_file_size
-    command: [du, -sh]
-    parameters:
-      - name: path
-        type: string
-        description: File or directory path
-        inject_as: argument
+    description: Check file or directory size
+    exec: "du -sh \${path}"       # v1.7: Simplified syntax
 
   - name: write_to_file
-    command: [tee]
-    parameters:
-      - name: filename
-        type: string
-        description: File to write to
-        inject_as: argument
-      - name: content
-        type: string
-        description: Content to write
-        inject_as: stdin
+    description: Write report or summary to file
+    exec: "tee \${filename}"      # v1.7: Simplified syntax
+    stdin: content                # Declare 'content' as stdin parameter
 `,
   systemPrompt: `# File Operations Agent
 
@@ -506,20 +448,20 @@ version: 1.0.0
 description: Interactive API testing client with support for REST APIs
 
 llm:
-  model: gpt-4o
+  model: gpt-5-mini
   temperature: 0.2
   max_tokens: 3000
 
+# Tools - v1.7 Simplified Syntax (mixed with legacy)
 tools:
   - name: curl_get
-    command: [curl, -X, GET]
-    parameters:
-      - name: url
-        type: string
-        description: API endpoint URL
-        inject_as: argument
+    description: Make GET request to API endpoint
+    exec: "curl -X GET \${url}"   # v1.7: Simplified syntax
 
+  # curl_post and curl_put use option injection (-d flag)
+  # Keep legacy syntax for option_name feature
   - name: curl_post
+    description: Make POST request with JSON data
     command: [curl, -X, POST, -H, "Content-Type: application/json"]
     parameters:
       - name: url
@@ -533,6 +475,7 @@ tools:
         option_name: -d
 
   - name: curl_put
+    description: Make PUT request with JSON data
     command: [curl, -X, PUT, -H, "Content-Type: application/json"]
     parameters:
       - name: url
@@ -546,40 +489,22 @@ tools:
         option_name: -d
 
   - name: curl_delete
-    command: [curl, -X, DELETE]
-    parameters:
-      - name: url
-        type: string
-        description: API endpoint URL
-        inject_as: argument
+    description: Make DELETE request to API endpoint
+    exec: "curl -X DELETE \${url}"  # v1.7: Simplified syntax
 
   - name: check_status
-    command: [curl, -o, /dev/null, -s, -w, "%{http_code}\\n"]
-    parameters:
-      - name: url
-        type: string
-        description: URL to check
-        inject_as: argument
+    description: Check HTTP status code
+    exec: "curl -o /dev/null -s -w \\"%{http_code}\\\\n\\" \${url}"  # v1.7: Simplified syntax with escaping
 
   - name: format_json
-    command: [python3, -m, json.tool]
-    parameters:
-      - name: json_data
-        type: string
-        description: JSON to format
-        inject_as: stdin
+    description: Pretty-print JSON response
+    exec: "python3 -m json.tool"  # v1.7: stdin parameter
+    stdin: json_data
 
   - name: save_response
-    command: [tee]
-    parameters:
-      - name: filename
-        type: string
-        description: File to save response
-        inject_as: argument
-      - name: content
-        type: string
-        description: Response content
-        inject_as: stdin
+    description: Save API response to file
+    exec: "tee \${filename}"      # v1.7: Simplified syntax
+    stdin: content
 `,
   systemPrompt: `# API Testing Agent
 

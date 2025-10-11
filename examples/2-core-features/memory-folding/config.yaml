@@ -12,37 +12,18 @@ llm:
   max_tokens: 4000                # Sufficient for file operations + reasoning
 
 tools:
-  # File operations for workspace manipulation
+  # File operations for workspace manipulation (v1.7 Simplified Syntax)
   # These tools allow the agent to persist information across iterations
 
   - name: write_file
     description: Write content to a file in the workspace
-    command: [tee]                # Unix tee command: read stdin, write to file, echo to stdout
-    parameters:
-      - name: filename
-        type: string
-        description: Path to file (relative to workspace)
-        inject_as: argument       # Passed as CLI argument
-      - name: content
-        type: string
-        description: Content to write
-        inject_as: stdin          # Piped via standard input
+    exec: "tee ${filename}"       # v1.7: Simplified syntax for direct execution
+    stdin: content                # Declare 'content' as stdin parameter
 
   - name: read_file
     description: Read content from a file
-    command: [cat]                # Unix cat command: read and output file
-    parameters:
-      - name: filename
-        type: string
-        description: Path to file to read
-        inject_as: argument
+    exec: "cat ${filename}"       # v1.7: Single-line tool definition
 
   - name: list_files
     description: List files in a directory (detailed format)
-    command: [ls, -la]            # List all files with details (permissions, size, timestamp)
-    parameters:
-      - name: directory
-        type: string
-        description: Directory to list
-        default: "."              # Current workspace directory if not specified
-        inject_as: argument
+    exec: "ls -la ${directory}"   # v1.7: Automatic parameter inference

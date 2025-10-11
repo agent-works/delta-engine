@@ -19,65 +19,34 @@ llm:
   max_tokens: 10000                 # Sufficient for detailed summaries
 
 tools:
-  # Note Taking
+  # Note Taking (v1.7 Simplified Syntax)
 
   - name: write_note
     description: |
       Write or append research notes to a markdown file.
       Use this to capture findings, insights, and sources.
-    command: [tee, -a]
-    parameters:
-      - name: filename
-        type: string
-        description: "Note filename (default: notes.md)"
-        default: "notes.md"
-        inject_as: argument
-      - name: content
-        type: string
-        description: "Note content to write (markdown format)"
-        inject_as: stdin
+    exec: "tee -a ${filename}"     # v1.7: Append mode with -a flag
+    stdin: content                  # Declare 'content' as stdin parameter
 
   - name: read_note
     description: |
       Read existing research notes.
       Use this to review what you've already researched.
-    command: [cat]
-    parameters:
-      - name: filename
-        type: string
-        description: "Note filename to read"
-        default: "notes.md"
-        inject_as: argument
+    exec: "cat ${filename}"         # v1.7: Single-line tool definition
 
-  # File Operations
+  # File Operations (v1.7 Simplified Syntax)
 
   - name: list_notes
     description: |
       List all files in the research workspace.
       Use this to see what notes and reports exist.
-    command: [ls, -lh]
-    parameters:
-      - name: directory
-        type: string
-        description: "Directory to list"
-        default: "."
-        inject_as: argument
+    exec: "ls -lh ${directory}"     # v1.7: Automatic parameter inference
 
   - name: search_notes
     description: |
       Search for patterns across all research notes.
       Use this to find specific topics or references.
-    command: [grep, -rn, --color=never]
-    parameters:
-      - name: pattern
-        type: string
-        description: "Search pattern"
-        inject_as: argument
-      - name: path
-        type: string
-        description: "Path to search"
-        default: "."
-        inject_as: argument
+    exec: "grep -rn --color=never ${pattern} ${path}"  # v1.7: Multiple parameters
 
   # Research Summary
 

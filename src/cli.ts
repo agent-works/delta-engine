@@ -6,6 +6,7 @@ import { EngineContext } from './types.js';
 import { Engine } from './engine.js';
 import { RunStatus } from './journal-types.js';
 import { handleInitCommand } from './commands/init.js';
+import { handleToolExpandCommand } from './commands/tool-expand.js';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -359,6 +360,12 @@ export function createProgram(): Command {
       false
     )
     .action(handleRunCommand);
+
+  // v1.7: Add tool expand command
+  program
+    .command('tool:expand <config-path>')
+    .description('Expand v1.7 simplified syntax (exec:, shell:) to full ToolDefinition format')
+    .action(handleToolExpandCommand);
 
   // Add a default help command
   program

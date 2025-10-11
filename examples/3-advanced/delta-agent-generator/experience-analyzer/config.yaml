@@ -20,7 +20,7 @@ llm:
 
 # Tools - Focus on reading history and providing insights
 tools:
-  # ===== Data Reading (3 tools) =====
+  # ===== Data Reading (3 tools - v1.7 Simplified Syntax) =====
 
   - name: read_sessions
     description: |
@@ -38,8 +38,7 @@ tools:
       - details: Additional context
 
       Returns: Raw JSONL content (one JSON per line).
-    command: [cat, .claude-lab/sessions.jsonl]
-    parameters: []
+    exec: "cat .claude-lab/sessions.jsonl"  # v1.7: Parameterless tool
 
   - name: read_recent_failures
     description: |
@@ -48,8 +47,7 @@ tools:
       Useful when user asks: "Why did the last generation fail?"
 
       Returns: Last 10 failed session entries (JSONL format).
-    command: [bash, -c, 'grep "\"result\":\"failed\"" .claude-lab/sessions.jsonl | tail -10 || echo "No failures found"']
-    parameters: []
+    shell: 'grep "\"result\":\"failed\"" .claude-lab/sessions.jsonl | tail -10 || echo "No failures found"'  # v1.7: Pipeline with fallback
 
   - name: read_successes
     description: |
@@ -58,8 +56,7 @@ tools:
       Useful for identifying success factors and best practices.
 
       Returns: All successful session entries (JSONL format).
-    command: [bash, -c, 'grep "\"result\":\"success\"" .claude-lab/sessions.jsonl || echo "No successes found"']
-    parameters: []
+    shell: 'grep "\"result\":\"success\"" .claude-lab/sessions.jsonl || echo "No successes found"'  # v1.7: Grep with fallback
 
   # ===== Statistical Analysis (1 tool) =====
 
@@ -80,7 +77,7 @@ tools:
     command: [python3, "${AGENT_HOME}/tools/basic_stats.py", .claude-lab/sessions.jsonl]
     parameters: []
 
-  # ===== Output (1 tool) =====
+  # ===== Output (1 tool - v1.7 Simplified Syntax) =====
 
   - name: output_analysis
     description: |
@@ -116,18 +113,6 @@ tools:
       }
 
       IMPORTANT: Always include evidence and reasoning. Be specific, not generic.
-    command: [bash, -c, 'echo "$1"']
-    parameters:
-      - name: json_output
-        type: string
-        description: |
-          Complete JSON-formatted analysis result.
-
-          Must be valid JSON with the structure defined above.
-          Use double quotes for JSON strings, escape special characters.
-
-          Example:
-          {"summary":"Based on 12 generations...","insights":[...],...}
-        inject_as: argument
+    exec: "echo ${json_output}"  # v1.7: Simple echo with parameter
 
 # No hooks needed - this is a focused analysis agent

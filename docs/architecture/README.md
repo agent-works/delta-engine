@@ -4,7 +4,7 @@
 
 Delta Engine is a minimalist platform for AI Agent development, following Unix philosophy and emphasizing simplicity, transparency, and composability.
 
-## Current Version: v1.6
+## Current Version: v1.7
 
 The current architecture implements these core principles:
 
@@ -14,6 +14,7 @@ The current architecture implements these core principles:
 4. **Human-in-the-Loop** - Interactive and asynchronous user input support (v1.2)
 5. **Simplified Sessions** - Command-based execution model (v1.5)
 6. **Context Composition** - Declarative context building with memory folding (v1.6)
+7. **Tool Simplification** - Syntax sugar for intuitive tool configuration (v1.7)
 
 ## Architecture Documents
 
@@ -28,10 +29,14 @@ The current architecture implements these core principles:
 - [v1.4 PTY Deprecation](./v1.4-pty-deprecation.md) - PTY session deprecation rationale
 - [v1.5 Simplified Sessions](./v1.5-sessions-simplified.md) - Command-based execution model
 - [v1.6 Context Composition](./v1.6-context-composition.md) - Declarative context management
+- [v1.7 Tool Simplification](./v1.7-tool-simplification.md) - Intuitive tool configuration with exec/shell syntax
+- [v1.7 Implementation Plan](./v1.7-implementation-plan.md) - Development roadmap for v1.7 features
 
 ### Migration Guides
 - [Migration: v1.0 → v1.1](../migration/v1.0-to-v1.1.md) - Stateless core migration
 - [Migration: v1.4 → v1.5](../migration/v1.4-to-v1.5.md) - PTY to simplified sessions
+
+**Note**: v1.7 is fully backward compatible (syntax sugar only), so no migration guide is needed. Old `command:` array syntax continues to work alongside new `exec:`/`shell:` syntax.
 
 ## Key Components
 
@@ -71,7 +76,8 @@ Complexity emerges through composing simple Agents (processes).
 - **v1.3** - Directory structure simplification and `delta init` command
 - **v1.4** - PTY-based sessions (deprecated, moved to experimental)
 - **v1.5** - Command-based simplified sessions (production-ready)
-- **v1.6** (Current) - Context composition layer with memory folding
+- **v1.6** - Context composition layer with memory folding
+- **v1.7** (Current) - Tool configuration syntax sugar (exec/shell modes)
 - **v2.0** (Planned) - Multi-agent orchestration and ecosystem features
 
 ## See Also

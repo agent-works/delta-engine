@@ -12,6 +12,7 @@
 - 👥 **Interactive** - Human-in-the-loop support for user input (v1.2)
 - 🖥️ **Session Management** - Command-based persistent sessions for stateful workflows (v1.5)
 - 🧠 **Context Composition** - Memory folding and dynamic context management (v1.6)
+- ✨ **Simplified Tool Syntax** - 77% reduction in configuration verbosity with exec:/shell: modes (v1.7)
 
 
 ## Core Concepts
@@ -40,6 +41,22 @@ delta run --agent ./my-agent --task "Create a greeting file"
 # Or run the hello-world example directly
 delta run --agent examples/1-basics/hello-world --task "Create a greeting file"
 ```
+
+### Tool Configuration
+
+```yaml
+tools:
+  - name: list_files
+    exec: "ls -la ${directory}"
+  - name: read_file
+    exec: "cat ${filename}"
+```
+
+**Two execution modes**:
+- `exec:` - Direct execution (safest, no shell involvement)
+- `shell:` - Shell interpretation for pipes/redirects (`cat ${file} | wc -l`)
+
+See [Tool Configuration](docs/api/config.md#v17-simplified-syntax) for complete syntax.
 
 
 ## Agent Structure
@@ -100,7 +117,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## Version
 
-Current: **v1.6** - Context composition layer with memory folding
+Current: **v1.7** - Tool configuration simplification (77% verbosity reduction)
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
@@ -109,16 +126,18 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 Organized by learning progression - see [examples/README.md](examples/README.md) for detailed documentation.
 
 ### Level 1: Basics (Quick Start)
-- **[hello-world](examples/1-basics/hello-world/)** ⭐⭐⭐⭐.3 - 5-minute introduction to Delta's Three Pillars
+- **[hello-world](examples/1-basics/hello-world/)** ⭐⭐⭐⭐.3 - 5-minute introduction to Delta's Three Pillars (v1.7 ✨)
 
 ### Level 2: Core Features
 - **[interactive-shell](examples/2-core-features/interactive-shell/)** ⭐⭐⭐⭐⭐ - v1.5 persistent bash sessions
 - **[python-repl](examples/2-core-features/python-repl/)** ⭐⭐⭐⭐.5 - v1.5 Python REPL with state preservation
-- **[memory-folding](examples/2-core-features/memory-folding/)** ⭐⭐⭐⭐⭐ - v1.6 context composition & memory folding
+- **[memory-folding](examples/2-core-features/memory-folding/)** ⭐⭐⭐⭐⭐ - v1.6 context composition & memory folding (v1.7 ✨)
 
 ### Level 3: Advanced (Production Patterns)
 - **[delta-agent-generator](examples/3-advanced/delta-agent-generator/)** ⭐⭐⭐⭐⭐ - AI-powered agent generator with sub-agent architecture
-- **[code-reviewer](examples/3-advanced/code-reviewer/)** ⭐⭐⭐⭐⭐ - Lifecycle hooks demonstration with complete audit trail
-- **[research-agent](examples/3-advanced/research-agent/)** ⭐⭐⭐⭐⭐ - Long-running research with incremental summarization
+- **[code-reviewer](examples/3-advanced/code-reviewer/)** ⭐⭐⭐⭐⭐ - Lifecycle hooks demonstration with complete audit trail (v1.7 ✨)
+- **[research-agent](examples/3-advanced/research-agent/)** ⭐⭐⭐⭐⭐ - Long-running research with incremental summarization (v1.7 ✨)
+
+**v1.7 Migration Status**: 5/8 examples migrated to simplified syntax (40 tools converted, 91% adoption rate)
 
 All active examples meet ⭐⭐⭐⭐+ quality standard. Average quality: 4.76/5

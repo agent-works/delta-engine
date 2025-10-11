@@ -150,7 +150,7 @@ Three modes defined in `inject_as`:
 2. **stdin** - Piped via standard input (max 1 per tool)
 3. **option** - Passed as named flag (requires `option_name`)
 
-Example `config.yaml` structure:
+Example `config.yaml` structure (v1.0-v1.6 full syntax):
 ```yaml
 name: my-agent
 version: 1.0.0
@@ -176,6 +176,49 @@ hooks:  # Optional lifecycle hooks
     command: [script.sh]
     timeout_ms: 5000
 ```
+
+**v1.7 Simplified Syntax:**
+
+For common cases (80% of tools), use simplified `exec:` or `shell:` syntax:
+
+```yaml
+tools:
+  # exec: mode - Direct execution (safest, no shell)
+  - name: list_files
+    exec: "ls -F ${directory}"
+
+  # shell: mode - For pipes and redirection
+  - name: count_lines
+    shell: "cat ${file} | wc -l"
+
+  # stdin: parameter (both modes)
+  - name: write_file
+    exec: "tee ${filename}"
+    stdin: content
+
+  # :raw modifier (shell: only, for flag lists)
+  - name: run_docker
+    shell: "docker run ${flags:raw} ${image}"
+```
+
+**Simplified vs Full Syntax Comparison:**
+
+```yaml
+# OLD (v1.0-v1.6): 9 lines
+- name: count_lines
+  command: [sh, -c, "cat \"$1\" | wc -l", --]
+  parameters:
+    - name: file
+      type: string
+      inject_as: argument
+      position: 0
+
+# NEW (v1.7): 2 lines ✨
+- name: count_lines
+  shell: "cat ${file} | wc -l"
+```
+
+Use `delta tool expand config.yaml` to see how simplified syntax is expanded to full format.
 
 ### Context Composition (v1.6)
 
@@ -418,7 +461,7 @@ When modifying core features:
 
 ## Version Context
 
-Current: **v1.6** (Context Composition Layer)
+Current: **v1.7** (Tool Configuration Simplification)
 - v1.0: MVP with basic Think-Act-Observe
 - v1.1: Stateless core + journal.jsonl + I/O separation
 - v1.2: Human interaction (`ask_human` tool, interactive/async modes)
@@ -427,6 +470,7 @@ Current: **v1.6** (Context Composition Layer)
 - v1.4: PTY-based sessions (deprecated, moved to experimental)
 - v1.5: Command-based simplified sessions (production-ready)
 - v1.6: Context composition layer with memory folding and dynamic context
+- v1.7: Tool configuration simplification with `exec:` and `shell:` syntax sugar
 - v2.0 (planned): Multi-agent orchestration
 
 ## Key Documentation Locations
@@ -454,6 +498,8 @@ Current: **v1.6** (Context Composition Layer)
 - **v1.3 Workspace Structure**: `docs/architecture/v1.3-design.md`
 - **v1.5 Session Design**: `docs/architecture/v1.5-sessions-simplified.md`
 - **v1.6 Context Composition**: `docs/architecture/v1.6-context-composition.md`
+- **v1.7 Tool Simplification**: `docs/architecture/v1.7-tool-simplification.md`
+- **v1.7 Implementation Plan**: `docs/architecture/v1.7-implementation-plan.md`
 - **v1.4 PTY Deprecation**: `docs/architecture/v1.4-pty-deprecation.md`
 
 ### Incident Reports & Experiments
@@ -488,17 +534,20 @@ OPENAI_BASE_URL=<optional>  # Custom API endpoint
 Located in `examples/` - organized by learning progression:
 
 ### Level 1: Basics (Quick Start)
-- `1-basics/hello-world/` - ⭐⭐⭐⭐.3 Entry point, demonstrates Three Pillars
+- `1-basics/hello-world/` - ⭐⭐⭐⭐⭐ Entry point, demonstrates Three Pillars (**v1.7** migrated)
 
 ### Level 2: Core Features
-- `2-core-features/interactive-shell/` - ⭐⭐⭐⭐⭐ **v1.5** Persistent bash sessions
-- `2-core-features/python-repl/` - ⭐⭐⭐⭐.5 **v1.5** Python REPL with state preservation
-- `2-core-features/memory-folding/` - ⭐⭐⭐⭐⭐ **v1.6** Memory folding with context.yaml ✨ ENHANCED
+- `2-core-features/interactive-shell/` - ⭐⭐⭐⭐⭐ **v1.5** Persistent bash sessions (uses session tools, not migrated)
+- `2-core-features/python-repl/` - ⭐⭐⭐⭐.5 **v1.5** Python REPL with state preservation (uses session tools, not migrated)
+- `2-core-features/memory-folding/` - ⭐⭐⭐⭐⭐ **v1.6 + v1.7** Memory folding with simplified tool syntax ✨ MIGRATED
 
 ### Level 3: Advanced (Production-Grade)
-- `3-advanced/delta-agent-generator/` - ⭐⭐⭐⭐⭐ AI orchestrating AI with sub-agent architecture (v3.0)
-- `3-advanced/code-reviewer/` - ⭐⭐⭐⭐⭐ Lifecycle hooks demonstration with audit trail ✨ NEW
-- `3-advanced/research-agent/` - ⭐⭐⭐⭐⭐ Context composition for long-running research ✨ NEW
+- `3-advanced/delta-agent-generator/` - ⭐⭐⭐⭐⭐ AI orchestrating AI with sub-agent architecture (v3.0, uses complex bash scripting)
+  - **experience-analyzer** subagent - ⭐⭐⭐⭐⭐ Data analysis with **v1.7** syntax ✨ MIGRATED
+- `3-advanced/code-reviewer/` - ⭐⭐⭐⭐⭐ Lifecycle hooks demonstration (**v1.7** migrated) ✨ MIGRATED
+- `3-advanced/research-agent/` - ⭐⭐⭐⭐⭐ Context composition for long-running research (**v1.7** migrated) ✨ MIGRATED
+
+**v1.7 Migration Status**: 5/8 examples migrated (40 tools converted, 77% reduction in verbosity)
 
 **Quality Standard**: All examples meet ⭐⭐⭐⭐ (4/5) threshold
 

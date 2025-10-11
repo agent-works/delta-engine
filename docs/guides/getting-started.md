@@ -96,12 +96,47 @@ my-agent/
 
 ## Key Concepts
 
-### Tools
-Tools are external commands that your agent can execute:
-- Each tool maps to a command-line program
-- Parameters can be injected as arguments, stdin, or options
-- Tool outputs are captured and fed back to the LLM
+### Tools (v1.7 Simplified Syntax)
+
+Tools are external commands that your agent can execute. **v1.7 introduces simplified syntax** that makes tool configuration 77% more concise:
+
+```yaml
+# ✨ v1.7: Simple and readable (Recommended)
+tools:
+  - name: read_file
+    exec: "cat ${filename}"
+
+  - name: count_lines
+    shell: "cat ${file} | wc -l"
+
+  - name: write_file
+    exec: "tee ${filename}"
+    stdin: content
+```
+
+**Two execution modes:**
+- `exec:` - Direct execution (safest, no shell involvement)
+- `shell:` - Shell interpretation for pipes/redirects
+
+**Legacy syntax (v1.0-v1.6) still fully supported:**
+```yaml
+# 📦 Legacy: Explicit command arrays
+tools:
+  - name: read_file
+    command: [cat]
+    parameters:
+      - name: filename
+        type: string
+        inject_as: argument
+```
+
+**Key features:**
+- Parameters automatically inferred from `${param}` placeholders
+- Tool outputs captured and fed back to the LLM
 - **ask_human** (v1.2) - Built-in tool for requesting user input
+- Use `delta tool:expand config.yaml` to see internal expansion
+
+See [Agent Development Guide](./agent-development.md) for complete v1.7 syntax documentation.
 
 ### Think-Act-Observe Loop
 1. **Think** - LLM processes the current context

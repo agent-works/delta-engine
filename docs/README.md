@@ -133,14 +133,15 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
 
 ## 📊 Document Status & Maintenance
 
-### Actively Maintained (v1.6)
+### Actively Maintained (v1.7)
 | Document | Status | Last Major Update |
 |----------|--------|-------------------|
-| [Philosophy](./architecture/PHILOSOPHY.md) | ✅ Stable | 2025-10-10 |
+| [Philosophy](./architecture/PHILOSOPHY.md) | ✅ Stable | 2025-10-12 (v1.7) |
 | [Core Principles](./architecture/core-principles.md) | ✅ Stable | 2025-10-10 |
-| [Quick Start](./QUICKSTART.md) | ✅ Stable | 2025-10-10 |
-| [Getting Started](./guides/getting-started.md) | ✅ Stable | 2024-10-09 |
-| [Agent Development](./guides/agent-development.md) | ✅ Stable | 2024-10-08 |
+| [Quick Start](./QUICKSTART.md) | ✅ Stable | 2025-10-12 (v1.7) |
+| [Getting Started](./guides/getting-started.md) | ✅ Stable | 2025-10-12 (v1.7) |
+| [Agent Development](./guides/agent-development.md) | ✅ Stable | 2025-10-12 (v1.7) |
+| [Config Reference](./api/config.md) | ✅ Stable | 2025-10-12 (v1.7) |
 | [Context Management](./guides/context-management.md) | ✅ Stable | 2024-10-09 (v1.6) |
 | [Session Management](./guides/session-management.md) | ✅ Stable | 2024-10-02 (v1.5) |
 | [v1.6 Context Composition](./architecture/v1.6-context-composition.md) | ✅ Stable | 2024-10-10 |
@@ -154,6 +155,7 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
 | v1.4 | [PTY Deprecation](./architecture/v1.4-pty-deprecation.md) | [v1.4→v1.5](./migration/v1.4-to-v1.5.md) |
 | v1.5 | [Simplified Sessions](./architecture/v1.5-sessions-simplified.md) | [v1.4→v1.5](./migration/v1.4-to-v1.5.md) |
 | v1.6 | [Context Composition](./architecture/v1.6-context-composition.md) | - |
+| v1.7 | [Tool Simplification](./architecture/v1.7-tool-simplification.md) | - |
 
 ---
 
@@ -163,14 +165,27 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
 
 #### 1️⃣ Everything is a Command
 ```yaml
-# In config.yaml
+# ✨ v1.7: Simple and expressive (Recommended)
+tools:
+  - name: search
+    exec: "python3 tools/search.py"
+    stdin: query
+```
+
+<details>
+<summary>📦 Legacy syntax (v1.0-v1.6)</summary>
+
+```yaml
 tools:
   - name: search
     command: ["python3", "tools/search.py"]
     parameters:
       - name: query
-        inject_as: stdin  # or argument, option
+        type: string
+        inject_as: stdin
 ```
+</details>
+
 **Principle**: No built-in functions. All capabilities are external commands.
 
 #### 2️⃣ The Environment is the Interface
@@ -186,13 +201,31 @@ workspaces/W001/          # Data Plane (agent's workspace)
 
 #### 3️⃣ Composition Defines Intelligence
 ```yaml
+# ✨ v1.7: Simplified shell: mode for option flags
+tools:
+  - name: invoke_sub_agent
+    shell: "delta run --agent ${agent_path} --task ${task}"
+```
+
+<details>
+<summary>📦 Legacy syntax (v1.0-v1.6) - Required for complex option injection</summary>
+
+```yaml
 tools:
   - name: invoke_sub_agent
     command: ["delta", "run"]
     parameters:
       - name: agent_path
+        type: string
+        inject_as: option
         option_name: "--agent"
+      - name: task
+        type: string
+        inject_as: option
+        option_name: "--task"
 ```
+</details>
+
 **Principle**: Complex intelligence = composing simple agents. No bloated central engine.
 
 ### Essential Commands
@@ -280,6 +313,6 @@ When adding or updating documentation:
 
 ---
 
-**Last Updated**: 2025-10-10
-**Current Version**: v1.6 (Context Composition Layer)
+**Last Updated**: 2025-10-12
+**Current Version**: v1.7 (Tool Configuration Simplification)
 **Next Major Release**: v2.0 (Multi-Agent Orchestration) - Planned

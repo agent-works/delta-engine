@@ -29,6 +29,7 @@ export const ToolParameterSchema = z.object({
   type: z.literal('string'), // MVP only supports string
   inject_as: z.nativeEnum(InjectionType),
   option_name: z.string().optional(),
+  description: z.string().optional(), // v1.7: Optional parameter description for LLM
 }).refine(
   (data) => {
     // When inject_as is 'option', option_name must be provided
@@ -45,13 +46,74 @@ export const ToolParameterSchema = z.object({
 export type ToolParameter = z.infer<typeof ToolParameterSchema>;
 
 // ============================================
+// Tool Configuration Schemas (v1.7 Simplified Syntax)
+// ============================================
+
+/**
+ * v1.7: Exec mode - Direct execution without shell (safest)
+ * Example: exec: "ls -F ${directory}"
+ */
+export const ExecToolConfigSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  exec: z.string(), // Template string with ${param} placeholders
+  stdin: z.string().optional(), // Optional stdin parameter name
+  parameters: z.array(ToolParameterSchema).optional(), // Explicit parameter metadata (override/supplement)
+});
+
+export type ExecToolConfig = z.infer<typeof ExecToolConfigSchema>;
+
+/**
+ * v1.7: Shell mode - Shell-interpreted execution for pipes/redirects
+ * Example: shell: "cat ${file} | wc -l"
+ * Supports ${param:raw} for unquoted expansion (expert feature)
+ */
+export const ShellToolConfigSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  shell: z.string(), // Template with ${param} or ${param:raw}
+  stdin: z.string().optional(),
+  parameters: z.array(ToolParameterSchema).optional(),
+});
+
+export type ShellToolConfig = z.infer<typeof ShellToolConfigSchema>;
+
+/**
+ * v1.0-v1.6: Legacy full configuration (explicit command array)
+ * Remains fully supported for backward compatibility
+ */
+export const LegacyToolConfigSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  command: z.array(z.string()).min(1),
+  parameters: z.array(ToolParameterSchema),
+});
+
+export type LegacyToolConfig = z.infer<typeof LegacyToolConfigSchema>;
+
+/**
+ * Union type for all tool configuration formats
+ * Note: Discrimination happens via detectToolConfigMode() helper
+ */
+export type ToolConfig = ExecToolConfig | ShellToolConfig | LegacyToolConfig;
+
+// ============================================
 // Tool Definition Schemas and Types
 // ============================================
 
+/**
+ * Internal representation of a tool (post-expansion)
+ * All v1.7 syntax sugar is converted to this format
+ */
 export const ToolDefinitionSchema = z.object({
   name: z.string(),
   command: z.array(z.string()).min(1),
   parameters: z.array(ToolParameterSchema),
+  // v1.7: Optional metadata for debugging and transparency
+  __meta: z.object({
+    syntax: z.enum(['legacy', 'exec', 'shell']).optional(),
+    original_template: z.string().optional(),
+  }).optional(),
 }).refine(
   (data) => {
     // Ensure at most one parameter has inject_as='stdin'
@@ -66,6 +128,41 @@ export const ToolDefinitionSchema = z.object({
 );
 
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
+
+/**
+ * v1.7: Detect which configuration mode a raw tool config uses
+ * Used during config loading to route to appropriate expansion logic
+ *
+ * @param rawConfig - Unvalidated tool configuration object
+ * @returns 'exec' | 'shell' | 'legacy' | 'invalid'
+ */
+export function detectToolConfigMode(rawConfig: unknown): 'exec' | 'shell' | 'legacy' | 'invalid' {
+  if (typeof rawConfig !== 'object' || rawConfig === null) {
+    return 'invalid';
+  }
+
+  const config = rawConfig as Record<string, unknown>;
+
+  const hasExec = 'exec' in config && typeof config.exec === 'string';
+  const hasShell = 'shell' in config && typeof config.shell === 'string';
+  const hasCommand = 'command' in config && Array.isArray(config.command);
+
+  // Count how many mode indicators are present
+  const modeCount = [hasExec, hasShell, hasCommand].filter(Boolean).length;
+
+  // Validate mutual exclusivity
+  if (modeCount === 0) {
+    return 'invalid'; // No mode specified
+  }
+  if (modeCount > 1) {
+    return 'invalid'; // Multiple modes specified (mutually exclusive)
+  }
+
+  // Determine mode
+  if (hasExec) return 'exec';
+  if (hasShell) return 'shell';
+  return 'legacy';
+}
 
 // ============================================
 // LLM Configuration Schemas and Types

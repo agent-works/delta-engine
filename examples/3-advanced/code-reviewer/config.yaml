@@ -19,32 +19,21 @@ llm:
   max_tokens: 4000                 # Sufficient for detailed code analysis
 
 tools:
-  # File Operations
+  # File Operations (v1.7 Simplified Syntax)
 
   - name: read_file
     description: |
       Read contents of a source file for review.
       Use this to examine individual files in detail.
-    command: [cat]
-    parameters:
-      - name: file_path
-        type: string
-        description: "Path to file to read (relative to workspace or absolute)"
-        inject_as: argument
+    exec: "cat ${file_path}"       # v1.7: Single-line tool definition
 
   - name: list_files
     description: |
       List files in a directory.
       Use this to understand project structure before reviewing.
-    command: [ls, -la]
-    parameters:
-      - name: directory
-        type: string
-        description: "Directory to list (default: current directory)"
-        default: "."
-        inject_as: argument
+    exec: "ls -la ${directory}"    # v1.7: Automatic parameter inference
 
-  # Git Operations
+  # Git Operations (v1.7 Simplified Syntax)
 
   - name: git_diff
     description: |
@@ -55,27 +44,15 @@ tools:
       - HEAD~1..HEAD: Changes in last commit
       - main..feature: Changes in feature branch
       - (no args): Uncommitted changes
-    command: [git, diff]
-    parameters:
-      - name: range_or_args
-        type: string
-        description: "Git diff arguments (commit range, file paths, etc.)"
-        default: ""
-        inject_as: argument
+    exec: "git diff ${range_or_args}"  # v1.7: Git command with optional args
 
   - name: git_log
     description: |
       Show commit history with messages.
       Use this to understand context of changes.
-    command: [git, log, --oneline, --graph]
-    parameters:
-      - name: args
-        type: string
-        description: "Git log arguments (e.g., -n 5 for last 5 commits)"
-        default: "-n 10"
-        inject_as: argument
+    exec: "git log --oneline --graph ${args}"  # v1.7: Git log with flags
 
-  # Code Search
+  # Code Search (v1.7 Simplified Syntax)
 
   - name: search_code
     description: |
@@ -86,19 +63,9 @@ tools:
       - Search for function name: "function_name"
       - Find TODO comments: "TODO"
       - Find potential bugs: "null|undefined"
-    command: [grep, -rn, --color=never]
-    parameters:
-      - name: pattern
-        type: string
-        description: "Pattern to search for (supports regex)"
-        inject_as: argument
-      - name: path
-        type: string
-        description: "Path to search (default: current directory)"
-        default: "."
-        inject_as: argument
+    exec: "grep -rn --color=never ${pattern} ${path}"  # v1.7: Multiple parameters
 
-  # Review Output
+  # Review Output (v1.7 Simplified Syntax)
 
   - name: write_review
     description: |
@@ -110,17 +77,8 @@ tools:
       - File and line number
       - Description of issue
       - Suggested fix
-    command: [tee, -a]
-    parameters:
-      - name: filename
-        type: string
-        description: "Review report filename (default: REVIEW.md)"
-        default: "REVIEW.md"
-        inject_as: argument
-      - name: content
-        type: string
-        description: "Review content to write (markdown format)"
-        inject_as: stdin
+    exec: "tee -a ${filename}"     # v1.7: Append mode with -a flag
+    stdin: content                  # Declare 'content' as stdin parameter
 
 # Lifecycle Hooks - Demonstrate Delta's unique capability
 

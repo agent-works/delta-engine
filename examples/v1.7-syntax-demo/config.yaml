@@ -1,0 +1,71 @@
+name: v1.7-syntax-demo
+version: 1.0.0
+description: |
+  Demonstration of v1.7 simplified tool syntax.
+  Shows exec: and shell: modes with various parameter patterns.
+
+llm:
+  model: gpt-5-mini
+  temperature: 0.7
+  max_tokens: 4000
+
+tools:
+  # ============================================
+  # exec: Mode Examples (Direct Execution)
+  # ============================================
+
+  # Example 1: Simple command with single parameter
+  - name: list_directory
+    description: List files in a directory with -F flag
+    exec: "ls -F ${directory}"
+
+  # Example 2: Multiple parameters
+  - name: search_files
+    description: Search for pattern in files using grep
+    exec: "grep -r ${pattern} ${directory}"
+
+  # Example 3: With stdin parameter
+  - name: write_to_file
+    description: Write content to a file using tee
+    exec: "tee ${filename}"
+    stdin: content
+
+  # ============================================
+  # shell: Mode Examples (Shell Interpretation)
+  # ============================================
+
+  # Example 4: Pipe operation
+  - name: count_lines
+    description: Count lines in a file
+    shell: "cat ${file} | wc -l"
+
+  # Example 5: Multiple pipes
+  - name: top_processes
+    description: Show top CPU-consuming processes
+    shell: "ps aux | grep ${pattern} | head -n ${limit}"
+
+  # Example 6: Output redirection
+  - name: save_listing
+    description: Save directory listing to file
+    shell: "ls -la ${directory} > ${output_file}"
+
+  # Example 7: :raw modifier for flag lists (expert feature)
+  - name: run_docker
+    description: Run Docker container with custom flags
+    shell: "docker run ${flags:raw} ${image}"
+
+  # ============================================
+  # Legacy Syntax (Backward Compatibility)
+  # ============================================
+
+  # Example 8: Traditional command array syntax (still supported)
+  - name: echo_message
+    description: Echo a message (legacy syntax)
+    command: [echo]
+    parameters:
+      - name: message
+        type: string
+        inject_as: argument
+
+# No lifecycle hooks for this demo
+max_iterations: 30

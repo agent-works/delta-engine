@@ -19,6 +19,26 @@ npm install -g delta-engine
 export OPENAI_API_KEY="sk-..."
 ```
 
+## 💡 What's New in v1.7?
+
+**77% simpler tool configuration** with new `exec:` and `shell:` syntax!
+
+```yaml
+# Before (v1.0-v1.6): 9 lines
+- name: list_files
+  command: [ls, -la]
+  parameters:
+    - name: directory
+      type: string
+      inject_as: argument
+
+# After (v1.7): 2 lines ✨
+- name: list_files
+  exec: "ls -la ${directory}"
+```
+
+See `delta tool:expand config.yaml` to understand how v1.7 syntax expands internally.
+
 ## Step 3: Try the Hello World Agent (2 minutes)
 
 ### Clone Examples
@@ -42,11 +62,21 @@ hello-world/
     └── greet.sh         # A simple tool
 ```
 
-**config.yaml** (tool definition):
+**config.yaml** (tool definition - v1.7 simplified syntax):
 ```yaml
 name: hello-world-agent
 description: A minimal agent demonstrating the three pillars
 
+tools:
+  # ✨ v1.7: Simplified exec: syntax (2 lines vs 9 lines!)
+  - name: greet
+    exec: "bash tools/greet.sh ${name}"
+```
+
+<details>
+<summary>📦 Click to see v1.0-v1.6 legacy syntax (for reference)</summary>
+
+```yaml
 tools:
   - name: greet
     description: "Print a greeting message"
@@ -57,6 +87,7 @@ tools:
         description: "Name to greet"
         inject_as: argument
 ```
+</details>
 
 **system_prompt.md** (agent instructions):
 ```markdown
@@ -118,7 +149,8 @@ This shows every thought, action, and observation—the **complete audit trail**
 
 Notice in `config.yaml`:
 ```yaml
-command: ["bash", "tools/greet.sh"]
+# v1.7: Simple and readable
+exec: "bash tools/greet.sh ${name}"
 ```
 
 **Key Insight**: Delta Engine has no built-in functions. All capabilities are external commands.
@@ -164,15 +196,12 @@ Use the greet tool to greet people.
 Add a file-reading tool to `config.yaml`:
 ```yaml
 tools:
+  # ✨ v1.7: Simplified syntax
   - name: read_file
-    command: ["cat"]
-    parameters:
-      - name: filename
-        type: string
-        inject_as: argument
+    exec: "cat ${filename}"
 
   - name: greet
-    ...
+    exec: "bash tools/greet.sh ${name}"
 ```
 
 Run:
@@ -190,6 +219,16 @@ The agent will read the guidelines first!
 
 ```yaml
 tools:
+  # ✨ v1.7: Shell mode for complex commands
+  - name: run_sub_agent
+    shell: "delta run --agent ${agent_path} --task ${task}"
+```
+
+<details>
+<summary>📦 For option injection (legacy syntax), click here</summary>
+
+```yaml
+tools:
   - name: run_sub_agent
     command: ["delta", "run"]
     parameters:
@@ -200,6 +239,7 @@ tools:
         inject_as: option
         option_name: "--task"
 ```
+</details>
 
 This enables **multi-agent orchestration** with zero special code.
 
@@ -250,4 +290,4 @@ This enables **multi-agent orchestration** with zero special code.
 **Congratulations!** You've just experienced the elegance of Delta Engine's three-pillar philosophy. Everything you need to know flows from these principles.
 
 **Estimated Time**: 5 minutes
-**Last Updated**: 2025-10-10
+**Last Updated**: 2025-10-12 (v1.7 - Tool Syntax Simplification)

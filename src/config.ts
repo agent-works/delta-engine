@@ -1,8 +1,9 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import yaml from 'yaml';
-import { AgentConfig, AgentConfigSchema } from './types.js';
+import { AgentConfig, AgentConfigSchema, detectToolConfigMode } from './types.js';
 import { z } from 'zod';
+import { ToolExpander, ToolExpansionError } from './tool-expander.js';
 
 /**
  * Load and validate agent configuration from the specified agent path
@@ -55,6 +56,46 @@ export async function loadAndValidateAgent(
     throw new Error(
       `Failed to parse config.yaml: ${error instanceof Error ? error.message : String(error)}`
     );
+  }
+
+  // v1.7: Expand simplified tool syntax (exec:, shell:) before validation
+  if (typeof rawConfig === 'object' && rawConfig !== null && 'tools' in rawConfig) {
+    const config = rawConfig as { tools?: unknown[] };
+
+    if (Array.isArray(config.tools)) {
+      const expander = new ToolExpander();
+
+      config.tools = config.tools.map((tool: unknown, idx: number) => {
+        const mode = detectToolConfigMode(tool);
+
+        if (mode === 'invalid') {
+          throw new Error(
+            `Invalid tool configuration at index ${idx}: ` +
+            `must have exactly one of: exec:, shell:, or command: field`
+          );
+        }
+
+        if (mode === 'exec' || mode === 'shell') {
+          // Expand v1.7 simplified syntax to internal format
+          try {
+            return expander.expand(tool as any);
+          } catch (error) {
+            if (error instanceof ToolExpansionError) {
+              const toolName = (tool as any)?.name || `tool at index ${idx}`;
+              throw new Error(
+                `Failed to expand tool '${toolName}':\n` +
+                `  ${error.message}\n` +
+                (error.hint ? `  Hint: ${error.hint}\n` : '')
+              );
+            }
+            throw error;
+          }
+        }
+
+        // mode === 'legacy': Keep as-is
+        return tool;
+      });
+    }
   }
 
   // Validate configuration using Zod schema

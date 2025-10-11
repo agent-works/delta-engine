@@ -21,7 +21,17 @@ Success is measured not by the final performance of agents, but by how much it i
 - Complete decoupling of capabilities from engine core
 - Tool development = writing any CLI program
 
-**Example**: Calling a sub-agent is just another tool:
+**Example** (v1.7 simplified syntax):
+```yaml
+tools:
+  # ✨ v1.7: Simple and expressive
+  - name: run_sub_agent
+    shell: "delta run --agent ${agent_path} --task ${task}"
+```
+
+<details>
+<summary>📦 Legacy syntax (v1.0-v1.6)</summary>
+
 ```yaml
 tools:
   - name: run_sub_agent
@@ -31,6 +41,7 @@ tools:
         inject_as: option
         option_name: "--agent"
 ```
+</details>
 
 ### 2. The Environment is the Interface
 
@@ -130,6 +141,32 @@ In a Python-dominated AI field, Delta Engine chose Node.js/TypeScript:
 
 This ensures Delta Engine can address real-world complexity without sacrificing philosophical purity.
 
+## Recent Evolution: v1.7 Tool Simplification
+
+**v1.7 embodies the philosophy of radical simplicity**:
+
+```yaml
+# Before (v1.0-v1.6): 9 lines - Verbose, cognitive overhead
+- name: list_files
+  command: [ls, -la]
+  parameters:
+    - name: directory
+      type: string
+      description: Directory to list
+      inject_as: argument
+
+# After (v1.7): 2 lines - Clear intent, 77% reduction ✨
+- name: list_files
+  exec: "ls -la ${directory}"
+```
+
+**Why this matters philosophically**:
+- **Minimalism in Practice**: Syntax sugar over existing architecture (no new concepts)
+- **Composition Preserved**: `exec:` and `shell:` expand to same internal `command:` array
+- **Expert Control**: Full transparency via `delta tool:expand` command
+- **Security by Default**: `exec:` mode rejects all shell metacharacters
+- **Backward Compatible**: Legacy syntax fully supported (composition over breaking changes)
+
 ---
 
 ## Next Steps
@@ -141,5 +178,5 @@ This ensures Delta Engine can address real-world complexity without sacrificing 
 
 ---
 
-**Last Updated**: 2025-10-10
-**Version**: v1.6 (Context Composition Layer)
+**Last Updated**: 2025-10-12
+**Version**: v1.7 (Tool Configuration Simplification)

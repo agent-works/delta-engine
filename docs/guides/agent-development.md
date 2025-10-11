@@ -4,6 +4,8 @@
 
 This guide covers how to develop custom agents for Delta Engine, from basic file operations to complex multi-step workflows.
 
+**✨ v1.7 Update**: Delta Engine now supports simplified tool syntax with 77% less configuration! See [v1.7 Simplified Syntax](#v17-simplified-tool-syntax-recommended) below.
+
 ## Agent Anatomy
 
 Every agent consists of two required files:
@@ -14,9 +16,150 @@ my-agent/
 └── system_prompt.md    # System prompt (or .txt)
 ```
 
+## v1.7 Simplified Tool Syntax (Recommended)
+
+Delta Engine v1.7 introduces simplified syntax that reduces tool configuration verbosity by 77%. **This is now the recommended way to define tools.**
+
+### Quick Comparison
+
+```yaml
+# ✨ NEW (v1.7): 2 lines - Clean and readable
+tools:
+  - name: list_files
+    exec: "ls -la ${directory}"
+
+# 📦 OLD (v1.0-v1.6): 9 lines - Verbose and complex
+tools:
+  - name: list_files
+    command: [ls, -la]
+    parameters:
+      - name: directory
+        type: string
+        description: Directory to list
+        inject_as: argument
+```
+
+### Two Execution Modes
+
+#### 1. `exec:` Mode - Direct Execution (Recommended for Most Tools)
+
+**Use when**: Simple commands without shell features (pipes, redirects)
+
+**Security**: Zero shell involvement → Zero injection risk
+
+```yaml
+tools:
+  # Basic command
+  - name: create_file
+    exec: "touch ${filename}"
+
+  # Multiple parameters
+  - name: copy_file
+    exec: "cp ${source} ${destination}"
+
+  # With flags
+  - name: list_details
+    exec: "ls -laht ${directory}"
+
+  # stdin parameter
+  - name: write_file
+    exec: "tee ${filename}"
+    stdin: content  # Declare 'content' as stdin parameter
+```
+
+#### 2. `shell:` Mode - Shell Interpretation (For Advanced Cases)
+
+**Use when**: Need pipes, redirects, or shell features
+
+**Security**: Automatic parameter quoting prevents injection
+
+```yaml
+tools:
+  # Pipeline
+  - name: count_lines
+    shell: "cat ${file} | wc -l"
+
+  # Grep with fallback
+  - name: search_logs
+    shell: 'grep "${pattern}" log.txt || echo "No matches"'
+
+  # Redirection
+  - name: append_note
+    shell: "echo ${message} >> notes.txt"
+
+  # Complex pipeline
+  - name: analyze_errors
+    shell: 'grep "ERROR" ${logfile} | tail -20 | sort | uniq -c'
+```
+
+#### 3. `:raw` Modifier (Expert Feature)
+
+**Use when**: Need unquoted arguments (flags, options)
+
+**Only allowed in `shell:` mode**
+
+```yaml
+tools:
+  # Unquoted flags parameter
+  - name: run_docker
+    shell: "docker run ${flags:raw} ${image}"
+  # LLM can pass: flags="-p 8080:80 -d", image="nginx"
+  # Executes: docker run -p 8080:80 -d nginx
+```
+
+### Parameter Inference
+
+Parameters are **automatically inferred** from `${param}` placeholders:
+
+```yaml
+# This simple definition:
+- name: move_file
+  exec: "mv ${source} ${destination}"
+
+# Automatically creates these parameters:
+# - name: source, type: string, inject_as: argument
+# - name: destination, type: string, inject_as: argument
+```
+
+### stdin Parameters
+
+Declare stdin parameters explicitly:
+
+```yaml
+- name: write_content
+  exec: "tee ${filename}"
+  stdin: content  # 'content' will be piped to stdin
+
+# Usage by LLM:
+# write_content(filename="output.txt", content="Hello World")
+```
+
+### When to Use Legacy Syntax
+
+Keep using v1.0-v1.6 `command:` syntax for:
+1. **Option injection** (`inject_as: option` with `option_name`)
+2. **Variable expansion** (`${AGENT_HOME}`, `${CWD}`)
+3. **Complex bash scripting** (heredocs, conditionals)
+
+See [Legacy Syntax Reference](#legacy-syntax-reference-v10-v16) below.
+
+### Tool Expansion
+
+Use `delta tool:expand` to see how v1.7 syntax expands internally:
+
+```bash
+delta tool:expand config.yaml
+
+# Shows:
+# exec: "ls -la ${directory}"
+# ↓
+# command: [ls, -la]
+# parameters: [{name: directory, inject_as: argument}]
+```
+
 ## Basic Agent Example
 
-### Simple File Manager Agent
+### Simple File Manager Agent (v1.7 Syntax)
 
 `config.yaml`:
 ```yaml
@@ -29,6 +172,34 @@ llm:
   temperature: 0.7
   max_tokens: 2000
 
+# ✨ v1.7: Simplified tool definitions
+tools:
+  - name: list_files
+    exec: "ls -la"
+
+  - name: create_file
+    exec: "touch ${filename}"
+
+  - name: delete_file
+    exec: "rm ${filename}"
+
+  - name: read_file
+    exec: "cat ${filename}"
+
+  - name: write_file
+    exec: "tee ${filename}"
+    stdin: content
+
+  # Human interaction tool (v1.2)
+  - name: ask_human
+    # Built-in tool for requesting user input
+    # No command needed - handled by Delta Engine
+```
+
+<details>
+<summary>📦 Click to see v1.0-v1.6 legacy syntax</summary>
+
+```yaml
 tools:
   - name: list_files
     command: [ls, -la]
@@ -69,12 +240,8 @@ tools:
         type: string
         description: Content to write
         inject_as: stdin
-
-  # Human interaction tool (v1.2)
-  - name: ask_human
-    # Built-in tool for requesting user input
-    # No command needed - handled by Delta Engine
 ```
+</details>
 
 `system_prompt.md`:
 ```markdown
@@ -96,90 +263,91 @@ You are a file management assistant that helps users organize and manipulate fil
 
 ## Advanced Tool Configuration
 
-### Parameter Injection Methods
+### Working with Shell Features
 
-1. **As Arguments** (`inject_as: argument`)
+Use `shell:` mode for pipes, redirects, and complex shell expressions:
+
 ```yaml
-- name: echo_message
-  command: [echo]
-  parameters:
-    - name: message
-      type: string
-      inject_as: argument  # Becomes: echo "message content"
+tools:
+  # Pipeline
+  - name: top_failures
+    shell: 'grep "ERROR" ${logfile} | sort | uniq -c | sort -rn | head -10'
+
+  # Conditional execution
+  - name: safe_read
+    shell: 'test -f ${file} && cat ${file} || echo "File not found"'
+
+  # Process substitution
+  - name: compare_dirs
+    shell: 'diff <(ls ${dir1}) <(ls ${dir2})'
+
+  # Background execution
+  - name: start_server
+    shell: 'nohup ${command} > server.log 2>&1 &'
 ```
 
-2. **As STDIN** (`inject_as: stdin`)
+### Multiple Parameters
+
+Both `exec:` and `shell:` modes support multiple parameters:
+
 ```yaml
-- name: write_content
-  command: [tee, output.txt]
-  parameters:
-    - name: content
-      type: string
-      inject_as: stdin  # Content piped to command
+- name: copy_with_backup
+  exec: "cp ${source} ${destination}.bak && mv ${source} ${destination}"
+
+- name: search_replace
+  shell: 'sed "s/${pattern}/${replacement}/g" ${file}'
 ```
 
-3. **As Options** (`inject_as: option`)
-```yaml
-- name: grep_pattern
-  command: [grep]
-  parameters:
-    - name: pattern
-      type: string
-      inject_as: option
-      option_flag: -e  # Becomes: grep -e "pattern"
-```
+### stdin + Arguments
 
-### Complex Tool Example
+Combine stdin with regular arguments:
 
 ```yaml
-- name: search_and_replace
-  command: [sed]
-  parameters:
-    - name: pattern
-      type: string
-      description: Pattern to search for
-      inject_as: option
-      option_flag: -e
-      option_value_template: "s/${value}//"  # Custom formatting
-    - name: file
-      type: string
-      description: File to process
-      inject_as: argument
+- name: filter_and_save
+  shell: "grep ${pattern} > ${output}"
+  stdin: input_data
+  # Usage: filter_and_save(pattern="ERROR", output="errors.txt", input_data="<log content>")
 ```
 
 ## Working with External Programs
 
 ### Python Scripts
 ```yaml
+# ✨ v1.7: Simple and clean
 - name: run_analysis
-  command: [python3, scripts/analyze.py]
-  parameters:
-    - name: data_file
-      type: string
-      inject_as: argument
+  exec: "python3 scripts/analyze.py ${data_file}"
+
+# Or with stdin
+- name: process_json
+  exec: "python3 scripts/processor.py ${output_format}"
+  stdin: json_data
 ```
 
 ### Shell Scripts
 ```yaml
 - name: backup_files
-  command: [bash, scripts/backup.sh]
-  parameters:
-    - name: source_dir
-      type: string
-      inject_as: argument
-    - name: dest_dir
-      type: string
-      inject_as: argument
+  exec: "bash scripts/backup.sh ${source_dir} ${dest_dir}"
 ```
 
 ### Docker Containers
 ```yaml
+# Simple execution
 - name: run_in_container
-  command: [docker, run, --rm, my-image]
-  parameters:
-    - name: command
-      type: string
-      inject_as: argument
+  exec: "docker run --rm my-image ${command}"
+
+# With multiple flags (use :raw for flag lists)
+- name: docker_advanced
+  shell: "docker run ${flags:raw} ${image} ${command}"
+  # Example: flags="-p 8080:80 -d --name web"
+```
+
+### Node.js Scripts
+```yaml
+- name: build_assets
+  exec: "node build.js ${env} ${target}"
+
+- name: run_tests
+  shell: "npm test -- ${test_pattern}"
 ```
 
 ## System Prompt Best Practices
@@ -662,6 +830,145 @@ See `examples/memory-folding/` for a fully working implementation demonstrating:
 - **[Context Management Guide](./context-management.md)** - Comprehensive guide to context composition
 - **[v1.6 Architecture](../architecture/v1.6-context-composition.md)** - Design details and philosophy
 - **[memory-folding example](../../examples/memory-folding/)** - Working implementation
+
+---
+
+## Legacy Syntax Reference (v1.0-v1.6)
+
+The explicit `command:` array syntax is fully supported and required for certain advanced features.
+
+### When to Use Legacy Syntax
+
+Use the v1.0-v1.6 syntax when you need:
+
+1. **Option Injection** - Named flags with `option_name`
+2. **Variable Expansion** - `${AGENT_HOME}`, `${CWD}` in command paths
+3. **Complex Bash Scripting** - Heredocs, conditionals, multi-line scripts
+
+### Option Injection (inject_as: option)
+
+For tools requiring named flags (not supported in v1.7 exec:/shell:):
+
+```yaml
+tools:
+  - name: curl_post
+    command: [curl, -X, POST]
+    parameters:
+      - name: url
+        inject_as: option
+        option_name: --url
+      - name: data
+        inject_as: option
+        option_name: -d
+      - name: header
+        inject_as: option
+        option_name: -H
+# Generates: curl -X POST --url <url> -d <data> -H <header>
+```
+
+### Variable Expansion
+
+For accessing Delta Engine path variables:
+
+```yaml
+tools:
+  - name: run_agent_script
+    command: [python3, "${AGENT_HOME}/tools/helper.py"]
+    parameters:
+      - name: task
+        inject_as: argument
+
+  - name: read_workspace_config
+    command: [cat, "${CWD}/.config.json"]
+    parameters: []
+```
+
+### Full Parameter Configuration
+
+The explicit format with all fields:
+
+```yaml
+tools:
+  - name: search_and_replace
+    command: [sed]
+    parameters:
+      - name: pattern
+        type: string
+        description: "Pattern to search for"
+        inject_as: option
+        option_name: -e
+      - name: file
+        type: string
+        description: "File to process"
+        inject_as: argument
+```
+
+### Parameter Injection Methods
+
+1. **As Arguments** (`inject_as: argument`)
+   - Passed as positional arguments
+   - Example: `cat file.txt` → file: `{inject_as: argument}`
+
+2. **As STDIN** (`inject_as: stdin`)
+   - Piped to standard input
+   - Only one stdin parameter per tool
+   - Example: `tee output.txt < content` → content: `{inject_as: stdin}`
+
+3. **As Options** (`inject_as: option`)
+   - Named flags with `option_name`
+   - Example: `grep -e "pattern" file` → pattern: `{inject_as: option, option_name: -e}`
+
+### Migration Guide
+
+Converting from legacy to v1.7 syntax:
+
+```yaml
+# BEFORE (v1.0-v1.6):
+- name: list_files
+  command: [ls, -la]
+  parameters:
+    - name: directory
+      type: string
+      inject_as: argument
+
+# AFTER (v1.7):
+- name: list_files
+  exec: "ls -la ${directory}"
+
+---
+
+# BEFORE (v1.0-v1.6):
+- name: count_lines
+  command: [sh, -c, "cat \"$1\" | wc -l", --]
+  parameters:
+    - name: file
+      type: string
+      inject_as: argument
+
+# AFTER (v1.7):
+- name: count_lines
+  shell: "cat ${file} | wc -l"
+
+---
+
+# BEFORE (v1.0-v1.6):
+- name: write_file
+  command: [tee]
+  parameters:
+    - name: filename
+      type: string
+      inject_as: argument
+    - name: content
+      type: string
+      inject_as: stdin
+
+# AFTER (v1.7):
+- name: write_file
+  exec: "tee ${filename}"
+  stdin: content
+```
+
+**Note**: Both syntaxes can coexist in the same `config.yaml` file.
 
 ---
 
