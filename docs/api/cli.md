@@ -133,23 +133,23 @@ delta -h
 
 ### Required
 
-- `OPENAI_API_KEY`
-  - OpenAI API key for LLM access
+- `DELTA_API_KEY`
+  - API key for LLM access (OpenAI or compatible providers)
   - Required for all agents
 
 ```bash
-export OPENAI_API_KEY="sk-..."
+export DELTA_API_KEY="sk-..."
 ```
 
 ### Optional
 
-- `OPENAI_API_URL`
-  - Custom OpenAI-compatible API endpoint
+- `DELTA_BASE_URL`
+  - Custom API endpoint (for OpenAI-compatible services)
   - Default: `https://api.openai.com/v1`
-  - Use for proxies or alternative providers
+  - Use for proxies, local models, or alternative providers
 
 ```bash
-export OPENAI_API_URL="https://your-proxy.com/v1"
+export DELTA_BASE_URL="https://your-endpoint.com/v1"
 ```
 
 - `DELTA_LOG_LEVEL`
@@ -467,9 +467,9 @@ Error: config.yaml not found at: /path/to/agent
 
 #### Missing API Key
 ```
-Error: OpenAI API key not found
+Error: API key not found
 ```
-**Solution:** Set `OPENAI_API_KEY` environment variable
+**Solution:** Set `DELTA_API_KEY` environment variable
 
 #### Invalid Configuration
 ```

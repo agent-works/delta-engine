@@ -237,11 +237,33 @@ See `examples/2-core-features/memory-folding/` for complete example.
 
 **v1.7 Migration**: 5/8 examples migrated, 40 tools converted, 77% verbosity reduction
 
-### Environment Variables
+### Environment Variables (v1.8)
+
+**Supported Variables**:
 ```bash
-OPENAI_API_KEY=<required>
-OPENAI_BASE_URL=<optional>  # Custom API endpoint
+# Required (choose one naming style)
+DELTA_API_KEY=<your-key>              # Recommended (v1.8+)
+OPENAI_API_KEY=<your-key>             # Legacy, still supported
+
+# Optional
+DELTA_BASE_URL=<custom-endpoint>      # Recommended (v1.8+)
+OPENAI_BASE_URL=<custom-endpoint>     # Alternative (v1.8+)
+OPENAI_API_URL=<custom-endpoint>      # Legacy, still supported
 ```
+
+**Loading Priority** (local overrides global):
+```
+workspace/.env > agent/.env > project root/.env > process.env
+```
+
+**How it works**:
+1. Delta searches for `.env` files from most local to most global
+2. Workspace: `{workDir}/.env` (if exists)
+3. Agent: `{agentPath}/.env` (if exists)
+4. Project root: Search upward from CWD for `.git` directory, use `.env` if found
+5. System: `process.env` (lowest priority)
+
+**Note**: Local variables override global ones. System environment variables (from shell) have lowest priority.
 
 ### Design Philosophy Check
 When adding features, ask:

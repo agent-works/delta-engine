@@ -217,12 +217,12 @@ Two modes for human interaction:
 
 ### Missing API Key
 ```bash
-export OPENAI_API_KEY="your-key-here"
+export DELTA_API_KEY="your-key-here"
 ```
 
 ### Custom API Endpoint
 ```bash
-export OPENAI_API_URL="https://your-endpoint.com/v1"
+export DELTA_BASE_URL="https://your-endpoint.com/v1"
 ```
 
 ### Debug Mode

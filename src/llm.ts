@@ -8,11 +8,11 @@ import { EngineContext, LLMConfig } from './types.js';
 import { convertToolsToOpenAISchema } from './tool_schema.js';
 
 /**
- * Error thrown when OpenAI API key is not configured
+ * Error thrown when API key is not configured
  */
 export class APIKeyError extends Error {
   constructor() {
-    super('OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.');
+    super('API key not found. Please set DELTA_API_KEY or OPENAI_API_KEY environment variable.');
     this.name = 'APIKeyError';
   }
 }
@@ -26,27 +26,36 @@ export class LLMAdapter {
 
   /**
    * Initialize the LLM adapter
-   * @throws APIKeyError if OPENAI_API_KEY environment variable is not set
+   * Supports both DELTA_* (recommended) and OPENAI_* (legacy) environment variables
+   * @throws APIKeyError if API key is not set
    */
   constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
+    // v1.8: Support DELTA_* variables with fallback to OPENAI_* (backward compatibility)
+    const apiKey = process.env.DELTA_API_KEY || process.env.OPENAI_API_KEY;
+    const baseURL = process.env.DELTA_BASE_URL ||
+                    process.env.OPENAI_BASE_URL ||
+                    process.env.OPENAI_API_URL;
 
     if (!apiKey) {
       throw new APIKeyError();
     }
 
-    // Initialize OpenAI client with optional custom base URL
+    // Initialize OpenAI client configuration
     const clientConfig: any = {
       apiKey,
     };
 
-    // Support custom API URL (e.g., for proxies or alternative endpoints)
-    if (process.env.OPENAI_API_URL) {
-      clientConfig.baseURL = process.env.OPENAI_API_URL;
-      console.log(`Using custom OpenAI API URL: ${process.env.OPENAI_API_URL}`);
+    // Set custom base URL if provided
+    if (baseURL) {
+      clientConfig.baseURL = baseURL;
     }
 
     this.client = new OpenAI(clientConfig);
+
+    // Show compatibility notice if using legacy variables
+    if (!process.env.DELTA_API_KEY && process.env.OPENAI_API_KEY) {
+      console.log('[INFO] Using OPENAI_API_KEY (consider migrating to DELTA_API_KEY)');
+    }
   }
 
   /**
@@ -234,7 +243,7 @@ export class LLMAdapter {
    * @returns True if configured, false otherwise
    */
   isConfigured(): boolean {
-    return !!process.env.OPENAI_API_KEY;
+    return !!(process.env.DELTA_API_KEY || process.env.OPENAI_API_KEY);
   }
 
   /**

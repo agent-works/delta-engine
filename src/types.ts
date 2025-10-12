@@ -234,6 +234,7 @@ export interface EngineContext {
   currentStep: number;    // Current step in the T-A-O loop (for journal sequencing)
   journal: import('./journal.js').Journal; // Shared journal instance to prevent FileHandle leaks
   isInteractive?: boolean; // v1.2: Interactive mode flag for ask_human
+  loadedEnvFiles?: string[]; // v1.8: List of loaded .env file paths (for logging)
 }
 
 // ============================================

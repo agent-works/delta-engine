@@ -16,7 +16,7 @@ npm install -g delta-engine
 ## Step 2: Set API Key (15 seconds)
 
 ```bash
-export OPENAI_API_KEY="sk-..."
+export DELTA_API_KEY="sk-..."
 ```
 
 ## 💡 What's New in v1.7?
@@ -275,8 +275,8 @@ This enables **multi-agent orchestration** with zero special code.
 ### "Command not found: delta"
 → Install: `npm install -g delta-engine`
 
-### "OPENAI_API_KEY not set"
-→ Export: `export OPENAI_API_KEY="sk-..."`
+### "API key not found"
+→ Export: `export DELTA_API_KEY="sk-..."`
 
 ### "Permission denied: tools/greet.sh"
 → Make executable: `chmod +x tools/greet.sh`

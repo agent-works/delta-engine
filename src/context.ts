@@ -1,7 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
-import dotenv from 'dotenv';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { EngineContext } from './types.js';
@@ -13,6 +12,7 @@ import {
   promptUserForWorkspace,
   saveLastUsedWorkspace,
 } from './workspace-manager.js';
+import { loadEnvFiles } from './env-loader.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -163,15 +163,8 @@ export async function initializeContext(
   await ensureDirectory(deltaDir);
   await fs.writeFile(path.join(deltaDir, 'VERSION'), '1.2\n', 'utf-8');
 
-  // Try to load .env file from agent directory if it exists
-  const agentEnvPath = path.join(agentPath, '.env');
-  try {
-    await fs.access(agentEnvPath, fs.constants.R_OK);
-    dotenv.config({ path: agentEnvPath });
-    console.log(`Loaded environment variables from ${agentEnvPath}`);
-  } catch {
-    // .env file doesn't exist in agent directory, which is fine
-  }
+  // Load environment variables in cascading order (workspace > agent > project root)
+  const loadedEnvFiles = loadEnvFiles(workDir, agentPath, process.cwd());
 
   // Load and validate agent configuration
   const { config, systemPrompt } = await loadAndValidateAgent(agentPath);
@@ -202,6 +195,7 @@ export async function initializeContext(
     currentStep: 0,  // v1.1: Track current step for journal sequencing
     journal,  // Include the shared journal instance to prevent duplicate FileHandles
     isInteractive,  // v1.2: Interactive mode flag
+    loadedEnvFiles,  // v1.8: List of loaded .env files for logging
   };
 
   return context;

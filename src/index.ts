@@ -7,12 +7,10 @@
  * It imports and executes the CLI program defined in cli.ts.
  */
 
-import dotenv from 'dotenv';
 import { run } from './cli.js';
 
-// Load environment variables from .env file if it exists
-// Suppress dotenv debug output for cleaner CLI output
-dotenv.config({ quiet: true } as any);
+// Note: Environment variables are now loaded in context.ts via env-loader.ts
+// This allows for cascading .env file loading (workspace > agent > project root)
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {

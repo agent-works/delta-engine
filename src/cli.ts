@@ -42,18 +42,19 @@ async function handleRunCommand(options: {
   yes?: boolean;
 }) {
   try {
-    // Check if OpenAI API key is configured early
-    if (!process.env.OPENAI_API_KEY) {
+    // v1.8: Check if API key is configured (support both DELTA_* and OPENAI_*)
+    if (!process.env.DELTA_API_KEY && !process.env.OPENAI_API_KEY) {
       logger.divider();
-      logger.error('OpenAI API key not found!');
+      logger.error('API key not found!');
       logger.divider();
-      logger.info('Please set the required environment variables:');
+      logger.info('Please set one of the following environment variables:');
       logger.info('');
-      logger.info('  export OPENAI_API_KEY="your-api-key-here"');
+      logger.info('  export DELTA_API_KEY="your-api-key-here"        # Recommended');
+      logger.info('  export OPENAI_API_KEY="your-api-key-here"       # Legacy');
       logger.info('');
       logger.info('Optional: Configure custom API endpoint:');
       logger.info('');
-      logger.info('  export OPENAI_BASE_URL="https://your-endpoint.com/v1"');
+      logger.info('  export DELTA_BASE_URL="https://your-endpoint.com/v1"');
       logger.divider();
       process.exit(1);
     }
@@ -118,6 +119,16 @@ async function handleRunCommand(options: {
       logger.success('Engine context initialized successfully!');
     }
     logger.divider();
+
+    // v1.8: Show loaded environment files
+    if (context.loadedEnvFiles && context.loadedEnvFiles.length > 0) {
+      logger.info('Environment files loaded:');
+      context.loadedEnvFiles.forEach(file => {
+        logger.info(`  ✓ ${file}`);
+      });
+      logger.divider();
+    }
+
     logger.info(`Run ID: ${context.runId}`);
     logger.info(`Work Directory: ${context.workDir}`);
     logger.info(`Agent Name: ${context.config.name}`);
@@ -130,9 +141,12 @@ async function handleRunCommand(options: {
     logger.info(`Number of Tools: ${context.config.tools.length}`);
     logger.info(`LLM Model: ${context.config.llm.model}`);
 
-    // Show custom API URL if configured
-    if (process.env.OPENAI_API_URL) {
-      logger.info(`API Endpoint: ${process.env.OPENAI_API_URL}`);
+    // v1.8: Show custom API endpoint if configured (support DELTA_* and OPENAI_*)
+    const apiEndpoint = process.env.DELTA_BASE_URL ||
+                       process.env.OPENAI_BASE_URL ||
+                       process.env.OPENAI_API_URL;
+    if (apiEndpoint) {
+      logger.info(`API Endpoint: ${apiEndpoint}`);
     }
 
     logger.info(`Max Iterations: ${context.config.max_iterations}`);
