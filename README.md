@@ -113,7 +113,7 @@ tools:
     shell: "python analyze.py ${data_file} | tee report.txt"
 ```
 
-**Benefit**: Any command-line tool (`grep`, `awk`, `docker`, custom scripts) can directly become an agent capability
+Any command-line tool (`grep`, `awk`, `docker`, custom scripts) can directly become an agent capability.
 
 ### 2️⃣ Environment as Interface
 
@@ -129,22 +129,23 @@ my-agent/workspaces/W001/  ← Agent's working directory
     └── metadata.json      ← Run status
 ```
 
-**Benefit**: All data is visible, modifiable, version-controllable - agent execution is completely transparent
+All data is visible, modifiable, version-controllable - agent execution is completely transparent.
 
-### 3️⃣ Stateless Core
+### 3️⃣ Composition Defines Intelligence
 
-The engine stores no state in memory - all information is immediately written to `journal.jsonl`.
+Complex agent behaviors emerge from composing simple, single-purpose agents - not from building monolithic systems.
 
-```bash
-# Interrupt execution (Ctrl+C)
-^C
+```yaml
+# Meta-agent that orchestrates other agents
+tools:
+  - name: research_agent
+    exec: "delta run --agent ./research-agent --task ${task}"
 
-# Resume anytime - engine rebuilds state from journal
-delta run --agent ./my-agent --task "Continue previous task"
-# ✅ Auto-detects interruption and resumes from checkpoint
+  - name: writer_agent
+    exec: "delta run --agent ./writer-agent --task ${task}"
 ```
 
-**Benefit**: Perfect recoverability, debuggability, auditability
+Build sophisticated AI systems like LEGO blocks - each agent does one thing well, composition creates intelligence.
 
 ---
 
@@ -196,24 +197,6 @@ hooks:
     command: ["./check-budget.sh"]  # Check budget before each LLM call
   post_tool_exec:
     command: ["./log-to-audit.sh"]  # Log to audit after each tool execution
-```
-
-### ✨ Simplified Tool Configuration
-v1.7 introduces minimalist syntax with 77% reduction in configuration verbosity:
-
-```yaml
-# Old syntax (v1.0-v1.6): 9 lines
-- name: count_lines
-  command: [sh, -c, "cat \"$1\" | wc -l", --]
-  parameters:
-    - name: file
-      type: string
-      inject_as: argument
-      position: 0
-
-# New syntax (v1.7): 2 lines ✨
-- name: count_lines
-  shell: "cat ${file} | wc -l"
 ```
 
 ---
@@ -291,7 +274,7 @@ ls -la .delta/interaction/
 my-agent/
 ├── config.yaml              # Required: Agent config (LLM, tools, hooks)
 ├── system_prompt.md         # Required: System prompt (can be .txt)
-├── context.yaml             # Optional: Context composition strategy (v1.6)
+├── context.yaml             # Optional: Context composition strategy
 ├── tools/                   # Optional: Custom tool scripts
 │   ├── analyze.py
 │   └── summarize.sh
@@ -362,7 +345,7 @@ See: [Configuration Reference](docs/api/config.md)
 
 ## Project Info
 
-- **Current Version**: v1.7 - Tool Configuration Simplification
+- **Current Version**: v1.7
 - **License**: MIT
 - **Repository**: [GitHub](https://github.com/deltathink/delta-engine)
 - **Issue Tracker**: [Issues](https://github.com/deltathink/delta-engine/issues)
@@ -371,49 +354,10 @@ See: [Configuration Reference](docs/api/config.md)
 
 ---
 
-## For Developers
-
-```bash
-# Clone repository
-git clone https://github.com/deltathink/delta-engine.git
-cd delta-engine
-
-# Install dependencies
-npm install
-
-# Run tests
-npm test                 # All tests
-npm run test:unit        # Unit tests
-npm run test:integration # Integration tests
-
-# Development mode (watch for changes)
-npm run dev
-
-# Build
-npm run build
-
-# Test CLI locally
-npm link
-delta --version
-```
-
----
-
 ## Community & Support
 
 - **Documentation**: [docs/](docs/)
 - **Examples**: [examples/](examples/)
 - **Discussions**: [GitHub Discussions](https://github.com/deltathink/delta-engine/discussions)
-- **Blog**: See `docs/architecture/PHILOSOPHY.md` for design philosophy
+- **Blog**: See `docs/architecture/philosophy-02-whitepaper.md` for design philosophy
 
----
-
-## Inspiration
-
-Delta Engine's design is deeply influenced by:
-
-- **Unix Philosophy**: Do one thing well, compose through text streams
-- **Erlang OTP**: Fault tolerance through message passing and restart strategies
-- **Git**: Immutable logs and complete historical traceability
-
-If you believe "simplicity over complexity", welcome to try Delta!

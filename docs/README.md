@@ -9,7 +9,7 @@
 Delta Engine is not just another AI framework—it's a **paradigm shift** in how we think about AI systems.
 
 ### 10-Minute Introduction
-1. **[Design Philosophy Summary](./PHILOSOPHY_SUMMARY.md)** ⚡ (5 min)
+1. **[Design Philosophy Summary](./architecture/philosophy-01-overview.md)** ⚡ (5 min)
    - Understand the three pillars
    - See why Delta Engine is different
    - Learn the intentional trade-offs
@@ -20,12 +20,12 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
    - Build intuition through examples
 
 ### Deep Dive
-- **[Complete Whitepaper](./architecture/PHILOSOPHY.md)** 📖 (30 min)
+- **[Complete Whitepaper](./architecture/philosophy-02-whitepaper.md)** 📖 (30 min)
   - 5-chapter manifesto
   - Strategic positioning and market analysis
   - Evolution roadmap and design principles
 
-- **[Core Principles & Code Mapping](./architecture/core-principles.md)** 💻 (20 min)
+- **[Core Principles & Code Mapping](./architecture/philosophy-03-implementation.md)** 💻 (20 min)
   - How philosophy translates to implementation
   - Code locations for each principle
   - Anti-patterns and guardrails
@@ -41,7 +41,7 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
 → **[Agent Development Guide](./guides/agent-development.md)** → **[Config Reference](./api/config.md)**
 
 ### I Want to Understand the Design
-→ **[Philosophy Summary](./PHILOSOPHY_SUMMARY.md)** → **[Architecture Docs](./architecture/)**
+→ **[Philosophy Summary](./architecture/philosophy-01-overview.md)** → **[Architecture Docs](./architecture/)**
 
 ### I Need to Upgrade Versions
 → **[Migration Guides](./migration/)**
@@ -67,14 +67,14 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
 ### 🗂️ By Feature Area
 
 #### Core Concepts
-- [Three Pillars Explained](./architecture/core-principles.md)
+- [Three Pillars Explained](./architecture/philosophy-03-implementation.md)
 - [Stateless Core Architecture](./architecture/v1.1-design.md)
 - [Control Plane vs Data Plane](./architecture/v1.1-design.md#control-plane-structure)
 
 #### Agent Development
 - [Agent Development Guide](./guides/agent-development.md) - Complete walkthrough
 - [Configuration Reference](./api/config.md) - `config.yaml` syntax
-- [Tool Parameter Injection](./architecture/core-principles.md#11-tool-definition-configyaml) - `argument`, `stdin`, `option` modes
+- [Tool Parameter Injection](./architecture/philosophy-03-implementation.md#11-tool-definition-configyaml) - `argument`, `stdin`, `option` modes
 
 #### Advanced Features
 - [Session Management](./guides/session-management.md) - Persistent bash/Python sessions (v1.5)
@@ -136,8 +136,8 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
 ### Actively Maintained (v1.7)
 | Document | Status | Last Major Update |
 |----------|--------|-------------------|
-| [Philosophy](./architecture/PHILOSOPHY.md) | ✅ Stable | 2025-10-12 (v1.7) |
-| [Core Principles](./architecture/core-principles.md) | ✅ Stable | 2025-10-10 |
+| [Philosophy](./architecture/philosophy-02-whitepaper.md) | ✅ Stable | 2025-10-12 (v1.7) |
+| [Core Principles](./architecture/philosophy-03-implementation.md) | ✅ Stable | 2025-10-10 |
 | [Quick Start](./QUICKSTART.md) | ✅ Stable | 2025-10-12 (v1.7) |
 | [Getting Started](./guides/getting-started.md) | ✅ Stable | 2025-10-12 (v1.7) |
 | [Agent Development](./guides/agent-development.md) | ✅ Stable | 2025-10-12 (v1.7) |
@@ -264,7 +264,7 @@ delta init my-agent
 → Implement [memory folding](./guides/context-management.md#memory-folding-pattern)
 
 **Stateless core violated?**
-→ Read [anti-patterns](./architecture/core-principles.md#violation-patterns-what-not-to-do)
+→ Read [anti-patterns](./architecture/philosophy-03-implementation.md#violation-patterns-what-not-to-do)
 
 ---
 
@@ -309,7 +309,7 @@ When adding or updating documentation:
 > "Delta Engine's strength comes from saying NO to features and YES to simplicity.
 > Every new capability should be an external composition, not a core addition."
 >
-> — From the [Design Philosophy](./architecture/PHILOSOPHY.md)
+> — From the [Design Philosophy](./architecture/philosophy-02-whitepaper.md)
 
 ---
 

@@ -1,5 +1,3 @@
-# Delta Engine Whitepaper v1.1
-
 # Delta Engine: A Manifesto for Composable AI Systems
 
 ---
@@ -54,14 +52,22 @@ To achieve complete decoupling of execution process from work artifacts, the CWD
 This design, which clearly separates "what it is" (the final state in the data plane) from "how it got there" (the history in the control plane), is the cornerstone of Delta Engine's architectural transparency. Here's a simplified example of CWD structure:
 
 ```bash
-/path/to/a_run/      # <-- CWD (Current Working Directory)
-├── data.csv         # <-- Data Plane (Agent's work artifacts)
-├── report.md        # <-- Data Plane (Agent's work artifacts)
-└── .delta/          # <-- Control Plane (Engine's exclusive domain)
-    └── runs/
-        └── 20250926_120006_a1b2c3/
-            ├── journal.jsonl  # Execution history ledger
-            └── ... (other runtime records)
+<AGENT_HOME>/workspaces/
+├── LAST_USED            # Tracks last used workspace
+├── W001/                # Workspace 1 (sequential naming)
+│   ├── data.csv         # <-- Data Plane (Agent's work artifacts)
+│   ├── report.md        # <-- Data Plane (Agent's work artifacts)
+│   └── .delta/          # <-- Control Plane (Engine's exclusive domain)
+│       ├── VERSION      # Schema version
+│       ├── LATEST       # Latest run ID (text file)
+│       └── {run_id}/
+│           ├── journal.jsonl     # Execution history ledger
+│           ├── metadata.json     # Run metadata (status field)
+│           ├── engine.log        # Engine process logs
+│           └── io/               # I/O audit logs
+│               ├── invocations/  # LLM invocation records
+│               └── tool_executions/  # Tool execution details
+└── W002/                # Workspace 2
 ```
 
 It transforms the opaque, in-memory reasoning process of traditional AI systems into a concrete, inspectable, persistent file system structure, making AI agent execution history as traceable, comparable, and auditable as a Git repository.
@@ -76,47 +82,36 @@ A typical agent project structure looks like this:
 /path/to/MySearchAgent/
 ├── config.yaml          # Core configuration file
 ├── system_prompt.md     # Agent's system prompt
-└── tools/
-    └── web_search.sh    # Agent's custom tool
+├── context.yaml         # (Optional) Context composition strategy (v1.6)
+├── tools/               # (Optional) Custom tool scripts
+│   └── web_search.sh
+└── workspaces/          # Runtime generated: Execution workspaces (v1.3)
+    ├── LAST_USED
+    ├── W001/
+    └── W002/
 ```
 
-The `config.yaml` file is the agent's capability manifest, embodying the "Everything is a Command" philosophy. Here's a simplified example, specifically showing how invoking another agent is also defined as a tool:
+The `config.yaml` file is the agent's capability manifest, embodying the "Everything is a Command" philosophy. Here's a simplified example using v1.7 syntax, specifically showing how invoking another agent is also defined as a tool:
 
 ```yaml
 name: OrchestratorAgent
 description: An orchestrator agent that can call other agents.
 
-llm_config:
-  model_name: "gpt-4o"
+llm:
+  model: "gpt-4o"
+  temperature: 0.7
 
-# Tool Manifest
+# Tool Manifest (v1.7 simplified syntax)
 tools:
   - name: list_files
     description: "Lists files in the current directory."
-    # Directly invoke system command
-    command: ["ls", "-F"]
+    exec: "ls -F"
 
   # Example: Agent orchestration (invoking another agent)
   # This embodies "Composition Defines Intelligence": calling a sub-agent is itself a tool
   - name: run_sub_agent
     description: "Execute a sub-agent to complete a specific task."
-    command: ["delta", "run"]  # Directly invoke the delta engine itself
-    parameters:
-      - name: agent_path
-        type: string
-        description: "Path to the sub-agent project."
-        inject_as: option
-        option_name: "--agent"
-      - name: task
-        type: string
-        description: "Task assigned to the sub-agent."
-        inject_as: option
-        option_name: "--task"
-      - name: work_dir
-        type: string
-        description: "Subdirectory path relative to current working directory for the sub-agent."
-        inject_as: option
-        option_name: "--work-dir"
+    exec: "delta run --agent ${agent_path} --task ${task} --work-dir ${work_dir}"
 ```
 
 This design allows agents to be managed, shared, and reused like any standard software project, laying a solid foundation for the grand vision of distribution and version management through package managers.

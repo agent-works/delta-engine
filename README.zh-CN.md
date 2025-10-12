@@ -113,7 +113,7 @@ tools:
     shell: "python analyze.py ${data_file} | tee report.txt"
 ```
 
-**好处**：任何命令行工具（`grep`、`awk`、`docker`、自定义脚本）都可以直接成为 Agent 的能力
+任何命令行工具（`grep`、`awk`、`docker`、自定义脚本）都可以直接成为 Agent 的能力。
 
 ### 2️⃣ Environment as Interface（环境即接口）
 
@@ -129,22 +129,23 @@ my-agent/workspaces/W001/  ← Agent 的工作目录
     └── metadata.json      ← 运行状态
 ```
 
-**好处**：所有数据可见、可修改、可版本控制，Agent 执行过程完全透明
+所有数据可见、可修改、可版本控制，Agent 执行过程完全透明。
 
-### 3️⃣ Stateless Core（无状态核心）
+### 3️⃣ Composition Defines Intelligence（组合定义智能）
 
-引擎不在内存中保存任何状态，所有信息都立即写入 `journal.jsonl`。
+复杂的 Agent 行为通过组合多个单一功能的 Agent 来实现 - 而不是构建庞大的单体系统。
 
-```bash
-# 中断执行（Ctrl+C）
-^C
+```yaml
+# Meta-agent 编排其他 Agent
+tools:
+  - name: research_agent
+    exec: "delta run --agent ./research-agent --task ${task}"
 
-# 随时恢复，引擎会从 journal 重建状态
-delta run --agent ./my-agent --task "继续之前的任务"
-# ✅ 自动检测到中断，从断点继续执行
+  - name: writer_agent
+    exec: "delta run --agent ./writer-agent --task ${task}"
 ```
 
-**好处**：完美的可恢复性、可调试性、可审计性
+像搭乐高一样构建复杂的 AI 系统 - 每个 Agent 专注做好一件事，组合创造智能。
 
 ---
 
@@ -196,24 +197,6 @@ hooks:
     command: ["./check-budget.sh"]  # 每次调用 LLM 前检查预算
   post_tool_exec:
     command: ["./log-to-audit.sh"]  # 每次执行工具后记录审计
-```
-
-### ✨ 简化的工具配置
-v1.7 引入了极简语法，减少 77% 的配置代码：
-
-```yaml
-# 旧语法（v1.0-v1.6）：9 行
-- name: count_lines
-  command: [sh, -c, "cat \"$1\" | wc -l", --]
-  parameters:
-    - name: file
-      type: string
-      inject_as: argument
-      position: 0
-
-# 新语法（v1.7）：2 行 ✨
-- name: count_lines
-  shell: "cat ${file} | wc -l"
 ```
 
 ---
@@ -291,7 +274,7 @@ ls -la .delta/interaction/
 my-agent/
 ├── config.yaml              # 必需：Agent 配置（LLM、工具、Hooks）
 ├── system_prompt.md         # 必需：系统提示词（也可以是 .txt）
-├── context.yaml             # 可选：上下文组成策略（v1.6）
+├── context.yaml             # 可选：上下文组成策略
 ├── tools/                   # 可选：自定义工具脚本
 │   ├── analyze.py
 │   └── summarize.sh
@@ -362,7 +345,7 @@ my-agent/
 
 ## 项目信息
 
-- **当前版本**：v1.7 - Tool Configuration Simplification
+- **当前版本**：v1.7
 - **许可证**：MIT
 - **仓库**：[GitHub](https://github.com/deltathink/delta-engine)
 - **问题反馈**：[Issues](https://github.com/deltathink/delta-engine/issues)
@@ -371,49 +354,10 @@ my-agent/
 
 ---
 
-## 开发者
-
-```bash
-# 克隆仓库
-git clone https://github.com/deltathink/delta-engine.git
-cd delta-engine
-
-# 安装依赖
-npm install
-
-# 运行测试
-npm test                 # 所有测试
-npm run test:unit        # 单元测试
-npm run test:integration # 集成测试
-
-# 开发模式（监听文件变化）
-npm run dev
-
-# 构建
-npm run build
-
-# 本地测试 CLI
-npm link
-delta --version
-```
-
----
-
 ## 社区与支持
 
 - **文档**：[docs/](docs/)
 - **示例**：[examples/](examples/)
 - **讨论**：[GitHub Discussions](https://github.com/deltathink/delta-engine/discussions)
-- **博客**：查看 `docs/architecture/PHILOSOPHY.md` 了解设计哲学
+- **博客**：查看 `docs/architecture/philosophy-02-whitepaper.md` 了解设计哲学
 
----
-
-## 灵感来源
-
-Delta Engine 的设计深受以下思想影响：
-
-- **Unix 哲学**：做一件事并做好，通过文本流组合
-- **Erlang OTP**：通过消息传递和重启策略实现容错
-- **Git**：不可变日志和完整的历史追溯能力
-
-如果你也认同"简单优于复杂"，欢迎尝试 Delta！

@@ -88,7 +88,7 @@ try { /* operations */ } finally { await handle.close(); }
 ### Three Pillars (Core Philosophy)
 1. **Everything is a Command** - All agent capabilities are external CLI programs
 2. **Environment as Interface** - Agents interact only through working directory (CWD)
-3. **Stateless Core** - Perfect resumability through journal-based state reconstruction
+3. **Composition Defines Intelligence** - Complex behaviors emerge from composing simple agents
 
 ### Directory Structure
 ```
@@ -222,7 +222,7 @@ See `examples/2-core-features/memory-folding/` for complete example.
 - v2.0 (planned): Multi-agent orchestration
 
 ### Documentation Structure
-- **Philosophy**: `docs/architecture/PHILOSOPHY.md` (complete), `docs/PHILOSOPHY_SUMMARY.md` (5-min)
+- **Philosophy**: `docs/architecture/philosophy-02-whitepaper.md` (complete), `docs/architecture/philosophy-01-overview.md` (5-min)
 - **Getting Started**: `docs/QUICKSTART.md`, `docs/guides/getting-started.md`
 - **Architecture Specs**: `docs/architecture/v1.{1-7}-*.md`
 - **ADRs**: `docs/decisions/` (001-005)

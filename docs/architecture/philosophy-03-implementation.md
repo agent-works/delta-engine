@@ -630,7 +630,7 @@ When adding new features, validate against principles:
 
 ## Further Reading
 
-- [Complete Philosophy Whitepaper](./PHILOSOPHY.md) - Deep dive into "why"
+- [Complete Philosophy Whitepaper](./philosophy-02-whitepaper.md) - Deep dive into "why"
 - [v1.1 Design Specification](./v1.1-design.md) - Stateless core architecture
 - [v1.6 Context Composition](./v1.6-context-composition.md) - Latest feature design
 - [Agent Development Guide](../guides/agent-development.md) - Build your first agent

@@ -19,8 +19,8 @@ The current architecture implements these core principles:
 ## Architecture Documents
 
 ### Core Philosophy
-- [Delta Engine Philosophy](./PHILOSOPHY.md) - Complete whitepaper: manifesto and architectural philosophy
-- [Core Principles & Code Mapping](./core-principles.md) - How philosophy translates to implementation
+- [Delta Engine Philosophy](./philosophy-02-whitepaper.md) - Complete whitepaper: manifesto and architectural philosophy
+- [Core Principles & Code Mapping](./philosophy-03-implementation.md) - How philosophy translates to implementation
 
 ### Design Specifications
 - [v1.1 Design Specification](./v1.1-design.md) - Stateless core architecture
