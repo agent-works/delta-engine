@@ -52,7 +52,7 @@ delta run --agent . --task "Write 'Test content' to output.txt"
 - Customize \`system_prompt.md\` for your use case
 - Explore other templates: \`delta init -t hello-world\`
 
-For more information, visit: https://github.com/deltathink/delta-engine
+For more information, visit: https://github.com/agent-works/delta-engine
 `,
   configYaml: `name: minimal-agent
 version: 1.0.0
@@ -144,7 +144,7 @@ delta run --agent . --task "Show current date, then create a timestamped log fil
 - Modify \`system_prompt.md\` to change agent behavior
 - Try more complex templates: \`delta init -t file-ops\`
 
-For more information, visit: https://github.com/deltathink/delta-engine
+For more information, visit: https://github.com/agent-works/delta-engine
 `,
   configYaml: `name: hello-world
 version: 1.0.0
@@ -278,9 +278,9 @@ delta run --agent . --task "Copy all .md files to backup/ directory"
 
 - Add custom file type rules to system_prompt.md
 - Try API testing: \`delta init -t api-tester\`
-- Read the full guide: https://github.com/anthropics/delta-engine
+- Read the full guide: https://github.com/agent-works/delta-engine
 
-For more information, visit: https://github.com/deltathink/delta-engine
+For more information, visit: https://github.com/agent-works/delta-engine
 `,
   configYaml: `name: file-organizer
 version: 1.0.0
@@ -441,7 +441,7 @@ Example:
 - Create comprehensive test suites
 - Try file operations: \`delta init -t file-ops\`
 
-For more information, visit: https://github.com/deltathink/delta-engine
+For more information, visit: https://github.com/agent-works/delta-engine
 `,
   configYaml: `name: api-tester
 version: 1.0.0

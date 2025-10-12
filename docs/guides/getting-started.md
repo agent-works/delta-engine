@@ -4,7 +4,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/delta-engine.git
+git clone https://github.com/agent-works/delta-engine.git
 cd delta-engine
 
 # Install dependencies

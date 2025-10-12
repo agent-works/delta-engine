@@ -347,8 +347,8 @@ my-agent/
 
 - **当前版本**：v1.7
 - **许可证**：MIT
-- **仓库**：[GitHub](https://github.com/deltathink/delta-engine)
-- **问题反馈**：[Issues](https://github.com/deltathink/delta-engine/issues)
+- **仓库**：[GitHub](https://github.com/agent-works/delta-engine)
+- **问题反馈**：[Issues](https://github.com/agent-works/delta-engine/issues)
 - **贡献指南**：[CONTRIBUTING.md](CONTRIBUTING.md)
 - **变更日志**：[CHANGELOG.md](CHANGELOG.md)
 
@@ -358,6 +358,6 @@ my-agent/
 
 - **文档**：[docs/](docs/)
 - **示例**：[examples/](examples/)
-- **讨论**：[GitHub Discussions](https://github.com/deltathink/delta-engine/discussions)
+- **讨论**：[GitHub Discussions](https://github.com/agent-works/delta-engine/discussions)
 - **博客**：查看 `docs/architecture/philosophy-02-whitepaper.md` 了解设计哲学
 

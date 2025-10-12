@@ -43,7 +43,7 @@ See `delta tool:expand config.yaml` to understand how v1.7 syntax expands intern
 
 ### Clone Examples
 ```bash
-git clone https://github.com/delta-engine/delta-engine.git
+git clone https://github.com/agent-works/delta-engine.git
 cd delta-engine/examples/1-basics/hello-world
 ```
 
@@ -283,7 +283,7 @@ This enables **multi-agent orchestration** with zero special code.
 
 ### Need Help?
 - [Documentation Index](./README.md)
-- [GitHub Issues](https://github.com/delta-engine/delta-engine/issues)
+- [GitHub Issues](https://github.com/agent-works/delta-engine/issues)
 
 ---
 

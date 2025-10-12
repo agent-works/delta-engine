@@ -139,7 +139,7 @@ export async function handleInitCommand(
     }
 
     logger.divider();
-    logger.info('For more information, see: https://github.com/deltathink/delta-engine');
+    logger.info('For more information, see: https://github.com/agent-works/delta-engine');
     logger.divider();
 
   } catch (error) {

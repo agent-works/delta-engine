@@ -347,8 +347,8 @@ See: [Configuration Reference](docs/api/config.md)
 
 - **Current Version**: v1.7
 - **License**: MIT
-- **Repository**: [GitHub](https://github.com/deltathink/delta-engine)
-- **Issue Tracker**: [Issues](https://github.com/deltathink/delta-engine/issues)
+- **Repository**: [GitHub](https://github.com/agent-works/delta-engine)
+- **Issue Tracker**: [Issues](https://github.com/agent-works/delta-engine/issues)
 - **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
@@ -358,6 +358,6 @@ See: [Configuration Reference](docs/api/config.md)
 
 - **Documentation**: [docs/](docs/)
 - **Examples**: [examples/](examples/)
-- **Discussions**: [GitHub Discussions](https://github.com/deltathink/delta-engine/discussions)
+- **Discussions**: [GitHub Discussions](https://github.com/agent-works/delta-engine/discussions)
 - **Blog**: See `docs/architecture/philosophy-02-whitepaper.md` for design philosophy
 
