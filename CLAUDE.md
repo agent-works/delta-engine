@@ -6,6 +6,81 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 🚨 CRITICAL CHECKLISTS - READ FIRST
+
+### ⚠️ Before Starting ANY Version Implementation
+
+**Version Iteration Charter (MANDATORY)**
+
+Every version release MUST complete these steps BEFORE writing any code:
+
+- [ ] ✅ **Architecture design doc created**: `docs/architecture/vX.Y-feature-name.md`
+  - Complete technical specification
+  - Design decisions and rationale
+  - API specifications and use cases
+
+- [ ] ✅ **Implementation plan created**: `docs/architecture/vX.Y-implementation-plan.md`
+  - Phase breakdown with detailed tasks
+  - Risk assessment and mitigation strategies
+  - Testing strategy and success criteria
+  - Timeline and rollback plan
+
+- [ ] ✅ **Both documents reviewed and approved**
+  - Self-review completed
+  - Technical accuracy verified
+
+- [ ] 🔴 **If ANY checkbox is unchecked → STOP. Create these documents first.**
+
+**Why This Matters:**
+- 🔴 Risk of complete work loss (see `.story/incidents/2025-10-13-v1.8-data-loss.md`)
+- 🔴 Days/weeks of effort may be permanently lost without recovery blueprint
+- 🔴 Project momentum severely damaged
+
+**Violation Consequences:**
+- Implementation work cannot be recovered if lost
+- No recovery path if work is interrupted
+- Stakeholders cannot review decisions retroactively
+
+---
+
+### 🚨 Before ANY Git Dangerous Operation
+
+**Git Safety Protocol (MANDATORY)**
+
+NEVER execute these commands without ALL steps completed:
+
+**Dangerous Commands:**
+- `git checkout HEAD -- .` / `git checkout -- <file>` (discards uncommitted changes)
+- `git reset --hard` (discards all uncommitted work)
+- `git clean -fd` (deletes untracked files)
+- `rm -rf <directory>` (recursive force delete)
+- `git push --force` (overwrites remote history)
+
+**Safety Checklist - ALL must be ✅:**
+
+- [ ] ✅ **Explicit user request**: User asked for this operation by exact command name
+- [ ] ✅ **Clear necessity**: No safer read-only alternative exists (git status, git diff, git stash)
+- [ ] ✅ **Explicit risk warning**: Warned user about specific data loss (which files/changes)
+- [ ] ✅ **User confirmation**: Got explicit "yes, proceed" confirmation
+- [ ] 🔴 **If ANY checkbox is unchecked → STOP. Do NOT execute the command.**
+
+**Example - WRONG ❌:**
+```
+User: "I want to check if tests pass without my changes"
+Assistant: *silently runs git checkout HEAD -- .*
+Result: DISASTER - 100+ files destroyed
+```
+
+**Example - RIGHT ✅:**
+```
+User: "I want to check if tests pass without my changes"
+Assistant: "Safe options: 1) git stash, 2) new branch, 3) test current state. Which?"
+```
+
+**Incident Reference**: `.story/incidents/2025-10-13-v1.8-data-loss.md` - 100+ files destroyed, entire v1.8.0 work permanently lost.
+
+---
+
 ## 🔥 Quick Reference
 
 ### Essential Commands

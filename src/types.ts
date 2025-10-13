@@ -201,6 +201,19 @@ export const LifecycleHooksSchema = z.object({
 
 export type LifecycleHooks = z.infer<typeof LifecycleHooksSchema>;
 
+// v1.9: Dedicated schema for hooks.yaml file
+// This is the same structure as LifecycleHooksSchema but not optional at root level
+export const HooksConfigSchema = z.object({
+  pre_llm_req: HookDefinitionSchema.optional(),
+  post_llm_resp: HookDefinitionSchema.optional(),
+  pre_tool_exec: HookDefinitionSchema.optional(),
+  post_tool_exec: HookDefinitionSchema.optional(),
+  on_error: HookDefinitionSchema.optional(),
+  on_run_end: HookDefinitionSchema.optional(), // v1.9: Added on_run_end hook
+});
+
+export type HooksConfig = z.infer<typeof HooksConfigSchema>;
+
 // ============================================
 // Agent Configuration Schemas and Types
 // ============================================
@@ -209,9 +222,10 @@ export const AgentConfigSchema = z.object({
   name: z.string(),
   version: z.string().default('1.0.0'),
   description: z.string().optional(),
+  imports: z.array(z.string()).optional(), // v1.9: Import tool definitions from external files
   llm: LLMConfigSchema,
   tools: z.array(ToolDefinitionSchema),
-  lifecycle_hooks: LifecycleHooksSchema.optional(), // v1.1: Added lifecycle hooks
+  lifecycle_hooks: LifecycleHooksSchema.optional(), // v1.1: Added lifecycle hooks (deprecated in v1.9, use hooks.yaml)
   max_iterations: z.number().positive().default(30), // Per CLAUDE.md: DEFAULT_MAX_ITERATIONS = 30
   timeout_seconds: z.number().positive().optional(),
 });

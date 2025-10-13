@@ -48,7 +48,7 @@ delta run -m "Write 'Test content' to output.txt"
 
 ## Next Steps
 
-- Add more tools to \`config.yaml\`
+- Add more tools to \`agent.yaml\`
 - Customize \`system_prompt.md\` for your use case
 - Explore other templates: \`delta init -t hello-world\`
 
@@ -140,7 +140,7 @@ delta run -m "Show current date, then create a timestamped log file"
 
 ## Next Steps
 
-- Review \`config.yaml\` to see tool definitions
+- Review \`agent.yaml\` to see tool definitions
 - Modify \`system_prompt.md\` to change agent behavior
 - Try more complex templates: \`delta init -t file-ops\`
 
@@ -436,7 +436,7 @@ Example:
 
 ## Next Steps
 
-- Review \`config.yaml\` to understand HTTP tools
+- Review \`agent.yaml\` to understand HTTP tools
 - Customize headers and auth in tool definitions
 - Create comprehensive test suites
 - Try file operations: \`delta init -t file-ops\`
@@ -594,8 +594,8 @@ export async function createAgentFromTemplate(
     configYaml = configYaml.replace(/^name: .*$/m, `name: ${agentName}`);
   }
 
-  // Write config.yaml
-  const configPath = path.join(agentPath, 'config.yaml');
+  // v1.9: Write agent.yaml (was config.yaml in v1.8 and earlier)
+  const configPath = path.join(agentPath, 'agent.yaml');
   await fs.writeFile(configPath, configYaml, 'utf-8');
 
   // Write system_prompt.md
