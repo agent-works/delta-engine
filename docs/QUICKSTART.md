@@ -48,13 +48,13 @@ ls -la
 You'll see:
 ```
 hello-world/
-├── config.yaml          # Agent capabilities
+├── agent.yaml           # Agent capabilities (v1.9+)
 ├── system_prompt.md     # Agent instructions
 └── tools/
     └── greet.sh         # A simple tool
 ```
 
-**config.yaml** (tool definition):
+**agent.yaml** (tool definition):
 ```yaml
 name: hello-world-agent
 description: A minimal agent demonstrating the three pillars
@@ -79,7 +79,7 @@ delta run -m "Greet Alice"
 ```
 
 **What happens**:
-1. Engine loads `config.yaml` and `system_prompt.md`
+1. Engine loads `agent.yaml` and `system_prompt.md`
 2. LLM receives the task: "Greet Alice"
 3. LLM decides to call `greet(name="Alice")`
 4. Engine executes: `bash tools/greet.sh "Alice"`
@@ -123,7 +123,7 @@ This shows every thought, action, and observation—the **complete audit trail**
 
 ### Pillar 1: Everything is a Command
 
-Notice in `config.yaml`:
+Notice in `agent.yaml`:
 ```yaml
 # v1.7: Simple and readable
 exec: "bash tools/greet.sh ${name}"
@@ -169,7 +169,7 @@ Before greeting, read guidelines.txt for style guidance.
 Use the greet tool to greet people.
 ```
 
-Add a file-reading tool to `config.yaml`:
+Add a file-reading tool to `agent.yaml`:
 ```yaml
 tools:
   # ✨ v1.7: Simplified syntax
@@ -218,7 +218,7 @@ This enables **multi-agent orchestration** with zero special code.
 
 ### 🛠️ Build Your Own Agent
 - [Agent Development Guide](./guides/agent-development.md) - Step-by-step agent creation
-- [Configuration Reference](./api/config.md) - Complete config.yaml syntax
+- [Configuration Reference](./api/config.md) - Complete agent.yaml syntax
 
 ### 🚀 Explore Advanced Examples
 - [Interactive Shell Agent](../examples/2-core-features/interactive-shell/) - Persistent bash sessions
@@ -249,4 +249,4 @@ This enables **multi-agent orchestration** with zero special code.
 **Congratulations!** You've just experienced the elegance of Delta Engine's three-pillar philosophy. Everything you need to know flows from these principles.
 
 **Estimated Time**: 5 minutes
-**Last Updated**: 2025-10-12 (v1.7 - Tool Syntax Simplification)
+**Last Updated**: 2025-10-13 (v1.9 - Unified Agent Structure)

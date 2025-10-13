@@ -104,7 +104,7 @@ Delta is built on three core principles (Three Pillars):
 All agent capabilities are implemented through external commands, with no built-in functions.
 
 ```yaml
-# config.yaml - Define what your agent can do
+# agent.yaml - Define what your agent can do
 tools:
   - name: list_files
     exec: "ls -la ${directory}"
@@ -192,11 +192,13 @@ sources:
 ### 🔌 Lifecycle Hooks
 Inject custom logic at critical moments:
 ```yaml
-hooks:
-  pre_llm_req:
-    command: ["./check-budget.sh"]  # Check budget before each LLM call
-  post_tool_exec:
-    command: ["./log-to-audit.sh"]  # Log to audit after each tool execution
+# hooks.yaml - Separate lifecycle hooks configuration (v1.9+)
+pre_llm_req:
+  command: ["./check-budget.sh"]  # Check budget before each LLM call
+post_tool_exec:
+  command: ["./log-to-audit.sh"]  # Log to audit after each tool execution
+on_run_end:
+  command: ["./cleanup.sh"]       # Cleanup when run completes (v1.9 new)
 ```
 
 ---
@@ -272,9 +274,13 @@ ls -la .delta/interaction/
 
 ```
 my-agent/
-├── config.yaml              # Required: Agent config (LLM, tools, hooks)
+├── agent.yaml               # Required: Agent config (LLM, tools) [v1.9+]
+├── hooks.yaml               # Optional: Lifecycle hooks [v1.9+]
 ├── system_prompt.md         # Required: System prompt (can be .txt)
 ├── context.yaml             # Optional: Context composition strategy
+├── modules/                 # Optional: Reusable tool modules [v1.9+]
+│   ├── file-ops.yaml
+│   └── web-search.yaml
 ├── tools/                   # Optional: Custom tool scripts
 │   ├── analyze.py
 │   └── summarize.sh
@@ -295,6 +301,8 @@ my-agent/
     │               ├── tool_executions/ # Tool executions
     │               └── hooks/           # Hook executions
     └── W002/                # Workspace 2
+
+Note: config.yaml still supported for backward compatibility (v1.9)
 ```
 
 ### Tool Configuration Syntax Cheatsheet
@@ -345,7 +353,7 @@ See: [Configuration Reference](docs/api/config.md)
 
 ## Project Info
 
-- **Current Version**: v1.8
+- **Current Version**: v1.9
 - **License**: MIT
 - **Repository**: [GitHub](https://github.com/agent-works/delta-engine)
 - **Issue Tracker**: [Issues](https://github.com/agent-works/delta-engine/issues)

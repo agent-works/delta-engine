@@ -63,7 +63,7 @@ delta run --agent examples/claude-code-workflow \
 
 1. **Analyzes** request and checks experience history (if exists)
 2. **Plans** execution using `claude -p --permission-mode plan`
-3. **Generates** agent with config.yaml, system_prompt.md, README.md
+3. **Generates** agent with agent.yaml, system_prompt.md, README.md
 4. **Validates** all required files and structure
 5. **Reports** success with cost and session ID
 6. **Records** to `.claude-lab/sessions.jsonl` for learning
@@ -83,7 +83,7 @@ Session ID: abc-12345
 Claude Code execution completed
 
 Validation Report:
-✓ config.yaml (3 tools)
+✓ agent.yaml (3 tools)
 ✓ system_prompt.md (142 lines)
 ✓ README.md (with examples)
 ✓ Valid YAML
@@ -95,7 +95,7 @@ Cost: $0.18
 Session ID: abc-12345
 
 Next steps:
-- Test: delta run --agent examples/file-agent -m "Read config.yaml"
+- Test: delta run --agent examples/file-agent -m "Read agent.yaml"
 - Refine: Provide session ID abc-12345 for improvements
 ```
 
@@ -192,10 +192,10 @@ claude_task(
 **2.3 Validate**:
 ```bash
 validate_agent(script: 'cd examples/file-organizer && \
-  test -f config.yaml && \
+  test -f agent.yaml && \
   test -f system_prompt.md && \
   test -f README.md && \
-  python3 -c "import yaml; yaml.safe_load(open(\"config.yaml\"))"')
+  python3 -c "import yaml; yaml.safe_load(open(\"agent.yaml\"))"')
 ```
 
 **2.4 Refine (if needed)**:
@@ -277,7 +277,7 @@ delta run --agent examples/claude-code-workflow \
 ```
 
 **Generated Agent**:
-- `config.yaml`: 1 tool (print_message: echo)
+- `agent.yaml`: 1 tool (print_message: echo)
 - `system_prompt.md`: Basic instructions
 - `README.md`: Usage examples
 - **Cost**: ~$0.08
@@ -294,7 +294,7 @@ delta run --agent examples/claude-code-workflow \
 ```
 
 **Generated Agent**:
-- `config.yaml`: 4 tools (read_file, write_file, list_files, organize_files)
+- `agent.yaml`: 4 tools (read_file, write_file, list_files, organize_files)
 - `system_prompt.md`: Delta concepts, error handling, workflows
 - `README.md`: Examples, troubleshooting, how it works
 - **Cost**: ~$0.22
@@ -460,7 +460,7 @@ ls -lht $WORKSPACE_DIR/.delta/$RUN_ID/io/invocations/ | head -5
 **Symptom**: Agent generated but validation reports errors
 
 **Common Issues**:
-- `config.yaml missing` → Agent not in expected location
+- `agent.yaml missing` → Agent not in expected location
 - `Invalid YAML` → Syntax errors in config
 - `Prompt too short` → system_prompt.md < 100 lines
 
@@ -496,7 +496,7 @@ cat .claude-lab/sessions.jsonl | jq 'select(.session_id=="SESSION_ID")'
 ### A Good Generated Agent Has:
 
 **Files**:
-- ✅ `config.yaml` (clear tools, inline comments)
+- ✅ `agent.yaml` (clear tools, inline comments)
 - ✅ `system_prompt.md` (100+ lines, Delta concepts)
 - ✅ `README.md` (examples, troubleshooting)
 

@@ -414,7 +414,7 @@ Load different context based on task type:
 
 ```
 examples/2-core-features/memory-folding/
-├── config.yaml              # Tool definitions + LLM settings
+├── agent.yaml              # Tool definitions + LLM settings
 ├── context.yaml             # Context composition strategy
 ├── system_prompt.md         # Agent instructions (Delta-aware)
 ├── README.md                # This file

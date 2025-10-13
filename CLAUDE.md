@@ -370,7 +370,7 @@ See `examples/2-core-features/memory-folding/` for complete example.
 ## 🗂️ Reference
 
 ### Current Version
-**v1.8** - Unified CLI API Improvements
+**v1.9** - Unified Agent Structure
 - v1.0: MVP with Think-Act-Observe
 - v1.1: Stateless core + journal.jsonl
 - v1.2: Human-in-the-loop (`ask_human`)
@@ -380,6 +380,7 @@ See `examples/2-core-features/memory-folding/` for complete example.
 - v1.6: Context composition + memory folding
 - v1.7: `exec:`/`shell:` syntax sugar
 - v1.8: CLI improvements (`-m` flag, `delta continue` command)
+- v1.9: Unified agent structure (agent.yaml, hooks.yaml, imports mechanism)
 - v2.0 (planned): Multi-agent orchestration
 
 ### Documentation Structure

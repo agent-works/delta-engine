@@ -86,7 +86,7 @@ session_exec(sess_abc, "ls nonexistent")
 
 ## Tool Configuration
 
-The agent uses 3 simple tools defined in `config.yaml`:
+The agent uses 3 simple tools defined in `agent.yaml`:
 
 ### session_start
 Creates a new bash session.
@@ -207,7 +207,7 @@ cat .sessions/sess_abc123/history.log
 
 **Issue**: "No command provided"
 - **Cause**: Command not passed via stdin
-- **Solution**: Ensure `inject_as: stdin` in config.yaml
+- **Solution**: Ensure `inject_as: stdin` in agent.yaml
 
 **Issue**: Commands fail with exit code 1
 - **Cause**: Command error (normal behavior)

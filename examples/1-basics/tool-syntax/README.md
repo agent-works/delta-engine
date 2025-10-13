@@ -56,7 +56,7 @@ backward compatibility with legacy `command:` array syntax.
 See how v1.7 syntax is converted to internal format:
 
 ```bash
-delta tool expand examples/1-basics/tool-syntax/config.yaml
+delta tool expand examples/1-basics/tool-syntax/agent.yaml
 ```
 
 This shows exactly how the engine will execute each tool.

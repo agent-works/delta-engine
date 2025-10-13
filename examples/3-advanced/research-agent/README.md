@@ -545,7 +545,7 @@ Research multiple options:
 
 ```
 examples/3-advanced/research-agent/
-├── config.yaml              # Tool definitions
+├── agent.yaml              # Tool definitions
 ├── context.yaml             # v1.6: Context composition rules
 ├── system_prompt.md         # Research methodology
 ├── README.md                # This file

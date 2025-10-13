@@ -83,7 +83,7 @@ Response: "The factorial of 5 is 120."
 
 ## Configuration
 
-See `config.yaml` for tool definitions:
+See `agent.yaml` for tool definitions:
 - `python_start` - Start Python REPL session
 - `python_exec` - Execute code and get immediate output
 - `python_end` - Terminate session

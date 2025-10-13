@@ -2,9 +2,107 @@
 
 ## Overview
 
-Agent configuration is defined in `config.yaml` using YAML format. This document describes all available configuration options.
+Agent configuration is defined in `agent.yaml` using YAML format (v1.9+). This document describes all available configuration options.
+
+**✨ v1.9**: Delta Engine introduces unified agent structure with `agent.yaml`, `hooks.yaml`, and modular tool imports.
 
 **✨ v1.7**: Delta Engine uses simplified tool syntax with `exec:` and `shell:` modes. See [v1.7 Syntax](#v17-simplified-syntax) below.
+
+**Backward Compatibility**: `config.yaml` is still supported but deprecated. See [Migration from v1.8](#migration-from-v18-to-v19).
+
+## v1.9 Unified Agent Structure
+
+Delta Engine v1.9 introduces a cleaner agent structure with three key improvements:
+
+### 1. agent.yaml (Renamed from config.yaml)
+
+The main configuration file is now `agent.yaml` for better clarity:
+
+```yaml
+name: my-agent
+version: 1.0.0
+description: A modular agent
+
+llm:
+  model: gpt-4
+  temperature: 0.7
+
+# NEW: Import tool definitions from external modules
+imports:
+  - modules/file-tools.yaml
+  - modules/web-tools.yaml
+
+tools:
+  - name: custom_tool
+    exec: "echo ${message}"
+```
+
+### 2. hooks.yaml (Separated from agent.yaml)
+
+Lifecycle hooks now have their own configuration file for better organization:
+
+```yaml
+# hooks.yaml - Separate file for lifecycle hooks
+pre_llm_req:
+  command: [./hooks/pre_request.sh]
+  timeout_ms: 5000
+
+post_tool_exec:
+  command: [./hooks/audit.sh]
+
+on_run_end:  # v1.9 NEW: Cleanup on run completion
+  command: [./hooks/cleanup.sh]
+```
+
+If `hooks.yaml` exists, it takes priority. For backward compatibility, `lifecycle_hooks` in `agent.yaml` still works but is deprecated.
+
+### 3. imports Mechanism (NEW)
+
+Organize tools into reusable modules:
+
+```yaml
+# agent.yaml
+imports:
+  - modules/file-ops.yaml    # Import file operation tools
+  - modules/web-search.yaml  # Import web search tools
+
+tools:
+  - name: custom_tool
+    exec: "echo ${message}"
+```
+
+```yaml
+# modules/file-ops.yaml
+tools:
+  - name: read_file
+    exec: "cat ${filename}"
+
+  - name: write_file
+    exec: "tee ${filename}"
+    stdin: content
+```
+
+**How imports work:**
+- Imports are processed recursively (modules can import other modules)
+- Tools are merged using **Last Write Wins** strategy (later definitions override earlier ones)
+- Circular imports are detected and rejected
+- Security: Import paths must be relative and within agent directory (no `../` or absolute paths)
+
+**Complete directory structure:**
+
+```
+my-agent/
+├── agent.yaml              # Main config (v1.9+)
+├── hooks.yaml              # Lifecycle hooks (v1.9+, optional)
+├── system_prompt.md        # System prompt
+├── context.yaml            # Context composition (optional)
+├── modules/                # Reusable tool modules (v1.9+, optional)
+│   ├── file-ops.yaml
+│   └── web-search.yaml
+├── tools/                  # Custom tool scripts
+│   └── helper.sh
+└── workspaces/             # Execution workspaces
+```
 
 ## v1.7 Simplified Syntax
 
@@ -134,7 +232,7 @@ parameters:
 
 ### Mixed Syntax
 
-Both syntaxes can coexist in the same `config.yaml`:
+Both syntaxes can coexist in the same `agent.yaml`:
 
 ```yaml
 tools:
@@ -156,7 +254,7 @@ tools:
 Use `delta tool:expand` to see how v1.7 syntax expands:
 
 ```bash
-delta tool:expand config.yaml
+delta tool:expand agent.yaml
 
 # Output shows internal ToolDefinition format:
 # exec: "ls -la ${directory}"
@@ -180,13 +278,15 @@ See [Legacy Syntax Reference](#legacy-tool-syntax-v10-v16) below for details.
 
 ---
 
-## Complete Example (v1.7 Syntax)
+## Complete Example (v1.9 Structure)
+
+### agent.yaml
 
 ```yaml
 # Required: Agent metadata
 name: my-agent
 version: 1.0.0
-description: A comprehensive example agent
+description: A comprehensive example agent (v1.9)
 
 # Required: LLM configuration
 llm:
@@ -197,18 +297,19 @@ llm:
   frequency_penalty: 0.0
   presence_penalty: 0.0
 
-# Required: Tool definitions (v1.7 simplified syntax)
+# v1.9: Import shared tool modules
+imports:
+  - modules/file-tools.yaml    # File operations
+  - modules/shell-tools.yaml   # Shell utilities
+
+# Local tool definitions (v1.7 simplified syntax)
 tools:
   # exec: mode - Direct execution
   - name: list_files
     exec: "ls -la"
 
-  - name: read_file
-    exec: "cat ${filename}"
-
-  - name: write_file
-    exec: "tee ${filename}"
-    stdin: content
+  - name: custom_script
+    exec: "bash tools/custom.sh ${arg}"
 
   # shell: mode - With pipes
   - name: count_lines
@@ -216,25 +317,52 @@ tools:
 
   # Note: For option injection, use explicit syntax (see Legacy Syntax section below)
 
-# Optional: Lifecycle hooks
-lifecycle_hooks:
-  pre_llm_req:
-    command: [./hooks/pre_request.sh]
-    timeout_ms: 5000
-
-  post_llm_resp:
-    command: [python3, hooks/log_response.py]
-
-  pre_tool_exec:
-    command: [./hooks/validate_tool.sh]
-    timeout_ms: 2000
-
-  post_tool_exec:
-    command: [node, hooks/process_output.js]
-
-  on_error:
-    command: [./hooks/handle_error.sh]
+max_iterations: 30
 ```
+
+### hooks.yaml (v1.9: Separate file)
+
+```yaml
+# v1.9: Lifecycle hooks in dedicated file
+pre_llm_req:
+  command: [./hooks/pre_request.sh]
+  timeout_ms: 5000
+
+post_llm_resp:
+  command: [python3, hooks/log_response.py]
+
+pre_tool_exec:
+  command: [./hooks/validate_tool.sh]
+  timeout_ms: 2000
+
+post_tool_exec:
+  command: [node, hooks/process_output.js]
+
+on_error:
+  command: [./hooks/handle_error.sh]
+
+on_run_end:  # v1.9 NEW: Cleanup on run completion
+  command: [./hooks/cleanup.sh]
+```
+
+### modules/file-tools.yaml
+
+```yaml
+# Reusable file operation tools
+tools:
+  - name: read_file
+    exec: "cat ${filename}"
+
+  - name: write_file
+    exec: "tee ${filename}"
+    stdin: content
+
+  - name: append_file
+    exec: "tee -a ${filename}"
+    stdin: content
+```
+
+**Note**: If `hooks.yaml` doesn't exist, you can still use `lifecycle_hooks` in `agent.yaml` (deprecated but supported).
 
 ## Root Fields
 
@@ -254,6 +382,21 @@ lifecycle_hooks:
 - **Type:** string
 - **Description:** Agent purpose and capabilities
 - **Example:** `"An agent that processes CSV files and generates reports"`
+
+### `imports` (optional, v1.9+)
+- **Type:** array of strings
+- **Description:** Paths to external tool definition files (relative to agent directory)
+- **Format:** Must be relative paths within agent directory (no `../` or absolute paths)
+- **Processing:** Recursive (imported modules can import other modules)
+- **Merge Strategy:** Last Write Wins (later tools override earlier ones with same name)
+- **Example:**
+  ```yaml
+  imports:
+    - modules/file-tools.yaml
+    - modules/web-tools.yaml
+  ```
+- **Security:** Circular imports are detected and rejected
+- **See:** [imports Mechanism](#3-imports-mechanism-new) for details
 
 ## LLM Configuration
 
@@ -390,8 +533,40 @@ Array of tool configurations.
 
 ## Lifecycle Hooks
 
-### `lifecycle_hooks` (optional)
-Hook configurations for extending behavior.
+### v1.9: hooks.yaml (Recommended)
+
+In v1.9+, lifecycle hooks should be defined in a separate `hooks.yaml` file:
+
+```yaml
+# hooks.yaml - Dedicated file for lifecycle hooks
+pre_llm_req:
+  command: [./hooks/pre_request.sh]
+  timeout_ms: 5000
+
+post_tool_exec:
+  command: [./hooks/audit.sh]
+
+on_run_end:  # v1.9 NEW: Cleanup on run completion
+  command: [./hooks/cleanup.sh]
+```
+
+**Benefits:**
+- Cleaner separation of concerns
+- Easier to manage complex hook configurations
+- Optional: If `hooks.yaml` doesn't exist, agent runs without hooks
+
+### `lifecycle_hooks` (deprecated, backward compatibility)
+
+For backward compatibility, `lifecycle_hooks` in `agent.yaml` still works but is deprecated:
+
+```yaml
+# agent.yaml (v1.8 and earlier style)
+lifecycle_hooks:
+  pre_llm_req:
+    command: [./hooks/pre_request.sh]
+```
+
+**⚠️ Deprecation Notice:** Use `hooks.yaml` instead. If both exist, `hooks.yaml` takes priority.
 
 #### Hook Types
 
@@ -444,6 +619,17 @@ Each hook type accepts a hook configuration object:
 - **Input:** Error details
 - **Output:** Control directives
 
+##### `on_run_end` (v1.9+)
+- **When:** After run completes (success, failure, or interruption)
+- **Purpose:** Cleanup, finalization, reporting
+- **Input:** Run status and metadata
+- **Output:** None (cleanup only)
+- **Example:**
+  ```yaml
+  on_run_end:
+    command: [./hooks/cleanup.sh]
+  ```
+
 ## Validation Rules
 
 ### Required Fields
@@ -456,12 +642,20 @@ Each hook type accepts a hook configuration object:
 - `tools` array must be present (can be empty)
 
 ### Tool Validation
-- Each tool must have a unique `name`
+- Each tool must have a unique `name` (after imports are merged)
 - `command` array must not be empty
 - First element of `command` must be executable
 - Parameter names must be unique within a tool
 - `inject_as` must be valid option
 - `option_flag` required when `inject_as: option`
+
+### Import Validation (v1.9+)
+- Import paths must be relative (no absolute paths)
+- Import paths must not contain `../` (no path traversal)
+- Import paths must be within agent directory boundary
+- Circular imports are detected and rejected
+- Imported files must exist and be valid YAML
+- Imported files must contain a `tools` array
 
 ### Type Validation
 - String parameters accept any text
@@ -792,6 +986,149 @@ delta run -m "Test all tools"
 - v1.0-v1.6 configs work unchanged
 - Both syntaxes can coexist
 - No breaking changes
+
+### Migration from v1.8 to v1.9
+
+v1.9 introduces the unified agent structure. Here's how to migrate:
+
+#### Step 1: Rename config.yaml to agent.yaml
+
+```bash
+cd my-agent
+mv config.yaml agent.yaml
+```
+
+**What changes:**
+- File name only - content remains identical
+- All existing `config.yaml` features work in `agent.yaml`
+
+#### Step 2: Separate lifecycle_hooks to hooks.yaml (optional)
+
+If you have `lifecycle_hooks` in `agent.yaml`, you can optionally move them to a dedicated file:
+
+**Before (agent.yaml):**
+```yaml
+name: my-agent
+# ... other config ...
+
+lifecycle_hooks:
+  pre_llm_req:
+    command: [./hooks/pre_request.sh]
+  post_tool_exec:
+    command: [./hooks/audit.sh]
+```
+
+**After:**
+
+`agent.yaml`:
+```yaml
+name: my-agent
+# ... other config ...
+# Remove lifecycle_hooks section
+```
+
+`hooks.yaml` (NEW):
+```yaml
+pre_llm_req:
+  command: [./hooks/pre_request.sh]
+post_tool_exec:
+  command: [./hooks/audit.sh]
+on_run_end:  # v1.9 NEW: Take advantage of new hook
+  command: [./hooks/cleanup.sh]
+```
+
+**Benefits:**
+- Cleaner separation of concerns
+- Easier to manage complex hook configurations
+- Can add new `on_run_end` hook for cleanup
+
+**Note:** This step is optional. If you keep `lifecycle_hooks` in `agent.yaml`, everything still works (with deprecation warning).
+
+#### Step 3: Organize tools with imports (optional)
+
+If you have many tools, consider extracting them into reusable modules:
+
+**Before (agent.yaml with 20+ tools):**
+```yaml
+tools:
+  - name: read_file
+    exec: "cat ${filename}"
+  - name: write_file
+    exec: "tee ${filename}"
+    stdin: content
+  - name: search_web
+    exec: "curl ${url}"
+  # ... 17 more tools ...
+```
+
+**After:**
+
+`agent.yaml`:
+```yaml
+imports:
+  - modules/file-ops.yaml
+  - modules/web-tools.yaml
+
+tools:
+  # Only agent-specific tools here
+  - name: custom_tool
+    exec: "bash tools/custom.sh ${arg}"
+```
+
+`modules/file-ops.yaml`:
+```yaml
+tools:
+  - name: read_file
+    exec: "cat ${filename}"
+  - name: write_file
+    exec: "tee ${filename}"
+    stdin: content
+```
+
+`modules/web-tools.yaml`:
+```yaml
+tools:
+  - name: search_web
+    exec: "curl ${url}"
+```
+
+**Benefits:**
+- Better organization for complex agents
+- Tool reuse across multiple agents
+- Easier to maintain and test individual modules
+
+#### Step 4: Test the migrated agent
+
+```bash
+# Test run
+delta run --agent ./my-agent -m "Test migration"
+
+# Verify all tools still work
+# Check .delta/journal.jsonl for any errors
+```
+
+#### Migration Checklist
+
+- [ ] Rename `config.yaml` to `agent.yaml`
+- [ ] (Optional) Move `lifecycle_hooks` to `hooks.yaml`
+- [ ] (Optional) Organize tools into modules using `imports`
+- [ ] Add `on_run_end` hook if you need cleanup functionality
+- [ ] Test agent with a simple task
+- [ ] Verify all tools work as expected
+- [ ] Check for deprecation warnings in logs
+
+#### Backward Compatibility
+
+**You don't have to migrate immediately:**
+- v1.9 fully supports `config.yaml` (with deprecation warning)
+- `lifecycle_hooks` in main config still works
+- No breaking changes - migrate at your own pace
+
+**When to migrate:**
+- When starting new agents (use v1.9 structure from the start)
+- When refactoring existing agents
+- When you need the new `on_run_end` hook
+- When you want better organization through imports
 
 ## See Also
 

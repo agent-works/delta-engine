@@ -105,7 +105,7 @@ The journal tells the agent what already happened.
 
 ## Files
 
-- `config.yaml` - Agent configuration with 5 simple tools
+- `agent.yaml` - Agent configuration with 5 simple tools
 - `system_prompt.md` - Agent instructions and behavior
 - `README.md` - This file
 
@@ -175,7 +175,7 @@ ls -lht examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/io/too
 This is a great starting point for learning Delta Engine. Try modifying:
 
 ### Beginner Exercises
-1. **Add a new tool**: Define `delete_file` in `config.yaml`
+1. **Add a new tool**: Define `delete_file` in `agent.yaml`
 2. **Modify system prompt**: Make the agent more verbose
 3. **Chain tasks**: "Create a file, write to it, then read it back"
 

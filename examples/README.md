@@ -36,7 +36,7 @@ delta run --agent examples/1-basics/hello-world -m "Create a greeting file"
 - **Highlights**: 77% verbosity reduction, `delta tool expand` debugging, backward compatibility
 
 ```bash
-delta tool expand examples/1-basics/tool-syntax/config.yaml
+delta tool expand examples/1-basics/tool-syntax/agent.yaml
 ```
 
 ---
@@ -140,7 +140,7 @@ cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.js
 ls -la examples/1-basics/hello-world/workspaces/LAST_USED/
 
 # See the tools (everything is a command)
-cat examples/1-basics/hello-world/config.yaml
+cat examples/1-basics/hello-world/agent.yaml
 ```
 
 ---
@@ -228,7 +228,7 @@ Review `.quality-assessments/` for detailed criteria.
 ### Step 2: Use Template Structure
 ```
 your-example/
-├── config.yaml           # Tool definitions, LLM settings
+├── agent.yaml           # Tool definitions, LLM settings
 ├── system_prompt.md      # Agent instructions (100+ lines)
 ├── README.md             # Usage guide (100+ lines)
 ├── context.yaml          # Optional: v1.6 context composition

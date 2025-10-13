@@ -60,7 +60,7 @@ This is a **paradigm shift** - from simple statistics to semantic analysis power
 
 ### Files
 - **Created** (6): Sub-agent structure, tools, documentation, test data
-- **Modified** (2): config.yaml, system_prompt.md
+- **Modified** (2): agent.yaml, system_prompt.md
 - **Preserved** (1): scripts/analyze_experience.py (deprecated, kept for reference)
 
 ### Documentation
@@ -159,7 +159,7 @@ This upgrade showcases:
 ## Upgrade Path
 
 ### From 1.0 to 2.0
-1. Update config.yaml (11 → 7 tools)
+1. Update agent.yaml (11 → 7 tools)
 2. Review system_prompt.md (new workflow)
 3. Update README.md references
 4. Move from examples/ to tools/
@@ -167,7 +167,7 @@ This upgrade showcases:
 
 ### From 2.0 to 2.1
 1. Add `scripts/analyze_experience.py`
-2. Update config.yaml (add `analyze_patterns` tool)
+2. Update agent.yaml (add `analyze_patterns` tool)
 3. Review system_prompt.md (Phase 1 enhancements)
 4. No breaking changes to existing functionality
 5. `read_experience` still works (marked as legacy)

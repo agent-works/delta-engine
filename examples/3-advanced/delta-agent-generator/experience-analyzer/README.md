@@ -29,7 +29,7 @@ delta-agent-generator (Parent Agent)
 │   └── ...
 │
 └── experience-analyzer/ ← You are here (sub-agent)
-    ├── config.yaml
+    ├── agent.yaml
     ├── system_prompt.md
     ├── README.md
     └── tools/
@@ -292,7 +292,7 @@ Reads `.claude-lab/sessions.jsonl` from the parent agent's workspace:
 
 ```
 experience-analyzer/
-├── config.yaml              # Agent configuration (5 tools)
+├── agent.yaml              # Agent configuration (5 tools)
 ├── system_prompt.md         # Analysis instructions (9000+ characters)
 ├── README.md                # This file
 └── tools/

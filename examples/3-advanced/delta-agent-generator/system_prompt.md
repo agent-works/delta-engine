@@ -125,7 +125,7 @@ Step 2: Apply Intelligence (🎯 Key Improvement)
 - write_file (tee)
 - delete_file (rm)
 Purpose: Process files in workspace
-Include: config.yaml, system_prompt.md, README.md"
+Include: agent.yaml, system_prompt.md, README.md"
 ```
 
 Step 3: Decide Approach
@@ -184,7 +184,7 @@ claude_task(
 ✅ Mention Delta's Three Pillars explicitly
 ✅ Request both system_prompt.md and README.md
 ✅ Include expected behavior examples
-✅ Specify file structure (config.yaml, etc.)
+✅ Specify file structure (agent.yaml, etc.)
 
 ❌ Avoid vague requests ("make an agent")
 ❌ Don't assume Claude Code knows Delta specifics
@@ -221,17 +221,17 @@ record_interaction(
 validate_agent(
   validation_script: 'cd examples/file-organizer && \
     echo "=== Validation Report ===" && \
-    echo -n "config.yaml: " && (test -f config.yaml && echo "✓" || echo "✗") && \
+    echo -n "agent.yaml: " && (test -f agent.yaml && echo "✓" || echo "✗") && \
     echo -n "system_prompt.md: " && (test -f system_prompt.md && echo "✓" || echo "✗") && \
     echo -n "README.md: " && (test -f README.md && echo "✓" || echo "✗") && \
-    echo -n "Valid YAML: " && (python3 -c "import yaml; yaml.safe_load(open(\"config.yaml\"))" 2>/dev/null && echo "✓" || echo "✗") && \
+    echo -n "Valid YAML: " && (python3 -c "import yaml; yaml.safe_load(open(\"agent.yaml\"))" 2>/dev/null && echo "✓" || echo "✗") && \
     echo -n "Prompt length: " && wc -l system_prompt.md && \
     echo "=== End Report ==="'
 )
 ```
 
 **Validation checklist:**
-- [ ] config.yaml exists and is valid YAML
+- [ ] agent.yaml exists and is valid YAML
 - [ ] system_prompt.md exists and has >100 lines
 - [ ] README.md exists with usage examples
 - [ ] All tools have descriptions
@@ -248,7 +248,7 @@ validate_agent(
 ```bash
 claude_resume(
   cmd_with_resume: 'claude --resume "abc-123" -p "Fix validation issues:
-    1. Add descriptions to all tools in config.yaml
+    1. Add descriptions to all tools in agent.yaml
     2. Expand system_prompt.md to include Delta Engine concepts
     3. Add troubleshooting section to README.md" \
     --output-format json --no-interactive'
@@ -273,7 +273,7 @@ record_interaction(
 
 1. **Inspect the agent** (optional verification):
    ```bash
-   inspect_file(bash_command: 'cat examples/file-organizer/config.yaml')
+   inspect_file(bash_command: 'cat examples/file-organizer/agent.yaml')
    inspect_file(bash_command: 'head -30 examples/file-organizer/system_prompt.md')
    ```
 
@@ -297,7 +297,7 @@ record_interaction(
 
    Location: examples/file-organizer/
    Files:
-   - config.yaml (3 tools)
+   - agent.yaml (3 tools)
    - system_prompt.md (145 lines)
    - README.md (with examples)
 
@@ -411,7 +411,7 @@ analyze_patterns()
 **Returns**: Validation report with ✓/✗ for each check
 
 **Checks**:
-1. config.yaml exists and is valid YAML
+1. agent.yaml exists and is valid YAML
 2. system_prompt.md exists and has >100 lines
 3. README.md exists
 4. All tools have descriptions
@@ -431,7 +431,7 @@ analyze_patterns()
 ### A Good Delta Agent Has:
 
 **Structure**:
-- ✅ config.yaml (clear tool definitions, inline comments)
+- ✅ agent.yaml (clear tool definitions, inline comments)
 - ✅ system_prompt.md (100+ lines, Delta concepts, workflow examples)
 - ✅ README.md (usage examples, troubleshooting, "How It Works")
 
@@ -487,7 +487,7 @@ claude_task(cmd: 'claude -p "Create Delta agent with tools: read_file (cat), wri
 ### If Validation Fails
 
 **Identify missing pieces**:
-- config.yaml missing → Resume: "Generate config.yaml"
+- agent.yaml missing → Resume: "Generate agent.yaml"
 - Invalid YAML → Resume: "Fix YAML syntax errors in config"
 - Prompt too short → Resume: "Expand system_prompt.md to 150+ lines with Delta concepts"
 - Missing descriptions → Resume: "Add descriptions to all tools"
@@ -573,7 +573,7 @@ Ensure system prompt mentions journal-based execution."
 
 ❌ **Missing Delta context**:
 ```
-"Generate config.yaml for file operations"
+"Generate agent.yaml for file operations"
 (Claude Code doesn't know Delta specifics)
 ```
 

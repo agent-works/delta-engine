@@ -7,6 +7,228 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2025-10-13
+
+### Added - Unified Agent Structure
+
+**Major feature: Modular configuration with imports mechanism:**
+
+- **agent.yaml Naming (Breaking Change):**
+  - Main configuration file renamed from `config.yaml` to `agent.yaml`
+  - **Rationale**: "agent.yaml" more clearly conveys purpose than generic "config.yaml"
+  - **Impact**: User feedback indicated confusion with "config.yaml" name
+  - **Backward Compatibility**: `config.yaml` still works with deprecation warning
+  - **Migration**: Simple rename - `mv config.yaml agent.yaml`
+
+- **hooks.yaml Separation (Optional):**
+  - Lifecycle hooks now optionally defined in dedicated `hooks.yaml` file
+  - Cleaner separation of concerns: agent capabilities vs lifecycle hooks
+  - If `hooks.yaml` exists, it takes priority over `lifecycle_hooks` in agent.yaml
+  - `lifecycle_hooks` in agent.yaml deprecated but still supported
+  - **New hook**: `on_run_end` - Cleanup/finalization after run completes (any status)
+
+- **imports Mechanism (NEW):**
+  - Organize tool definitions into reusable, shareable modules
+  - Syntax: `imports: [modules/file-ops.yaml, modules/web-tools.yaml]`
+  - Recursive imports supported (modules can import other modules)
+  - **Last Write Wins** merge strategy - later tools override earlier ones with same name
+  - Security validations:
+    - Path traversal prevention: no `../` or absolute paths allowed
+    - Agent boundary enforcement: imports must be within agent directory
+    - Circular import detection with clear error messages
+  - Enables:
+    - Better organization for complex agents
+    - Tool reuse across multiple agents
+    - Team collaboration on shared tool libraries
+    - Modular testing and maintenance
+
+### New - Directory Structure
+
+**Updated agent structure supporting modular configuration:**
+
+```
+my-agent/
+├── agent.yaml              # Main config (v1.9+)
+├── hooks.yaml              # Lifecycle hooks (v1.9+, optional)
+├── system_prompt.md        # System prompt
+├── context.yaml            # Context composition (optional)
+├── modules/                # Reusable tool modules (v1.9+, optional)
+│   ├── file-ops.yaml
+│   └── web-tools.yaml
+├── tools/                  # Custom tool scripts
+└── workspaces/             # Execution workspaces
+```
+
+### Implementation Details
+
+- **Type System Updates (src/types.ts):**
+  - Added `imports` field to AgentConfigSchema (array of strings, optional)
+  - Created `HooksConfigSchema` for dedicated hooks.yaml validation
+  - Added `on_run_end` hook type to lifecycle hooks
+
+- **Configuration Loader (src/config.ts):**
+  - New `loadConfigWithCompat()` - Unified loader with backward compatibility
+  - `locateAgentConfig()` - Locates agent.yaml or config.yaml (with priority)
+  - `loadWithImports()` - Recursive import loading with circular detection
+  - `validateImportPath()` - Security validation (prevents path traversal)
+  - `mergeTools()` - Last Write Wins implementation using Map
+  - `loadHooks()` - Separate hooks.yaml loading
+  - Full v1.7 tool syntax expansion support in imported modules
+  - 384 new lines implementing modular configuration
+
+- **CLI Updates (src/commands/init.ts, src/templates/):**
+  - `delta init` now generates `agent.yaml` instead of `config.yaml`
+  - Updated console output to reflect new file names
+  - All 4 templates updated (minimal, hello-world, file-ops, api-tester)
+
+### Security Features
+
+- **Path Validation:**
+  - Rejects `../` sequences (path traversal protection)
+  - Rejects absolute paths
+  - Enforces agent directory boundary using path.normalize()
+
+- **Circular Import Detection:**
+  - Tracks visited files with Set<string> during recursive loading
+  - Provides clear error messages with import chain
+  - Example: `Error: Circular import detected: modules/a.yaml → modules/b.yaml → modules/a.yaml`
+
+### Testing & Validation
+
+- **Unit Tests (21/21 passing):**
+  - `tests/unit/config-loader.test.ts` - Comprehensive v1.9 feature tests
+  - File location tests (agent.yaml vs config.yaml priority)
+  - Single/multiple/nested imports
+  - Circular import detection
+  - Path security validation
+  - hooks.yaml loading and priority
+  - v1.7 syntax expansion in imports
+
+- **Integration Tests (All passing):**
+  - `tests/integration/v1.9-compatibility.test.ts` - End-to-end testing
+  - Real file system operations
+  - Complete backward compatibility validation
+
+- **Test Fixtures (5 created):**
+  - agent-with-config-yaml/ - Legacy format
+  - agent-with-agent-yaml/ - New format
+  - agent-with-imports/ - Import mechanism
+  - agent-with-hooks-yaml/ - Hooks separation
+  - agent-with-circular-imports/ - Error scenario
+
+- **Regression Tests (505/505 passing):**
+  - All existing unit tests (490)
+  - All integration tests (15)
+  - Zero breaking changes to core functionality
+
+### Documentation Updates
+
+- **Core Documentation:**
+  - `README.md` - Updated to v1.9, agent.yaml examples, imports/hooks
+  - `CLAUDE.md` - Updated Quick Reference with v1.9 structure
+  - `docs/QUICKSTART.md` - Complete v1.9 migration, updated all examples
+  - `docs/api/config.md` - Comprehensive v1.9 API reference (200+ lines added)
+    - New v1.9 Unified Agent Structure section
+    - imports mechanism documentation with security notes
+    - hooks.yaml documentation with deprecation notices
+    - Migration guide from v1.8 to v1.9
+    - Updated all code examples
+
+- **New Guides:**
+  - `docs/guides/modular-configuration.md` - Complete guide for imports mechanism
+    - Why modular configuration
+    - Basic and advanced usage patterns
+    - Module design best practices
+    - Security considerations
+    - Migration strategies
+    - Troubleshooting
+    - 3 complete examples (data processor, DevOps, research agents)
+
+- **Architecture Documentation:**
+  - `docs/architecture/v1.9-unified-agent-structure.md` - Complete design doc (1222 lines)
+  - `docs/architecture/v1.9-implementation-plan.md` - Implementation roadmap (1089 lines)
+
+### Example Migrations
+
+**All 9 examples migrated to v1.9:**
+- ✅ 1-basics/hello-world/ - config.yaml → agent.yaml
+- ✅ 1-basics/tool-syntax/ - config.yaml → agent.yaml
+- ✅ 2-core-features/interactive-shell/ - config.yaml → agent.yaml
+- ✅ 2-core-features/memory-folding/ - config.yaml → agent.yaml
+- ✅ 2-core-features/python-repl/ - config.yaml → agent.yaml
+- ✅ 3-advanced/code-reviewer/ - config.yaml → agent.yaml
+- ✅ 3-advanced/delta-agent-generator/ - config.yaml → agent.yaml
+- ✅ 3-advanced/delta-agent-generator/experience-analyzer/ - config.yaml → agent.yaml
+- ✅ 3-advanced/research-agent/ - config.yaml → agent.yaml
+
+**Documentation Updates:**
+- All example README.md files updated to reference agent.yaml
+- All markdown files updated (12 files, ~40+ references)
+- Zero remaining config.yaml references in examples
+
+### Backward Compatibility
+
+**Zero Breaking Changes - Full Compatibility:**
+
+- ✅ `config.yaml` still works (with deprecation warning)
+- ✅ `lifecycle_hooks` in config still works (with deprecation warning)
+- ✅ All v1.0-v1.8 agents work without modification
+- ✅ Mixed syntax allowed (both old and new can coexist)
+- ✅ Deprecation warnings guide users to migrate
+- ✅ All 505 tests passing (490 unit + 15 integration)
+
+**Migration Support:**
+- Clear deprecation warnings with actionable guidance
+- `hooks.yaml` priority over `lifecycle_hooks` when both exist
+- `agent.yaml` priority over `config.yaml` when both exist
+- Step-by-step migration guide in docs/api/config.md
+- No forced migration - users can migrate at their own pace
+
+### Design Philosophy Alignment
+
+**v1.9 maintains Delta's Three Pillars:**
+
+1. **Everything is a Command:**
+   - imports are just file paths processed by loader
+   - hooks.yaml loaded via standard YAML parsing
+   - No special runtime behavior - all config-time expansion
+
+2. **Environment as Interface:**
+   - Module files stored in agent directory (part of environment)
+   - imports use relative paths (agent directory is root)
+   - All state visible on file system
+
+3. **Composition Defines Intelligence:**
+   - imports enable agent composition through tool reuse
+   - Modules are composable building blocks
+   - Complex agents built from simple, focused modules
+
+### Use Cases Enabled
+
+- **Large Agents**: Split 100+ tools into 5-10 focused modules
+- **Team Collaboration**: Multiple developers work on different modules
+- **Tool Libraries**: Shared modules across multiple agents
+- **Better Testing**: Test individual modules independently
+- **Cleaner Organization**: Separate concerns (capabilities vs lifecycle vs context)
+
+### Breaking Changes
+
+**None.** This release is fully backward compatible:
+- Old file names still work (with deprecation warnings)
+- Old structure still works (lifecycle_hooks in main config)
+- No API changes to engine or runtime behavior
+- Zero test failures - all 505 tests passing
+
+**Recommended Actions:**
+1. Rename `config.yaml` to `agent.yaml` (when convenient)
+2. Move `lifecycle_hooks` to `hooks.yaml` (optional, improves organization)
+3. Consider using `imports` for large agents (optional, improves maintainability)
+4. Watch for deprecation warnings in logs (guide migration)
+
+---
+
+## [1.8.0] - 2025-10-12
+
 ### Added - Unified CLI API Improvements (v1.8)
 
 **Breaking Change: Simplified and semantic CLI interface:**

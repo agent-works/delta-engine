@@ -294,7 +294,7 @@ ls -la .delta/
 
 **Solutions**:
 1. Check Delta Engine version supports hooks (v1.1+)
-2. Verify hook commands in config.yaml
+2. Verify hook commands in agent.yaml
 3. Check workspace permissions: `chmod +w .`
 
 ---
@@ -376,7 +376,7 @@ This example demonstrates all three core principles:
 - `search_code` → `grep -rn` command
 - `write_review` → `tee -a` command
 
-**Why it matters**: You can replace any tool. Want to use `ripgrep` instead of `grep`? Just change the command in config.yaml. Want to integrate eslint? Add a new tool with `eslint` command.
+**Why it matters**: You can replace any tool. Want to use `ripgrep` instead of `grep`? Just change the command in agent.yaml. Want to integrate eslint? Add a new tool with `eslint` command.
 
 **Example Extension**:
 ```yaml
@@ -500,7 +500,7 @@ Use Claude to detect complex patterns:
 
 ```
 examples/3-advanced/code-reviewer/
-├── config.yaml              # Tool definitions + lifecycle hooks
+├── agent.yaml              # Tool definitions + lifecycle hooks
 ├── system_prompt.md         # Review standards and workflow
 ├── README.md                # This file
 └── .review-template.md      # Optional: Review report template
