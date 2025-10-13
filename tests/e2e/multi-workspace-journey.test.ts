@@ -59,7 +59,7 @@ async function testMultiWorkspaceJourney() {
         cliPath,
         'run',
         '--agent', testAgentDir,
-        '--task', 'Project A task - echo hello',
+        '-m', 'Project A task - echo hello',
         '-y', // Silent mode - auto-create W001
       ],
       {
@@ -109,7 +109,7 @@ async function testMultiWorkspaceJourney() {
         'run',
         '--agent', testAgentDir,
         '--work-dir', w002Dir, // Explicit work directory
-        '--task', 'Project B task - echo world',
+        '-m', 'Project B task - echo world',
       ],
       {
         reject: false,
@@ -175,7 +175,7 @@ async function testMultiWorkspaceJourney() {
         'run',
         '--agent', testAgentDir,
         '--work-dir', w001Dir, // Switch back to W001
-        '--task', 'Continue project A',
+        '-m', 'Continue project A',
       ],
       {
         reject: false,

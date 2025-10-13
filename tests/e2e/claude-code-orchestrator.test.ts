@@ -138,7 +138,7 @@ async function testClaudeCodeOrchestrator() {
         'run',
         '--agent', agentPath,
         '--work-dir', testWorkspaceDir,
-        '--task', 'Use delta-sessions to start a bash session, write "echo hello", read the output, and end the session. Verify that the output contains "hello". This is a test to verify delta-sessions works correctly.',
+        '-m', 'Use delta-sessions to start a bash session, write "echo hello", read the output, and end the session. Verify that the output contains "hello". This is a test to verify delta-sessions works correctly.',
         '-y', // Silent mode
       ],
       {

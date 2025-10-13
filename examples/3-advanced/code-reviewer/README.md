@@ -101,7 +101,7 @@ Review a specific file for issues:
 ```bash
 delta run \
   --agent examples/3-advanced/code-reviewer \
-  --task "Review src/auth.js for security issues"
+  -m "Review src/auth.js for security issues"
 ```
 
 **Expected behavior**:
@@ -119,7 +119,7 @@ Review what changed in the last commit:
 ```bash
 delta run \
   --agent examples/3-advanced/code-reviewer \
-  --task "Review changes in the last commit (HEAD~1..HEAD). Focus on code quality and potential bugs."
+  -m "Review changes in the last commit (HEAD~1..HEAD). Focus on code quality and potential bugs."
 ```
 
 **Expected behavior**:
@@ -137,7 +137,7 @@ Review an entire feature branch before merging:
 ```bash
 delta run \
   --agent examples/3-advanced/code-reviewer \
-  --task "Review all changes in feature/user-auth branch compared to main. Check for: security issues, code quality, test coverage, and documentation."
+  -m "Review all changes in feature/user-auth branch compared to main. Check for: security issues, code quality, test coverage, and documentation."
 ```
 
 **Expected behavior**:
@@ -150,12 +150,12 @@ delta run \
 **Demonstrates resumability**:
 ```bash
 # Start review
-delta run --agent code-reviewer --task "Review feature branch" ...
+delta run --agent code-reviewer -m "Review feature branch" ...
 
 # [Agent reviews 5/15 files, you Ctrl+C to pause]
 
 # Resume later (hours or days)
-delta run --agent code-reviewer --task "Continue review where left off" ...
+delta run --agent code-reviewer -m "Continue review where left off" ...
 
 # Agent checks REVIEW.md, sees 5 files done, continues with file 6
 ```
@@ -238,7 +238,7 @@ Test pause/resume capability:
 
 ```bash
 # Start long review (20+ files)
-delta run --agent code-reviewer --task "Review entire src/ directory" ...
+delta run --agent code-reviewer -m "Review entire src/ directory" ...
 
 # After 2-3 iterations, press Ctrl+C to interrupt
 
@@ -246,7 +246,7 @@ delta run --agent code-reviewer --task "Review entire src/ directory" ...
 cat REVIEW.md  # See findings for files 1-3
 
 # Resume the review
-delta run --agent code-reviewer --task "Continue the code review. Check REVIEW.md to see what's already reviewed, then continue with remaining files." ...
+delta run --agent code-reviewer -m "Continue the code review. Check REVIEW.md to see what's already reviewed, then continue with remaining files." ...
 
 # Agent picks up where it left off
 ```

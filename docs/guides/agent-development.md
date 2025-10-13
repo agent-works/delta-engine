@@ -415,10 +415,10 @@ You help with deployment and infrastructure tasks.
 ### Manual Testing
 ```bash
 # Test with a simple task
-npx tsx src/index.ts run --agent ./my-agent --task "List all files"
+npx tsx src/index.ts run --agent ./my-agent -m "List all files"
 
 # Test with complex task
-npx tsx src/index.ts run --agent ./my-agent --task "Create three files named test1.txt, test2.txt, test3.txt with sequential numbers as content"
+npx tsx src/index.ts run --agent ./my-agent -m "Create three files named test1.txt, test2.txt, test3.txt with sequential numbers as content"
 ```
 
 ### Automated Testing
@@ -435,7 +435,7 @@ Run tests:
 ```bash
 while IFS= read -r task; do
   echo "Testing: $task"
-  npx tsx src/index.ts run --agent ./my-agent --task "$task"
+  npx tsx src/index.ts run --agent ./my-agent -m "$task"
 done < test-tasks.txt
 ```
 
@@ -490,7 +490,7 @@ tools:
 
 ```bash
 # Run with interactive mode flag
-delta run -i --agent ./my-agent --task "Configure application settings"
+delta run -i --agent ./my-agent -m "Configure application settings"
 ```
 
 Agent code:
@@ -506,7 +506,7 @@ user_preference = ask_human(
 
 ```bash
 # Run in async mode (default)
-delta run --agent ./my-agent --task "Deploy with user confirmation"
+delta run --agent ./my-agent -m "Deploy with user confirmation"
 ```
 
 Workflow:
@@ -769,7 +769,7 @@ summary = f"# Memory Summary\n\n{len(events)} events so far.\n\n" + "\n".join(fa
 
 **3. Run your agent:**
 ```bash
-delta run --agent ./my-agent --task "Long complex task with many steps"
+delta run --agent ./my-agent -m "Long complex task with many steps"
 ```
 
 The agent will maintain memory across 100+ iterations while using tokens efficiently.

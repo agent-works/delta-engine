@@ -18,7 +18,7 @@ npm install -g delta-engine
 delta init my-agent -t hello-world
 
 # 3. 运行它
-delta run --agent ./my-agent --task "创建一个问候文件"
+delta run --agent ./my-agent -m "创建一个问候文件"
 ```
 
 **发生了什么？**
@@ -30,10 +30,10 @@ delta run --agent ./my-agent --task "创建一个问候文件"
 **试试更多：**
 ```bash
 # 让 Agent 使用 Python 分析数据
-delta run --agent ./my-agent --task "计算 1 到 100 的平方和"
+delta run --agent ./my-agent -m "计算 1 到 100 的平方和"
 
 # 中断后可以随时恢复（Ctrl+C 后执行）
-delta run --agent ./my-agent --task "同样的任务"  # 自动从断点继续
+delta run --agent ./my-agent -m "同样的任务"  # 自动从断点继续
 ```
 
 ---
@@ -139,10 +139,10 @@ my-agent/workspaces/W001/  ← Agent 的工作目录
 # Meta-agent 编排其他 Agent
 tools:
   - name: research_agent
-    exec: "delta run --agent ./research-agent --task ${task}"
+    exec: "delta run --agent ./research-agent -m ${task}"
 
   - name: writer_agent
-    exec: "delta run --agent ./writer-agent --task ${task}"
+    exec: "delta run --agent ./writer-agent -m ${task}"
 ```
 
 像搭乐高一样构建复杂的 AI 系统 - 每个 Agent 专注做好一件事，组合创造智能。
@@ -154,15 +154,15 @@ tools:
 ### 🔄 断点恢复
 任何时候中断（Ctrl+C、崩溃、关机），都可以无缝恢复：
 ```bash
-delta run --agent ./my-agent --task "长时间任务"
+delta run --agent ./my-agent -m "长时间任务"
 # 执行被中断...
-delta run --agent ./my-agent --task "长时间任务"  # 自动继续
+delta run --agent ./my-agent -m "长时间任务"  # 自动继续
 ```
 
 ### 👥 人机协作
 Agent 可以在运行中向你提问，等待回复后继续：
 ```bash
-delta run -i --agent ./my-agent --task "需要我确认的任务"
+delta run -i --agent ./my-agent -m "需要我确认的任务"
 # Agent: "是否要删除这些文件？[yes/no]"
 # 你输入回答，Agent 继续执行
 ```
@@ -234,9 +234,9 @@ delta init <agent-name> -t <template>  # 从模板创建
 delta init <agent-name>                # 空白 Agent
 
 # 运行
-delta run --agent <path> --task "任务描述"       # 基本运行
-delta run -i --agent <path> --task "..."        # 交互模式
-delta run -y --agent <path> --task "..."        # 静默模式（自动创建工作区）
+delta run --agent <path> -m "任务描述"       # 基本运行
+delta run -i --agent <path> -m "..."        # 交互模式
+delta run -y --agent <path> -m "..."        # 静默模式（自动创建工作区）
 
 # 版本信息
 delta --version

@@ -19,29 +19,29 @@ This agent demonstrates Delta Engine's v1.5 session management for maintaining a
 ### Basic Usage
 
 ```bash
-delta run --agent examples/python-repl --task "Calculate the sum of numbers from 1 to 100"
+delta run --agent examples/python-repl -m "Calculate the sum of numbers from 1 to 100"
 ```
 
 ### Example Tasks
 
 **Simple Calculations**:
 ```bash
-delta run --agent examples/python-repl --task "Calculate 2^10 and show the result"
+delta run --agent examples/python-repl -m "Calculate 2^10 and show the result"
 ```
 
 **Function Definitions**:
 ```bash
-delta run --agent examples/python-repl --task "Define a function to check if a number is prime, then test it with 17"
+delta run --agent examples/python-repl -m "Define a function to check if a number is prime, then test it with 17"
 ```
 
 **Data Analysis**:
 ```bash
-delta run --agent examples/python-repl --task "Create a list of numbers 1-10, calculate their squares, and show the average"
+delta run --agent examples/python-repl -m "Create a list of numbers 1-10, calculate their squares, and show the average"
 ```
 
 **String Processing**:
 ```bash
-delta run --agent examples/python-repl --task "Reverse the string 'Hello World' and count vowels"
+delta run --agent examples/python-repl -m "Reverse the string 'Hello World' and count vowels"
 ```
 
 ## How It Works
@@ -95,7 +95,7 @@ See `config.yaml` for tool definitions:
 ### Multi-Line Functions
 
 ```bash
-delta run --agent examples/python-repl --task "Define a fibonacci function and calculate the 10th fibonacci number"
+delta run --agent examples/python-repl -m "Define a fibonacci function and calculate the 10th fibonacci number"
 ```
 
 The agent will:
@@ -107,13 +107,13 @@ The agent will:
 ### Working with Libraries
 
 ```bash
-delta run --agent examples/python-repl --task "Use numpy to create an array of 10 random numbers and calculate the mean"
+delta run --agent examples/python-repl -m "Use numpy to create an array of 10 random numbers and calculate the mean"
 ```
 
 ### Error Recovery
 
 ```bash
-delta run --agent examples/python-repl --task "Try to divide by zero, handle the error, and show the error message"
+delta run --agent examples/python-repl -m "Try to divide by zero, handle the error, and show the error message"
 ```
 
 The agent can see Python errors and recover gracefully.
@@ -131,7 +131,7 @@ The agent can see Python errors and recover gracefully.
 If you need specific libraries:
 
 ```bash
-delta run --agent examples/python-repl --task "Use pandas to create a DataFrame with columns 'name' and 'age', then show it"
+delta run --agent examples/python-repl -m "Use pandas to create a DataFrame with columns 'name' and 'age', then show it"
 ```
 
 ### Complex Algorithms
@@ -139,7 +139,7 @@ delta run --agent examples/python-repl --task "Use pandas to create a DataFrame 
 The agent can implement algorithms:
 
 ```bash
-delta run --agent examples/python-repl --task "Implement bubble sort to sort the list [5, 2, 8, 1, 9]"
+delta run --agent examples/python-repl -m "Implement bubble sort to sort the list [5, 2, 8, 1, 9]"
 ```
 
 ## Debugging

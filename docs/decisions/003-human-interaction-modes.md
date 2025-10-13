@@ -40,10 +40,10 @@ Agents often need human input during execution:
 
 ```bash
 # Interactive mode (sync)
-delta run -i --agent my-agent --task "Deploy to prod"
+delta run -i --agent my-agent -m "Deploy to prod"
 
 # Async mode (default)
-delta run --agent my-agent --task "Deploy to prod"
+delta run --agent my-agent -m "Deploy to prod"
 ```
 
 ### Built-in Tool: `ask_human`

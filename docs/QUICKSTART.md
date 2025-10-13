@@ -99,7 +99,7 @@ When the user asks you to greet someone, use the `greet` tool.
 ### Run the Agent
 
 ```bash
-delta run --agent . --task "Greet Alice"
+delta run --agent . -m "Greet Alice"
 ```
 
 **What happens**:
@@ -163,7 +163,7 @@ echo "Hey there, $1! Welcome to Delta Engine!"
 
 Run again:
 ```bash
-delta run --agent . --task "Greet Bob"
+delta run --agent . -m "Greet Bob"
 ```
 
 The agent now uses your updated tool—no engine restart needed.
@@ -206,7 +206,7 @@ tools:
 
 Run:
 ```bash
-delta run --agent . --task "Greet Charlie"
+delta run --agent . -m "Greet Charlie"
 ```
 
 The agent will read the guidelines first!
@@ -221,7 +221,7 @@ The agent will read the guidelines first!
 tools:
   # ✨ v1.7: Shell mode for complex commands
   - name: run_sub_agent
-    shell: "delta run --agent ${agent_path} --task ${task}"
+    shell: "delta run --agent ${agent_path} -m ${task}"
 ```
 
 <details>
@@ -237,7 +237,7 @@ tools:
         option_name: "--agent"
       - name: task
         inject_as: option
-        option_name: "--task"
+        option_name: "-m"
 ```
 </details>
 

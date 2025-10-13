@@ -77,7 +77,7 @@ async function runE2ETests() {
       const result = await runDelta([
         'run',
         '--agent', agentPath,
-        '--task', "Echo 'v1.7 test', create file test-v17.txt, write 'Hello v1.7' to output.txt, list files",
+        '-m', "Echo 'v1.7 test', create file test-v17.txt, write 'Hello v1.7' to output.txt, list files",
         '--work-dir', workDir,
         '-y'
       ]);
@@ -120,7 +120,7 @@ async function runE2ETests() {
       const result = await runDelta([
         'run',
         '--agent', agentPath,
-        '--task', "Write 'Step 1 complete' to progress.txt, then read it back, then list files",
+        '-m', "Write 'Step 1 complete' to progress.txt, then read it back, then list files",
         '--work-dir', workDir,
         '-y'
       ]);
@@ -157,7 +157,7 @@ async function runE2ETests() {
       const result1 = await runDelta([
         'run',
         '--agent', agentPath,
-        '--task', "Write note to notes.md: '# Finding 1\\nv1.7 syntax is 77% more concise'",
+        '-m', "Write note to notes.md: '# Finding 1\\nv1.7 syntax is 77% more concise'",
         '--work-dir', workDir,
         '-y'
       ]);
@@ -202,7 +202,7 @@ async function runE2ETests() {
       const result = await runDelta([
         'run',
         '--agent', agentPath,
-        '--task', "Read test.js, write review to REVIEW.md noting file structure, list files",
+        '-m', "Read test.js, write review to REVIEW.md noting file structure, list files",
         '--work-dir', workDir,
         '-y'
       ]);
@@ -248,7 +248,7 @@ async function runE2ETests() {
       const result = await runDelta([
         'run',
         '--agent', agentPath,
-        '--task', "Read sessions file and output analysis showing we have 1 success and 1 failure",
+        '-m', "Read sessions file and output analysis showing we have 1 success and 1 failure",
         '--work-dir', workDir,
         '-y'
       ]);
@@ -301,7 +301,7 @@ async function runE2ETests() {
       const runResult = await runDelta([
         'run',
         '--agent', agentDir,
-        '--task', "Echo 'Template test' and write to template-test.txt",
+        '-m', "Echo 'Template test' and write to template-test.txt",
         '--work-dir', workDir,
         '-y'
       ]);
@@ -335,7 +335,7 @@ async function runE2ETests() {
       const result = await runDelta([
         'run',
         '--agent', agentDir,
-        '--task', "Show date, echo 'Test', create empty.txt, write 'Content' to data.txt, list files",
+        '-m', "Show date, echo 'Test', create empty.txt, write 'Content' to data.txt, list files",
         '--work-dir', workDir,
         '-y'
       ]);
@@ -380,7 +380,7 @@ async function runE2ETests() {
       const result = await runDelta([
         'run',
         '--agent', agentDir,
-        '--task', "Create directory 'archive', move test1.txt to archive/, copy test2.txt to archive/, list files in archive/",
+        '-m', "Create directory 'archive', move test1.txt to archive/, copy test2.txt to archive/, list files in archive/",
         '--work-dir', workDir,
         '-y'
       ]);

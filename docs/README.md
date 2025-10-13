@@ -204,7 +204,7 @@ workspaces/W001/          # Data Plane (agent's workspace)
 # ✨ v1.7: Simplified shell: mode for option flags
 tools:
   - name: invoke_sub_agent
-    shell: "delta run --agent ${agent_path} --task ${task}"
+    shell: "delta run --agent ${agent_path} -m ${task}"
 ```
 
 <details>
@@ -222,7 +222,7 @@ tools:
       - name: task
         type: string
         inject_as: option
-        option_name: "--task"
+        option_name: "-m"
 ```
 </details>
 
@@ -232,13 +232,13 @@ tools:
 
 ```bash
 # Run an agent
-delta run --agent <path> --task "Do something"
+delta run --agent <path> -m "Do something"
 
 # Interactive mode (select workspace)
-delta run -i --agent <path> --task "Task"
+delta run -i --agent <path> -m "Task"
 
 # Silent mode (auto-create workspace)
-delta run -y --agent <path> --task "Task"
+delta run -y --agent <path> -m "Task"
 
 # Resume interrupted run
 delta run --resume --agent <path>

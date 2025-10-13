@@ -66,7 +66,7 @@ This shows exactly how the engine will execute each tool.
 ```bash
 delta run \
   --agent examples/v1.7-syntax-demo \
-  --task "List files in current directory and count how many there are"
+  -m "List files in current directory and count how many there are"
 ```
 
 ## Example Tools

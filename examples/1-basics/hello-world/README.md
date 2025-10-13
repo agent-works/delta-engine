@@ -12,13 +12,13 @@ The simplest Delta Engine agent to get you started.
 
 ```bash
 # Say hello
-delta run --agent examples/hello-world --task "Say hello to the world"
+delta run --agent examples/hello-world -m "Say hello to the world"
 
 # Create a file
-delta run --agent examples/hello-world --task "Create a file called test.txt with 'Hello Delta Engine' inside"
+delta run --agent examples/hello-world -m "Create a file called test.txt with 'Hello Delta Engine' inside"
 
 # Multiple actions
-delta run --agent examples/hello-world --task "Create three files: one.txt, two.txt, three.txt, then list all files"
+delta run --agent examples/hello-world -m "Create three files: one.txt, two.txt, three.txt, then list all files"
 ```
 
 ## How It Works
@@ -80,11 +80,11 @@ The agent has **no memory** between iterations. All state comes from:
 You can **interrupt** (Ctrl+C) and **resume** anytime:
 ```bash
 # Start task
-delta run --agent examples/hello-world --task "Create 100 files"
+delta run --agent examples/hello-world -m "Create 100 files"
 ^C  # Interrupt after 50 files
 
 # Resume - continues from where it left off
-delta run --agent examples/hello-world --task "Continue creating files"
+delta run --agent examples/hello-world -m "Continue creating files"
 ```
 
 The journal tells the agent what already happened.
@@ -117,7 +117,7 @@ The journal tells the agent what already happened.
 - **Cause**: Working directory is read-only or you lack permissions
 - **Solution**: Run from a writable directory or specify one:
   ```bash
-  delta run --agent examples/hello-world --work-dir /tmp/test --task "..."
+  delta run --agent examples/hello-world --work-dir /tmp/test -m "..."
   ```
 
 **Issue**: File already exists warning

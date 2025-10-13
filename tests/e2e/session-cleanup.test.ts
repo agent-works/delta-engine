@@ -159,7 +159,7 @@ Be concise and complete the task quickly.`;
       CLI_PATH,
       'run',
       '--agent', testAgentDir,
-      '--task', 'Start a shell session and end it immediately',
+      '-m', 'Start a shell session and end it immediately',
       '-y',
     ], {
       reject: false,
@@ -241,7 +241,7 @@ Keep it brief.`;
       CLI_PATH,
       'run',
       '--agent', testAgentDir,
-      '--task', 'Start a session then call fail_tool',
+      '-m', 'Start a session then call fail_tool',
       '-y',
     ], {
       reject: false,
@@ -315,7 +315,7 @@ Be brief.`;
       CLI_PATH,
       'run',
       '--agent', testAgentDir,
-      '--task', 'Start a session then sleep',
+      '-m', 'Start a session then sleep',
       '-y',
     ], {
       reject: false,
@@ -387,7 +387,7 @@ Do this FIRST before anything else.`;
       CLI_PATH,
       'run',
       '--agent', testAgentDir,
-      '--task', 'Ask me a question immediately',
+      '-m', 'Ask me a question immediately',
       '-y',
     ], {
       reject: false,
@@ -460,7 +460,7 @@ Do this FIRST before anything else.`;
       CLI_PATH,
       'run',
       '--agent', testAgentDir,
-      '--task', 'ignored', // Task is ignored when resuming
+      '-m', 'ignored', // Task is ignored when resuming
       '--work-dir', workDir,
     ], {
       reject: false,

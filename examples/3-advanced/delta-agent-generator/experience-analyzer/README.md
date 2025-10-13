@@ -77,13 +77,13 @@ Called by `delta-agent-generator`:
 ```bash
 # Parent agent calls this automatically
 delta run --agent examples/3-advanced/delta-agent-generator \
-  --task "Generate file organizer (check cost patterns first)"
+  -m "Generate file organizer (check cost patterns first)"
 ```
 
 The parent agent will invoke:
 ```bash
 delta run --agent experience-analyzer \
-  --task "Analyze cost patterns for file-processing agents" \
+  -m "Analyze cost patterns for file-processing agents" \
   --output json -y
 ```
 
@@ -97,7 +97,7 @@ cd examples/3-advanced/delta-agent-generator
 
 # Run sub-agent directly
 delta run --agent experience-analyzer \
-  --task "Predict cost for a database CRUD agent" \
+  -m "Predict cost for a database CRUD agent" \
   -y
 ```
 
@@ -105,7 +105,7 @@ delta run --agent experience-analyzer \
 
 ## 📊 Input/Output
 
-### Input (via --task)
+### Input (via -m)
 
 Analysis requests in natural language:
 
@@ -320,7 +320,7 @@ echo '{"timestamp":"2025-10-08T10:00:00Z","action":"execute","session_id":"test-
 
 # Run sub-agent
 delta run --agent experience-analyzer \
-  --task "Analyze patterns in my generation history" \
+  -m "Analyze patterns in my generation history" \
   -y
 
 # Expected: JSON analysis with insights
@@ -331,7 +331,7 @@ delta run --agent experience-analyzer \
 ```bash
 # Run parent agent, which will call sub-agent automatically
 delta run --agent examples/3-advanced/delta-agent-generator \
-  --task "Generate file organizer (predict cost first)" \
+  -m "Generate file organizer (predict cost first)" \
   -y
 
 # Expected: Parent agent calls sub-agent, uses insights to inform generation

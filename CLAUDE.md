@@ -16,10 +16,15 @@ npm test                        # All tests
 npm run test:unit              # Unit tests only
 npm run test:integration       # Integration tests
 
-# Run Agent
-delta run --agent <path> --task "Task description"
-delta run -i --agent <path> --task "..."  # Interactive mode
-delta run -y --agent <path> --task "..."  # Silent mode (auto-create workspace)
+# Run Agent (v1.8: updated to use -m/--message)
+delta run --agent <path> -m "Task description"
+delta run -i --agent <path> -m "..."  # Interactive mode
+delta run -y --agent <path> -m "..."  # Silent mode (auto-create workspace)
+
+# Continue Existing Run (v1.8: new command)
+delta continue --work-dir <path>                    # Resume INTERRUPTED run
+delta continue --work-dir <path> -m "Response"      # Respond to WAITING_FOR_INPUT
+delta continue --work-dir <path> -m "New task"      # Extend COMPLETED conversation
 
 # Debug
 RUN_ID=$(cat .delta/LATEST)
@@ -80,6 +85,85 @@ try { /* operations */ } finally { await handle.close(); }
 - Tool failures don't break the loop - errors become observations
 - All async operations wrapped in try-catch
 - Errors logged to both journal and `io/`
+
+### Version Iteration Charter (MANDATORY)
+⚠️ **CRITICAL**: Every version release MUST follow this process
+
+**Before ANY implementation work begins:**
+1. **Create Architecture Design Doc**: `docs/architecture/vX.Y-feature-name.md`
+   - Complete technical specification
+   - Design decisions and rationale
+   - API specifications
+   - Use cases and examples
+
+2. **Create Implementation Plan**: `docs/architecture/vX.Y-implementation-plan.md`
+   - Phase breakdown with detailed tasks
+   - Risk assessment and mitigation
+   - Testing strategy and success criteria
+   - Timeline and rollback plan
+
+**Why This Matters:**
+- Documents serve as recovery blueprint if work is lost
+- Forces thorough design thinking before coding
+- Creates reviewable specification for stakeholders
+- Enables parallel work and handoffs
+- Prevents "lost work disasters"
+
+**Violation Consequences:**
+- Loss of implementation work cannot be recovered
+- Days/weeks of effort may be permanently lost
+- Project momentum severely damaged
+
+**Incident Reference**: See `.story/incidents/2025-10-13-v1.8-data-loss.md` - Complete incident report of catastrophic data loss (100+ files) due to unnecessary `git checkout HEAD -- .`. **This charter exists because of that disaster.**
+
+### Git Dangerous Operations Charter (CRITICAL SAFETY)
+🚨 **EXTREME CAUTION**: These commands cause irreversible data loss
+
+**Dangerous Commands** (require explicit user request + multi-step confirmation):
+- `git checkout HEAD -- .` / `git checkout -- <file>` (discards uncommitted changes)
+- `git reset --hard` (discards all uncommitted work)
+- `git clean -fd` (deletes untracked files)
+- `rm -rf <directory>` (recursive force delete)
+- `git push --force` (overwrites remote history)
+
+**Safety Protocol - MUST follow ALL steps:**
+1. ✅ **Explicit User Request**: User must ask for the dangerous operation by exact command name
+2. ✅ **Clear Necessity**: No safer read-only alternative exists
+3. ✅ **Explicit Risk Warning**: Warn user about specific data loss (which files/changes will be lost)
+4. ✅ **User Confirmation**: Get explicit "yes, proceed" confirmation
+5. ✅ **Never Assume**: Never execute based on implied intent
+
+**NEVER execute these commands if:**
+- ❌ User did not explicitly request by name
+- ❌ You're trying to "verify" or "test" something
+- ❌ There's a safer read-only alternative (use `git status`, `git diff`, `git stash`)
+- ❌ Working on implementing new features (uncommitted work exists)
+- ❌ User said "check if..." or "see if..." (implies exploration, not destruction)
+
+**Example - WRONG ❌:**
+```
+User: "I want to check if tests pass without my changes"
+Assistant: *silently runs git checkout HEAD -- .*
+Result: DISASTER - 100+ files of work destroyed
+```
+
+**Example - RIGHT ✅:**
+```
+User: "I want to check if tests pass without my changes"
+Assistant: "I can help you test. Here are safe options:
+  1. git stash (saves your changes, reversible)
+  2. Create new branch and test there
+  3. Run tests on the current state with your changes
+  Which approach do you prefer?"
+```
+
+**If Accidentally Executed:**
+1. STOP immediately
+2. Inform user of data loss
+3. Check if recovery possible (git reflog, IDE history, file system recovery)
+4. Document incident in `.story/incidents/`
+
+**Incident Reference**: See `.story/incidents/2025-10-13-v1.8-data-loss.md` - Complete incident report. 100+ files destroyed by unnecessary `git checkout HEAD -- .` executed without user request or necessity. Entire v1.8.0 implementation work permanently lost.
 
 ---
 
@@ -210,7 +294,7 @@ See `examples/2-core-features/memory-folding/` for complete example.
 ## 🗂️ Reference
 
 ### Current Version
-**v1.7** - Tool Configuration Simplification (77% verbosity reduction)
+**v1.8** - Unified CLI API Improvements
 - v1.0: MVP with Think-Act-Observe
 - v1.1: Stateless core + journal.jsonl
 - v1.2: Human-in-the-loop (`ask_human`)
@@ -219,6 +303,7 @@ See `examples/2-core-features/memory-folding/` for complete example.
 - v1.5: Command-based simplified sessions
 - v1.6: Context composition + memory folding
 - v1.7: `exec:`/`shell:` syntax sugar
+- v1.8: CLI improvements (`-m` flag, `delta continue` command)
 - v2.0 (planned): Multi-agent orchestration
 
 ### Documentation Structure

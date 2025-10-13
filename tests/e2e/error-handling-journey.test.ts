@@ -105,7 +105,7 @@ hooks:
         cliPath,
         'run',
         '--agent', testAgentDir,
-        '--task', 'Run the failing_tool',
+        '-m', 'Run the failing_tool',
         '-y',
       ],
       {

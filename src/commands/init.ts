@@ -133,9 +133,9 @@ export async function handleInitCommand(
 
     // Generate run command based on whether we created a subdirectory
     if (agentName) {
-      console.log(`  delta run --agent ${agentName} --task "Your task description here"`);
+      console.log(`  delta run --agent ${agentName} -m "Your task description here"`);
     } else {
-      console.log(`  delta run --agent . --task "Your task description here"`);
+      console.log(`  delta run --agent . -m "Your task description here"`);
     }
 
     logger.divider();

@@ -113,7 +113,7 @@ hooks:
         cliPath,
         'run',
         '--agent', testAgentDir,
-        '--task', 'Echo "hello world"',
+        '-m', 'Echo "hello world"',
         '-y',
       ],
       {

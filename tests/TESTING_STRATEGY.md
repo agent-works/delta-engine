@@ -297,7 +297,7 @@ This document defines the comprehensive testing strategy for delta-engine, focus
 - Fresh system, no .delta/ directory
 - Run `delta init <path>`
 - Create basic config.yaml + system_prompt.md
-- Run `delta run --agent <path> --task "Hello world"`
+- Run `delta run --agent <path> -m "Hello world"`
 - Verify:
   - Workspace W001 created
   - First run completes successfully

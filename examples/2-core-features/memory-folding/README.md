@@ -98,7 +98,7 @@ Create files and see memory compression in action:
 ```bash
 delta run \
   --agent examples/memory-folding \
-  --task "Create 3 text files (file1.txt, file2.txt, file3.txt) with different content, then list them and summarize what you created" \
+  -m "Create 3 text files (file1.txt, file2.txt, file3.txt) with different content, then list them and summarize what you created" \
   --work-dir /tmp/memory-test \
   -y
 ```
@@ -115,7 +115,7 @@ Test memory retention across many iterations:
 ```bash
 delta run \
   --agent examples/memory-folding \
-  --task "Create 10 files named step1.txt through step10.txt. In each file, write 'Completed step N'. After all files are created, write a report.md summarizing all steps completed." \
+  -m "Create 10 files named step1.txt through step10.txt. In each file, write 'Completed step N'. After all files are created, write a report.md summarizing all steps completed." \
   --work-dir /tmp/memory-long \
   -y
 ```
@@ -133,7 +133,7 @@ Simulate a long research project:
 ```bash
 delta run \
   --agent examples/memory-folding \
-  --task "Research task: Create findings.md (iteration 1-3), then outline.md (iteration 4-5), then draft.md (iteration 6-8). Each file should reference previous work. Finally create final_report.md combining everything." \
+  -m "Research task: Create findings.md (iteration 1-3), then outline.md (iteration 4-5), then draft.md (iteration 6-8). Each file should reference previous work. Finally create final_report.md combining everything." \
   --work-dir /tmp/memory-research \
   -y
 ```
@@ -269,7 +269,7 @@ python3 /path/to/delta-engine/examples/memory-folding/tools/summarize.py
 echo 'print("SUMMARY GENERATED!")' >> tools/summarize.py
 
 # Run agent and check output
-delta run --agent examples/memory-folding --task "..." | grep "SUMMARY GENERATED"
+delta run --agent examples/memory-folding -m "..." | grep "SUMMARY GENERATED"
 ```
 
 ---

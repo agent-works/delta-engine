@@ -7,7 +7,7 @@
  * - Fresh system, no .delta/ directory
  * - Run `delta init <path>`
  * - Create basic config.yaml + system_prompt.md
- * - Run `delta run --agent <path> --task "Hello world"`
+ * - Run `delta run --agent <path> -m "Hello world"`
  * - Verify workspace W001 created, first run completes, journal + tools logged
  *
  * User Journey Source: README.md Quick Start section
@@ -87,7 +87,7 @@ async function testNewUserOnboarding() {
         cliPath,
         'run',
         '--agent', testAgentDir,
-        '--task', 'Echo hello world',
+        '-m', 'Echo hello world',
         '-y', // Silent mode, auto-create workspace
       ],
       {

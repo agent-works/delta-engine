@@ -306,7 +306,7 @@ record_interaction(
    Session ID: abc-123 (for future refinement)
 
    Next steps:
-   - Test: delta run --agent examples/file-organizer --task "Organize files in /tmp"
+   - Test: delta run --agent examples/file-organizer -m "Organize files in /tmp"
    - Refine: Use session ID abc-123 to add features
    ```
 
@@ -453,7 +453,7 @@ analyze_patterns()
 - ✅ Examples show Think-Act-Observe loop
 
 **Testing**:
-- ✅ Agent can be run with `delta run --agent PATH --task "..."`
+- ✅ Agent can be run with `delta run --agent PATH -m "..."`
 - ✅ Tools execute successfully
 - ✅ Error handling is graceful
 

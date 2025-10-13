@@ -49,7 +49,7 @@ async function testResumeWorkflow() {
 
     const firstRun = execa(
       'node',
-      [cliPath, 'run', '--agent', testAgentDir, '--task', 'Multi-step task', '-y'],
+      [cliPath, 'run', '--agent', testAgentDir, '-m', 'Multi-step task', '-y'],
       {
         reject: false,
         timeout: 3000, // 3 second timeout (simulates interrupt)
@@ -102,7 +102,7 @@ async function testResumeWorkflow() {
 
     const resumeResult = await execa(
       'node',
-      [cliPath, 'run', '--agent', testAgentDir, '--task', 'Resume task'],
+      [cliPath, 'run', '--agent', testAgentDir, '-m', 'Resume task'],
       {
         reject: false,
         timeout: 5000,

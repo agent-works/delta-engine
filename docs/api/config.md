@@ -834,7 +834,7 @@ delta tool:expand config.yaml
 **Step 3**: Test thoroughly
 ```bash
 # Test converted tools
-delta run --agent . --task "Test all tools"
+delta run --agent . -m "Test all tools"
 ```
 
 ### Backward Compatibility

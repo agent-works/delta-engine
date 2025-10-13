@@ -27,11 +27,11 @@ A bare-bones Delta Engine agent with essential tools for basic operations.
 
 \`\`\`bash
 # Run the agent
-delta run --agent . --task "Echo hello world"
+delta run --agent . -m "Echo hello world"
 
 # Example tasks
-delta run --agent . --task "Echo 'Hello, Delta Engine!'"
-delta run --agent . --task "Write 'Test content' to output.txt"
+delta run --agent . -m "Echo 'Hello, Delta Engine!'"
+delta run --agent . -m "Write 'Test content' to output.txt"
 \`\`\`
 
 ## Available Tools
@@ -103,12 +103,12 @@ A friendly demonstration agent with common file operations and utilities.
 
 \`\`\`bash
 # Run the agent
-delta run --agent . --task "Create a greeting file"
+delta run --agent . -m "Create a greeting file"
 
 # Example tasks
-delta run --agent . --task "Say hello and show today's date"
-delta run --agent . --task "Create hello.txt with 'Hello World' and list files"
-delta run --agent . --task "Create three files: one.txt, two.txt, three.txt"
+delta run --agent . -m "Say hello and show today's date"
+delta run --agent . -m "Create hello.txt with 'Hello World' and list files"
+delta run --agent . -m "Create three files: one.txt, two.txt, three.txt"
 \`\`\`
 
 ## Available Tools
@@ -130,12 +130,12 @@ delta run --agent . --task "Create three files: one.txt, two.txt, three.txt"
 
 ### Create and populate a file
 \`\`\`bash
-delta run --agent . --task "Create report.txt and write 'Project completed successfully'"
+delta run --agent . -m "Create report.txt and write 'Project completed successfully'"
 \`\`\`
 
 ### Organize with timestamps
 \`\`\`bash
-delta run --agent . --task "Show current date, then create a timestamped log file"
+delta run --agent . -m "Show current date, then create a timestamped log file"
 \`\`\`
 
 ## Next Steps
@@ -223,13 +223,13 @@ A specialized agent for file management, organization, and batch operations.
 
 \`\`\`bash
 # Run the agent
-delta run --agent . --task "Organize files in current directory"
+delta run --agent . -m "Organize files in current directory"
 
 # Example tasks
-delta run --agent . --task "List all files and their sizes"
-delta run --agent . --task "Create directories: docs, images, videos"
-delta run --agent . --task "Move all .txt files to docs/ folder"
-delta run --agent . --task "Find all files larger than 1MB"
+delta run --agent . -m "List all files and their sizes"
+delta run --agent . -m "Create directories: docs, images, videos"
+delta run --agent . -m "Move all .txt files to docs/ folder"
+delta run --agent . -m "Find all files larger than 1MB"
 \`\`\`
 
 ## Available Tools
@@ -254,17 +254,17 @@ delta run --agent . --task "Find all files larger than 1MB"
 
 ### Organize by file type
 \`\`\`bash
-delta run --agent . --task "Create folders by type (docs, images, code) and organize files"
+delta run --agent . -m "Create folders by type (docs, images, code) and organize files"
 \`\`\`
 
 ### Clean up downloads
 \`\`\`bash
-delta run --agent . --task "Find and organize files by extension, create summary report"
+delta run --agent . -m "Find and organize files by extension, create summary report"
 \`\`\`
 
 ### Backup important files
 \`\`\`bash
-delta run --agent . --task "Copy all .md files to backup/ directory"
+delta run --agent . -m "Copy all .md files to backup/ directory"
 \`\`\`
 
 ## Tips
@@ -363,13 +363,13 @@ A specialized agent for testing and validating REST APIs with comprehensive HTTP
 
 \`\`\`bash
 # Run the agent
-delta run --agent . --task "Test the JSONPlaceholder API"
+delta run --agent . -m "Test the JSONPlaceholder API"
 
 # Example tasks
-delta run --agent . --task "GET https://jsonplaceholder.typicode.com/posts/1"
-delta run --agent . --task "Test all endpoints of https://api.example.com"
-delta run --agent . --task "Check response times for https://api.example.com/users"
-delta run --agent . --task "POST new user data to https://api.example.com/users"
+delta run --agent . -m "GET https://jsonplaceholder.typicode.com/posts/1"
+delta run --agent . -m "Test all endpoints of https://api.example.com"
+delta run --agent . -m "Check response times for https://api.example.com/users"
+delta run --agent . -m "POST new user data to https://api.example.com/users"
 \`\`\`
 
 ## Available Tools
@@ -395,22 +395,22 @@ delta run --agent . --task "POST new user data to https://api.example.com/users"
 
 ### Test a public API
 \`\`\`bash
-delta run --agent . --task "Test JSONPlaceholder API: get all posts, create new post, verify creation"
+delta run --agent . -m "Test JSONPlaceholder API: get all posts, create new post, verify creation"
 \`\`\`
 
 ### Check API health
 \`\`\`bash
-delta run --agent . --task "Check status codes for all endpoints in https://api.example.com"
+delta run --agent . -m "Check status codes for all endpoints in https://api.example.com"
 \`\`\`
 
 ### Save API responses
 \`\`\`bash
-delta run --agent . --task "Fetch user data from API and save formatted JSON to users.json"
+delta run --agent . -m "Fetch user data from API and save formatted JSON to users.json"
 \`\`\`
 
 ### Performance testing
 \`\`\`bash
-delta run --agent . --task "Measure response times for 10 requests to /api/users endpoint"
+delta run --agent . -m "Measure response times for 10 requests to /api/users endpoint"
 \`\`\`
 
 ## Tips

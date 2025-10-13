@@ -56,7 +56,7 @@ claude --version
 ```bash
 # From delta-engine root directory
 delta run --agent examples/claude-code-workflow \
-  --task "Generate a Delta agent that reads and writes files"
+  -m "Generate a Delta agent that reads and writes files"
 ```
 
 ### What Happens
@@ -95,7 +95,7 @@ Cost: $0.18
 Session ID: abc-12345
 
 Next steps:
-- Test: delta run --agent examples/file-agent --task "Read config.yaml"
+- Test: delta run --agent examples/file-agent -m "Read config.yaml"
 - Refine: Provide session ID abc-12345 for improvements
 ```
 
@@ -273,7 +273,7 @@ record_interaction(log: '{
 **Request**:
 ```bash
 delta run --agent examples/claude-code-workflow \
-  --task "Create an agent with a single echo tool"
+  -m "Create an agent with a single echo tool"
 ```
 
 **Generated Agent**:
@@ -290,7 +290,7 @@ delta run --agent examples/claude-code-workflow \
 **Request**:
 ```bash
 delta run --agent examples/claude-code-workflow \
-  --task "Create a file processing agent with read, write, list, and organize capabilities. Include error handling and comprehensive documentation."
+  -m "Create a file processing agent with read, write, list, and organize capabilities. Include error handling and comprehensive documentation."
 ```
 
 **Generated Agent**:
@@ -307,14 +307,14 @@ delta run --agent examples/claude-code-workflow \
 **Initial Generation**:
 ```bash
 delta run --agent examples/claude-code-workflow \
-  --task "Create API testing agent"
+  -m "Create API testing agent"
 # Output: Session ID abc-123, Cost $0.15
 ```
 
 **Refinement** (using session ID):
 ```bash
 delta run --agent examples/claude-code-workflow \
-  --task "Resume session abc-123: Add response validation and retry logic"
+  -m "Resume session abc-123: Add response validation and retry logic"
 # Output: Session ID abc-123 (continued), Additional cost $0.08
 ```
 
@@ -468,7 +468,7 @@ ls -lht $WORKSPACE_DIR/.delta/$RUN_ID/io/invocations/ | head -5
 Use the session ID to refine:
 ```bash
 delta run --agent examples/claude-code-workflow \
-  --task "Resume session SESSION_ID: Fix validation issues - [specific issue]"
+  -m "Resume session SESSION_ID: Fix validation issues - [specific issue]"
 ```
 
 ---
@@ -526,7 +526,7 @@ cat .claude-lab/sessions.jsonl | jq 'select(.session_id=="SESSION_ID")'
 ```bash
 # Use experience to generate similar agent
 delta run --agent examples/claude-code-workflow \
-  --task "Generate an agent similar to the successful file-organizer (session abc-123), but for log files instead of general files"
+  -m "Generate an agent similar to the successful file-organizer (session abc-123), but for log files instead of general files"
 ```
 
 ### Multi-Step Generation
@@ -534,20 +534,20 @@ delta run --agent examples/claude-code-workflow \
 **Step 1: Plan**:
 ```bash
 delta run --agent examples/claude-code-workflow \
-  --task "Create execution plan for: Multi-tool data processing agent with CSV input, transformation, and export capabilities"
+  -m "Create execution plan for: Multi-tool data processing agent with CSV input, transformation, and export capabilities"
 # Review plan output
 ```
 
 **Step 2: Execute**:
 ```bash
 delta run --agent examples/claude-code-workflow \
-  --task "Generate the data processing agent from previous plan"
+  -m "Generate the data processing agent from previous plan"
 ```
 
 **Step 3: Refine**:
 ```bash
 delta run --agent examples/claude-code-workflow \
-  --task "Resume session SESSION_ID: Add validation and error handling"
+  -m "Resume session SESSION_ID: Add validation and error handling"
 ```
 
 ### Batch Generation
@@ -556,7 +556,7 @@ delta run --agent examples/claude-code-workflow \
 # Generate multiple agents (run sequentially)
 for agent in "file-reader" "file-writer" "file-organizer"; do
   delta run --agent examples/claude-code-workflow \
-    --task "Generate simple $agent agent"
+    -m "Generate simple $agent agent"
   echo "Generated: $agent"
 done
 
@@ -686,4 +686,4 @@ Demonstrates meta-level automation - AI controlling AI through structured interf
 
 ---
 
-**Start generating agents now**: `delta run --agent examples/claude-code-workflow --task "Your task here"`
+**Start generating agents now**: `delta run --agent examples/claude-code-workflow -m "Your task here"`

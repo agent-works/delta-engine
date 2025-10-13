@@ -26,7 +26,7 @@ These examples demonstrate Delta's **Three Pillars**:
 - **Highlights**: Educational focus, shows stateless core, interrupt/resume demo
 
 ```bash
-delta run --agent examples/1-basics/hello-world --task "Create a greeting file"
+delta run --agent examples/1-basics/hello-world -m "Create a greeting file"
 ```
 
 ---
@@ -41,7 +41,7 @@ delta run --agent examples/1-basics/hello-world --task "Create a greeting file"
 
 ```bash
 delta run --agent examples/2-core-features/interactive-shell \
-  --task "Navigate to /tmp, create 3 files, then count them"
+  -m "Navigate to /tmp, create 3 files, then count them"
 ```
 
 **[python-repl](./2-core-features/python-repl/)** ⭐⭐⭐⭐.5 (4.7/5)
@@ -52,7 +52,7 @@ delta run --agent examples/2-core-features/interactive-shell \
 
 ```bash
 delta run --agent examples/2-core-features/python-repl \
-  --task "Calculate factorial of 10 using a recursive function"
+  -m "Calculate factorial of 10 using a recursive function"
 ```
 
 **[memory-folding](./2-core-features/memory-folding/)** ⭐⭐⭐⭐⭐ (4.7/5) 🎓
@@ -63,7 +63,7 @@ delta run --agent examples/2-core-features/python-repl \
 - **New**: Enhanced docs (519 line README, 279 line system_prompt)
 
 ```bash
-delta run --agent examples/2-core-features/memory-folding --task "Long research task with memory compression"
+delta run --agent examples/2-core-features/memory-folding -m "Long research task with memory compression"
 ```
 
 ---
@@ -78,7 +78,7 @@ delta run --agent examples/2-core-features/memory-folding --task "Long research 
 
 ```bash
 delta run --agent examples/3-advanced/delta-agent-generator \
-  --task "Generate a Delta agent that reads and writes files"
+  -m "Generate a Delta agent that reads and writes files"
 ```
 
 **[code-reviewer](./3-advanced/code-reviewer/)** ⭐⭐⭐⭐⭐ (4.7/5) 🔍
@@ -89,7 +89,7 @@ delta run --agent examples/3-advanced/delta-agent-generator \
 
 ```bash
 delta run --agent examples/3-advanced/code-reviewer \
-  --task "Review changes in last commit (HEAD~1..HEAD)" --work-dir /path/to/repo
+  -m "Review changes in last commit (HEAD~1..HEAD)" --work-dir /path/to/repo
 ```
 
 **[research-agent](./3-advanced/research-agent/)** ⭐⭐⭐⭐⭐ (4.7/5) 🎓
@@ -100,7 +100,7 @@ delta run --agent examples/3-advanced/code-reviewer \
 
 ```bash
 delta run --agent examples/3-advanced/research-agent \
-  --task "Research RAG techniques comprehensively. Summarize when notes exceed 500 lines."
+  -m "Research RAG techniques comprehensively. Summarize when notes exceed 500 lines."
 ```
 
 ---
@@ -117,7 +117,7 @@ npm link
 ### 2. Run Your First Example
 ```bash
 # Start with hello-world
-delta run --agent examples/1-basics/hello-world --task "Say hello and create a file"
+delta run --agent examples/1-basics/hello-world -m "Say hello and create a file"
 ```
 
 ### 3. Explore the Three Pillars

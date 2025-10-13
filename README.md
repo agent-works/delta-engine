@@ -18,7 +18,7 @@ npm install -g delta-engine
 delta init my-agent -t hello-world
 
 # 3. Run it
-delta run --agent ./my-agent --task "Create a greeting file"
+delta run --agent ./my-agent -m "Create a greeting file"
 ```
 
 **What just happened?**
@@ -30,10 +30,10 @@ delta run --agent ./my-agent --task "Create a greeting file"
 **Try more:**
 ```bash
 # Let the agent analyze data with Python
-delta run --agent ./my-agent --task "Calculate the sum of squares from 1 to 100"
+delta run --agent ./my-agent -m "Calculate the sum of squares from 1 to 100"
 
 # Resume anytime after interruption (run after Ctrl+C)
-delta run --agent ./my-agent --task "Same task"  # Auto-resume from checkpoint
+delta run --agent ./my-agent -m "Same task"  # Auto-resume from checkpoint
 ```
 
 ---
@@ -139,10 +139,10 @@ Complex agent behaviors emerge from composing simple, single-purpose agents - no
 # Meta-agent that orchestrates other agents
 tools:
   - name: research_agent
-    exec: "delta run --agent ./research-agent --task ${task}"
+    exec: "delta run --agent ./research-agent -m ${task}"
 
   - name: writer_agent
-    exec: "delta run --agent ./writer-agent --task ${task}"
+    exec: "delta run --agent ./writer-agent -m ${task}"
 ```
 
 Build sophisticated AI systems like LEGO blocks - each agent does one thing well, composition creates intelligence.
@@ -154,15 +154,15 @@ Build sophisticated AI systems like LEGO blocks - each agent does one thing well
 ### 🔄 Checkpoint Resume
 Resume seamlessly from any interruption (Ctrl+C, crash, shutdown):
 ```bash
-delta run --agent ./my-agent --task "Long-running task"
+delta run --agent ./my-agent -m "Long-running task"
 # Execution interrupted...
-delta run --agent ./my-agent --task "Long-running task"  # Auto-continue
+delta run --agent ./my-agent -m "Long-running task"  # Auto-continue
 ```
 
 ### 👥 Human-in-the-Loop
 Agent can ask you questions mid-execution and wait for your reply:
 ```bash
-delta run -i --agent ./my-agent --task "Task requiring confirmation"
+delta run -i --agent ./my-agent -m "Task requiring confirmation"
 # Agent: "Delete these files? [yes/no]"
 # You type answer, agent continues
 ```
@@ -234,9 +234,9 @@ delta init <agent-name> -t <template>  # Create from template
 delta init <agent-name>                # Blank agent
 
 # Run
-delta run --agent <path> --task "Task description"    # Basic run
-delta run -i --agent <path> --task "..."              # Interactive mode
-delta run -y --agent <path> --task "..."              # Silent mode (auto-create workspace)
+delta run --agent <path> -m "Task description"    # Basic run
+delta run -i --agent <path> -m "..."              # Interactive mode
+delta run -y --agent <path> -m "..."              # Silent mode (auto-create workspace)
 
 # Version info
 delta --version

@@ -77,7 +77,7 @@ export interface ToolExecutionResult {
 ### 4.1 CLI Specification
 
 ```bash
-delta-engine run --agent <agent_path> --task "<task_description>" [--work-dir <path_to_work_dir>]
+delta-engine run --agent <agent_path> -m "<task_description>" [--work-dir <path_to_work_dir>]
 ```
 
 - **Default `--work-dir`:** If not provided, create a new directory in `<agent_path>/workspaces/` with format `<YYYYMMDD_HHmmss>_<uuid_short>`.

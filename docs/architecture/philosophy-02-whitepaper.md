@@ -111,7 +111,7 @@ tools:
   # This embodies "Composition Defines Intelligence": calling a sub-agent is itself a tool
   - name: run_sub_agent
     description: "Execute a sub-agent to complete a specific task."
-    exec: "delta run --agent ${agent_path} --task ${task} --work-dir ${work_dir}"
+    exec: "delta run --agent ${agent_path} -m ${task} --work-dir ${work_dir}"
 ```
 
 This design allows agents to be managed, shared, and reused like any standard software project, laying a solid foundation for the grand vision of distribution and version management through package managers.
@@ -122,12 +122,12 @@ Agents are invoked through a simple command-line interface, further embodying th
 
 ```bash
 delta run --agent /path/to/MySearchAgent/ \
-          --task "Search the web for the latest AI research progress and summarize it in a report" \
+          -m "Search the web for the latest AI research progress and summarize it in a report" \
           --work-dir /path/to/a_specific_run/
 ```
 
 - `--agent`: Path to the agent project directory.
-- `--task`: Initial task description for the agent to execute.
+- `-m`: Initial task description for the agent to execute.
 - `--work-dir`: Specifies the working directory (CWD) for this run; all file operations will occur within this directory.
 
 ---

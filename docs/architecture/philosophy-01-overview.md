@@ -25,7 +25,7 @@ Success is measured not by the final performance of agents, but by how much it i
 ```yaml
 tools:
   - name: run_sub_agent
-    shell: "delta run --agent ${agent_path} --task ${task}"
+    shell: "delta run --agent ${agent_path} -m ${task}"
 ```
 
 ### 2. The Environment is the Interface

@@ -25,7 +25,7 @@ Execute an agent with a specific task.
 #### Syntax
 
 ```bash
-delta run --agent <path> --task <description> [options]
+delta run --agent <path> -m <description> [options]
 ```
 
 #### Required Options
@@ -35,7 +35,7 @@ delta run --agent <path> --task <description> [options]
   - Can be relative or absolute
   - Must contain `config.yaml` and `system_prompt.md` (or `.txt`)
 
-- `--task <description>`, `-t <description>`
+- `-m <description>`, `-t <description>`
   - Task description for the agent to execute
   - Should be clear and specific
   - Enclose in quotes if contains spaces
@@ -78,19 +78,19 @@ delta run --agent <path> --task <description> [options]
 
 ```bash
 # Basic usage - prompts for workspace selection
-delta run --agent ./my-agent --task "List all Python files"
+delta run --agent ./my-agent -m "List all Python files"
 
 # Short form with options
 delta run -a ./my-agent -t "Create a README file"
 
 # Silent mode - auto-creates new workspace W001, W002, etc.
-delta run -y --agent ./my-agent --task "Quick task"
+delta run -y --agent ./my-agent -m "Quick task"
 
 # Interactive mode (v1.2) - synchronous CLI interaction
-delta run -i --agent ./my-agent --task "Get user preferences"
+delta run -i --agent ./my-agent -m "Get user preferences"
 
 # Async mode (v1.2) - file-based interaction (default)
-delta run --agent ./my-agent --task "Deploy after confirmation"
+delta run --agent ./my-agent -m "Deploy after confirmation"
 
 # Resume after async pause (v1.2)
 # After providing response in .delta/interaction/response.txt
@@ -100,10 +100,10 @@ delta run --agent ./my-agent
 delta run -a ./my-agent -t "Continue analysis" -w ./workspace
 
 # Limit iterations
-delta run --agent ./my-agent --task "Complex task" --max-iterations 10
+delta run --agent ./my-agent -m "Complex task" --max-iterations 10
 
 # Verbose output
-delta run --agent ./my-agent --task "Debug this" --verbose
+delta run --agent ./my-agent -m "Debug this" --verbose
 ```
 
 ### Version Information
@@ -332,7 +332,7 @@ Use the `-i` flag for synchronous CLI interaction:
 
 ```bash
 # Agent will pause and wait for input in terminal
-delta run -i --agent ./my-agent --task "Configure settings"
+delta run -i --agent ./my-agent -m "Configure settings"
 
 # Example interaction:
 # [Agent]: Please enter your API key:
@@ -346,7 +346,7 @@ Without the `-i` flag, agent uses file-based interaction:
 
 ```bash
 # Step 1: Start the agent
-delta run --agent ./my-agent --task "Deploy application"
+delta run --agent ./my-agent -m "Deploy application"
 
 # Agent pauses with exit code 101
 # Creates .delta/interaction/request.json:
@@ -372,7 +372,7 @@ delta run --agent ./my-agent
 WORKSPACE="./my-workspace"
 
 # Run agent
-if delta run --agent ./my-agent --task "Setup project" --work-dir "$WORKSPACE"; then
+if delta run --agent ./my-agent -m "Setup project" --work-dir "$WORKSPACE"; then
   echo "Agent completed successfully"
 else
   EXIT_CODE=$?
@@ -396,19 +396,19 @@ fi
 
 ```bash
 # First run - interactive workspace selection
-delta run --agent ./my-agent --task "Create files"
+delta run --agent ./my-agent -m "Create files"
 # User selects "Create new" → W001 is created
 
 # Second run - automatically suggests W001 (last used)
-delta run --agent ./my-agent --task "Modify files"
+delta run --agent ./my-agent -m "Modify files"
 # User presses Enter to use W001, or selects different workspace
 
 # Silent mode - always creates new workspace
-delta run -y --agent ./my-agent --task "Another task"
+delta run -y --agent ./my-agent -m "Another task"
 # Auto-creates W002
 
 # Explicit workspace path
-delta run --agent ./my-agent --task "Specific workspace" --work-dir ./my-workspace
+delta run --agent ./my-agent -m "Specific workspace" --work-dir ./my-workspace
 ```
 
 ### Batch Processing
@@ -416,12 +416,12 @@ delta run --agent ./my-agent --task "Specific workspace" --work-dir ./my-workspa
 ```bash
 # Process multiple tasks
 for task in "Task 1" "Task 2" "Task 3"; do
-  delta run --agent ./my-agent --task "$task"
+  delta run --agent ./my-agent -m "$task"
 done
 
 # Process tasks from file
 while IFS= read -r task; do
-  delta run --agent ./my-agent --task "$task"
+  delta run --agent ./my-agent -m "$task"
 done < tasks.txt
 ```
 
@@ -429,9 +429,9 @@ done < tasks.txt
 
 ```bash
 # Run multiple agents in parallel
-delta run --agent ./agent1 --task "Task 1" &
-delta run --agent ./agent2 --task "Task 2" &
-delta run --agent ./agent3 --task "Task 3" &
+delta run --agent ./agent1 -m "Task 1" &
+delta run --agent ./agent2 -m "Task 2" &
+delta run --agent ./agent3 -m "Task 3" &
 wait
 ```
 
@@ -439,17 +439,17 @@ wait
 
 ```bash
 # Extract final response
-delta run --agent ./my-agent --task "Task" 2>&1 |
+delta run --agent ./my-agent -m "Task" 2>&1 |
   grep -A 100 "Final Response:" |
   head -n -5
 
 # Extract run ID
-RUN_ID=$(delta run --agent ./my-agent --task "Task" 2>&1 |
+RUN_ID=$(delta run --agent ./my-agent -m "Task" 2>&1 |
   grep "Run ID:" |
   awk '{print $3}')
 
 # Extract workspace path
-WORKSPACE=$(delta run --agent ./my-agent --task "Task" 2>&1 |
+WORKSPACE=$(delta run --agent ./my-agent -m "Task" 2>&1 |
   grep "Work directory:" |
   cut -d: -f2- |
   xargs)
@@ -498,7 +498,7 @@ Warning: Maximum iterations (30) reached
 alias de='npx tsx /path/to/delta-engine/src/index.ts run'
 
 # Usage
-de --agent ./my-agent --task "Quick task"
+de --agent ./my-agent -m "Quick task"
 ```
 
 ### 2. Default Agent Path
@@ -506,7 +506,7 @@ de --agent ./my-agent --task "Quick task"
 ```bash
 # Create wrapper script
 #!/bin/bash
-delta run --agent ~/agents/my-default-agent --task "$*"
+delta run --agent ~/agents/my-default-agent -m "$*"
 ```
 
 ### 3. Task Templates
@@ -517,7 +517,7 @@ TASK_TEMPLATE="Analyze the file {file} and create a summary"
 
 # Use with substitution
 FILE="data.csv"
-delta run --agent ./analyst --task "${TASK_TEMPLATE//\{file\}/$FILE}"
+delta run --agent ./analyst -m "${TASK_TEMPLATE//\{file\}/$FILE}"
 ```
 
 ### 4. Persistent Workspace
@@ -528,7 +528,7 @@ WORKSPACE="$HOME/.delta-workspaces/my-project"
 mkdir -p "$WORKSPACE"
 
 # Always use same workspace
-alias my-agent="delta run --agent ~/agents/my-agent --work-dir $WORKSPACE --task"
+alias my-agent="delta run --agent ~/agents/my-agent --work-dir $WORKSPACE -m"
 
 # Usage
 my-agent "Do something"
@@ -538,7 +538,7 @@ my-agent "Do something"
 
 ```bash
 # Extract structured data from journal
-delta run --agent ./my-agent --task "Task" 2>/dev/null
+delta run --agent ./my-agent -m "Task" 2>/dev/null
 cat workspaces/*/delta/runs/*/journal.jsonl |
   jq -c 'select(.type == "ACTION_RESULT") | {tool: .payload.tool_name, status: .payload.status}'
 ```

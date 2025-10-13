@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Unified CLI API Improvements (v1.8)
+
+**Breaking Change: Simplified and semantic CLI interface:**
+
+- **Parameter Rename: `--task` → `-m/--message`**
+  - **Breaking**: `--task` flag removed, replaced with `-m/--message`
+  - **Rationale**: Semantic clarity - "message" is more accurate for conversational agents
+  - **Impact**: All `delta run` commands must update to use `-m` or `--message`
+  - **Before**: `delta run --agent <path> --task "Do something"`
+  - **After**: `delta run --agent <path> -m "Do something"`
+
+- **New Command: `delta continue`**
+  - Resume or extend existing runs with smart state machine logic
+  - Automatically detects run status and applies appropriate behavior:
+    - **INTERRUPTED**: Resume with optional message (graceful continuation)
+    - **WAITING_FOR_INPUT**: Require message, write to `response.txt` (async human-in-the-loop)
+    - **COMPLETED**: Require message to extend conversation (continue after success)
+    - **FAILED**: Require message to retry with new context (recovery workflow)
+    - **RUNNING**: Error (prevent concurrent execution)
+  - Syntax: `delta continue --work-dir <path> [-m "Message"]`
+  - Enables explicit conversation continuation vs implicit auto-resume
+
+- **Backward Compatibility**:
+  - `delta run` auto-resume behavior preserved for INTERRUPTED/WAITING_FOR_INPUT states
+  - No changes to existing workspace structure or journal format
+  - New `checkForAnyRun()` function for detecting runs in any state
+  - Extended `resumeContext()` with optional `userMessage` parameter for message injection
+
+### Changed - CLI Architecture Improvements (v1.8)
+
+**Code quality and maintainability enhancements:**
+
+- **New Helper Functions**:
+  - `runEngineWithLogging()` - Extracted engine execution logic (reduces duplication)
+  - `checkForAnyRun()` - Detects runs in ANY status (vs `checkForResumableRun()` limited to specific states)
+
+- **State Machine Implementation**:
+  - Explicit state handling in `handleContinueCommand()`
+  - Clear error messages for invalid state transitions
+  - User guidance for required parameters per state
+
+- **Modified Files**:
+  - `src/cli.ts` - Added continue command, refactored run command (~200 lines added)
+  - `src/context.ts` - Added `checkForAnyRun()`, extended `resumeContext()` signature
+  - All test files updated to use `-m` flag (9 E2E tests)
+  - All example READMEs updated (12 files)
+  - All documentation updated (20+ files)
+  - Templates and configs updated (5 files)
+
+### Documentation - Comprehensive Updates (v1.8)
+
+**Documentation reflects new CLI interface:**
+
+- **Updated References**:
+  - CLAUDE.md - Quick reference with `delta continue` examples
+  - README.md, README.zh-CN.md - Updated quick start
+  - All guides updated: getting-started.md, session-management.md, agent-development.md
+  - API docs updated: cli.md, config.md
+  - Example READMEs updated (12 files)
+
+- **Architecture Documentation**:
+  - `docs/architecture/v1.8-unified-cli-api.md` - Complete design specification
+  - `docs/architecture/v1.8-implementation-plan.md` - Implementation roadmap
+  - `.story/incidents/2025-10-13-v1.8-data-loss.md` - Data loss incident report
+
+- **Safety Charters Added to CLAUDE.md**:
+  - Version Iteration Charter - Mandatory docs-first approach
+  - Git Dangerous Operations Charter - Prevents data loss disasters
+
+### Breaking Changes
+
+**Migration Required for All Users:**
+
+1. **Update all `delta run` commands**:
+   ```bash
+   # OLD (v1.7 and earlier)
+   delta run --agent my-agent --task "Task description"
+
+   # NEW (v1.8+)
+   delta run --agent my-agent -m "Task description"
+   ```
+
+2. **Update scripts and automation**:
+   - Replace `--task` with `-m` or `--message` in all invocations
+   - No changes needed to config.yaml or agent files
+
+3. **Use `delta continue` for explicit continuation**:
+   - Replaces manual editing of response.txt for completed/failed runs
+   - State-aware continuation vs blanket auto-resume
+
 ### Added - Tool Configuration Simplification (v1.7)
 
 **Major feature: 77% reduction in tool configuration verbosity:**

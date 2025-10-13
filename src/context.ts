@@ -346,12 +346,64 @@ export async function checkForResumableRun(workDir: string): Promise<string | nu
 }
 
 /**
+ * Check for any existing run in the work directory (not limited to resumable states)
+ * Used by `delta continue` command to support continuing COMPLETED/FAILED runs
+ *
+ * @param workDir - The work directory to check
+ * @returns Object with runDir and status, or null if no run exists
+ */
+export async function checkForAnyRun(workDir: string): Promise<{ runDir: string; status: RunStatus } | null> {
+  const deltaDir = path.join(workDir, '.delta');
+
+  try {
+    // Check if .delta directory exists
+    await fs.access(deltaDir);
+
+    // Check for LATEST file
+    const latestFile = path.join(deltaDir, 'LATEST');
+    let runId: string;
+
+    try {
+      // Read the run ID from LATEST file
+      runId = await fs.readFile(latestFile, 'utf-8');
+      runId = runId.trim();
+
+      if (!runId) {
+        return null;
+      }
+    } catch {
+      // No LATEST file exists
+      return null;
+    }
+
+    // Construct the run directory path
+    const runDir = path.join(deltaDir, runId);
+
+    // Read metadata to check status
+    const metadataPath = path.join(runDir, 'metadata.json');
+    try {
+      const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+      const metadata: DeltaRunMetadata = JSON.parse(metadataContent);
+
+      // Return run info for ANY status (not limited to resumable)
+      return { runDir, status: metadata.status };
+    } catch {
+      // Metadata doesn't exist or is invalid
+      return null;
+    }
+  } catch {
+    // .delta directory doesn't exist
+    return null;
+  }
+}
+
+/**
  * Resume an existing run from a work directory
  * @param workDir - Path to the work directory
  * @param runDir - Path to the run directory to resume
  * @returns Engine context for the resumed run
  */
-export async function resumeContext(workDir: string, runDir: string, isInteractive?: boolean): Promise<EngineContext> {
+export async function resumeContext(workDir: string, runDir: string, isInteractive?: boolean, userMessage?: string): Promise<EngineContext> {
   const deltaDir = path.join(workDir, '.delta');
 
   // Load metadata from the run (v1.3: directly in run root)
@@ -365,6 +417,11 @@ export async function resumeContext(workDir: string, runDir: string, isInteracti
   // Create journal instance for the existing run
   const journal = createJournal(metadata.run_id, runDir);
   await journal.initialize();
+
+  // v1.8: Append user message if provided (for delta continue)
+  if (userMessage) {
+    await journal.logUserMessage(userMessage);
+  }
 
   // Update status to RUNNING since we're resuming
   await journal.updateMetadata({

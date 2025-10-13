@@ -22,7 +22,7 @@ npm link
 ### 1. Run an Example Agent
 
 ```bash
-delta run --agent examples/1-basics/hello-world --task "Create a greeting file"
+delta run --agent examples/1-basics/hello-world -m "Create a greeting file"
 ```
 
 ### 2. Create Your First Agent (v1.3)
@@ -50,20 +50,20 @@ delta init my-agent -t hello-world
 
 ```bash
 cd my-agent
-delta run -y --agent . --task "Your task here"
+delta run -y --agent . -m "Your task here"
 ```
 
 **Advanced options:**
 
 ```bash
 # Interactive workspace selection (choose from existing or create new)
-delta run --agent . --task "Your task here"
+delta run --agent . -m "Your task here"
 
 # Custom workspace location
-delta run --agent . --task "Your task here" --work-dir ./my-workspace
+delta run --agent . -m "Your task here" --work-dir ./my-workspace
 
 # Interactive mode for human-in-the-loop
-delta run -i --agent . --task "Your task here"
+delta run -i --agent . -m "Your task here"
 ```
 
 ## Understanding the Output
@@ -175,7 +175,7 @@ Refactoring authentication module
 EOF
 
 # Run agent - DELTA.md is automatically included
-delta run --agent my-agent --task "Add new login endpoint"
+delta run --agent my-agent -m "Add new login endpoint"
 ```
 
 **Custom Context Strategies**:
@@ -192,14 +192,14 @@ Two modes for human interaction:
 
 1. **Interactive Mode (`-i`)** - Synchronous CLI interaction
    ```bash
-   delta run -i --agent my-agent --task "Get user preferences"
+   delta run -i --agent my-agent -m "Get user preferences"
    ```
    - Agent pauses and waits for input in terminal
    - Suitable for local development and debugging
 
 2. **Async Mode (default)** - File-based interaction
    ```bash
-   delta run --agent my-agent --task "Process with confirmation"
+   delta run --agent my-agent -m "Process with confirmation"
    ```
    - Agent writes request to `.delta/interaction/request.json`
    - User provides response in `.delta/interaction/response.txt`
@@ -231,7 +231,7 @@ export DELTA_BASE_URL="https://your-endpoint.com/v1"
 cat workspaces/W001/.delta/$(cat workspaces/W001/.delta/LATEST)/journal.jsonl | jq
 
 # Or use verbose mode
-delta run -v --agent . --task "Your task"
+delta run -v --agent . -m "Your task"
 ```
 
 ## Getting Help

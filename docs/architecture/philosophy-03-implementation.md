@@ -125,7 +125,7 @@ tools:
         option_name: "--agent"
       - name: task
         inject_as: option
-        option_name: "--task"
+        option_name: "-m"
 ```
 
 **Result**: Agent orchestration is a first-class, zero-special-case capability.
@@ -494,17 +494,17 @@ cd research_project
 
 # 2. Run search agent
 delta run --agent ~/agents/web-searcher \
-  --task "Find AI papers" \
+  -m "Find AI papers" \
   --work-dir ./search_results
 
 # 3. Run analyzer on search results
 delta run --agent ~/agents/paper-analyzer \
-  --task "Analyze papers in ./search_results" \
+  -m "Analyze papers in ./search_results" \
   --work-dir .
 
 # 4. Run writer on analysis
 delta run --agent ~/agents/report-writer \
-  --task "Write summary from ./analysis.json" \
+  -m "Write summary from ./analysis.json" \
   --work-dir .
 ```
 

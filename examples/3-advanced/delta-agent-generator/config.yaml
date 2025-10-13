@@ -142,7 +142,7 @@ tools:
       Returns: Comprehensive JSON with summary, insights, cost predictions, and recommendations.
 
       **Architecture**: This demonstrates Delta's agent composition - calling another Delta agent as a tool.
-    command: [bash, -c, 'delta run --agent "${AGENT_HOME}/experience-analyzer" --work-dir "${CWD}" --task "$1" -y', --]
+    command: [bash, -c, 'delta run --agent "${AGENT_HOME}/experience-analyzer" --work-dir "${CWD}" -m "$1" -y', --]
     parameters:
       - name: analysis_request
         type: string

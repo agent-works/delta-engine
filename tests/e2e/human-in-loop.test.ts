@@ -88,7 +88,7 @@ async function testHumanInLoop() {
         cliPath,
         'run',
         '--agent', testAgentDir,
-        '--task', 'Ask the user for their favorite color using ask_human tool',
+        '-m', 'Ask the user for their favorite color using ask_human tool',
         '-y', // Silent mode (non-interactive)
       ],
       {
@@ -184,7 +184,7 @@ async function testHumanInLoop() {
         cliPath,
         'run',
         '--agent', testAgentDir,
-        '--task', 'Continue task', // New task, but should resume
+        '-m', 'Continue task', // New task, but should resume
         '-y',
       ],
       {

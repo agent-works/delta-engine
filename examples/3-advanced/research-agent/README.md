@@ -103,7 +103,7 @@ Research a focused topic:
 ```bash
 delta run \
   --agent examples/3-advanced/research-agent \
-  --task "Research the basics of Retrieval-Augmented Generation (RAG). Focus on: What is RAG? Core components. Key benefits. Write findings to notes.md."
+  -m "Research the basics of Retrieval-Augmented Generation (RAG). Focus on: What is RAG? Core components. Key benefits. Write findings to notes.md."
 ```
 
 **Expected behavior**:
@@ -126,7 +126,7 @@ Research with context management:
 ```bash
 delta run \
   --agent examples/3-advanced/research-agent \
-  --task "Conduct comprehensive research on RAG techniques. Phase 1: Foundations (what, why, how). Phase 2: Advanced techniques (hybrid RAG, multi-hop). When notes.md exceeds 500 lines, call create_summary to compress. Continue research after summarization."
+  -m "Conduct comprehensive research on RAG techniques. Phase 1: Foundations (what, why, how). Phase 2: Advanced techniques (hybrid RAG, multi-hop). When notes.md exceeds 500 lines, call create_summary to compress. Continue research after summarization."
 ```
 
 **Expected behavior**:
@@ -158,7 +158,7 @@ Long-running research across multiple sessions:
 ```bash
 delta run \
   --agent examples/3-advanced/research-agent \
-  --task "Begin comprehensive survey of transformer architectures. Cover: Original transformer, BERT, GPT evolution. Take detailed notes. After 10-15 findings, create summary and pause."
+  -m "Begin comprehensive survey of transformer architectures. Cover: Original transformer, BERT, GPT evolution. Take detailed notes. After 10-15 findings, create summary and pause."
 ```
 
 **[Pause - Go do other work for hours/days]**
@@ -167,14 +167,14 @@ delta run \
 ```bash
 delta run \
   --agent examples/3-advanced/research-agent \
-  --task "Continue transformer architecture survey. Check notes.md and research_summary.md to see what's covered. Focus on: Vision transformers, multimodal transformers, efficiency improvements. Build on previous research."
+  -m "Continue transformer architecture survey. Check notes.md and research_summary.md to see what's covered. Focus on: Vision transformers, multimodal transformers, efficiency improvements. Build on previous research."
 ```
 
 **Session 3** (Day 7):
 ```bash
 delta run \
   --agent examples/3-advanced/research-agent \
-  --task "Finalize transformer survey. Review all notes and summaries. Generate comprehensive final report with: Timeline, key innovations, comparative analysis. Create final_report.md."
+  -m "Finalize transformer survey. Review all notes and summaries. Generate comprehensive final report with: Timeline, key innovations, comparative analysis. Create final_report.md."
 ```
 
 **Expected behavior**:
@@ -241,7 +241,7 @@ Test pause/resume:
 
 ```bash
 # Session 1: Start research
-delta run --agent research-agent --task "Research topic X, phase 1" ...
+delta run --agent research-agent -m "Research topic X, phase 1" ...
 
 # Check progress mid-research
 cat notes.md
@@ -249,7 +249,7 @@ cat notes.md
 # [Ctrl+C to interrupt]
 
 # Session 2: Resume hours/days later
-delta run --agent research-agent --task "Continue research on topic X, check notes to see progress" ...
+delta run --agent research-agent -m "Continue research on topic X, check notes to see progress" ...
 
 # Agent picks up exactly where it left off
 ```
