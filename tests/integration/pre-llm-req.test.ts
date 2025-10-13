@@ -47,9 +47,9 @@ lifecycle_hooks:
     'utf-8'
   );
 
-  // Create system prompt
+  // Create system prompt (v1.6: requires system_prompt.md, not .txt)
   await fs.writeFile(
-    path.join(testAgentDir, 'system_prompt.txt'),
+    path.join(testAgentDir, 'system_prompt.md'),
     'You are a test agent for validating hook integration.',
     'utf-8'
   );

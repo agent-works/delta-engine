@@ -41,6 +41,13 @@ describe('Engine', () => {
     await fs.mkdir(workDir, { recursive: true });
     await fs.mkdir(agentPath, { recursive: true });
 
+    // v1.8.1 fix: Create system_prompt.md file (required by v1.6 context composition)
+    await fs.writeFile(
+      path.join(agentPath, 'system_prompt.md'),
+      'You are a test agent.',
+      'utf-8'
+    );
+
     // Create a mock agent config
     mockConfig = {
       name: 'test-agent',
@@ -304,299 +311,23 @@ describe('Engine', () => {
   });
 
   // ============================================
-  // 2. Stateless Core: rebuildConversationFromJournal() (12 test cases)
+  // 2. (REMOVED) Stateless Core: rebuildConversationFromJournal()
   // ============================================
-
-  describe('rebuildConversationFromJournal()', () => {
-    test('should return only initial user task for empty journal', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      // Access private method via type assertion
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      expect(messages).toHaveLength(1);
-      expect(messages[0]).toEqual({
-        role: 'user',
-        content: 'Test task',
-      });
-    });
-
-    test('should rebuild single THOUGHT event as assistant message', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      // Log a THOUGHT event
-      await context.journal.logThought(
-        'I will echo the message',
-        'invocation-1',
-        [
-          {
-            id: 'call_1',
-            type: 'function',
-            function: {
-              name: 'echo',
-              arguments: '{"message": "hello"}',
-            },
-          },
-        ]
-      );
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      expect(messages).toHaveLength(2);
-      expect(messages[1]).toMatchObject({
-        role: 'assistant',
-        content: 'I will echo the message',
-        tool_calls: expect.arrayContaining([
-          expect.objectContaining({
-            id: 'call_1',
-            type: 'function',
-          }),
-        ]),
-      });
-    });
-
-    test('should rebuild THOUGHT + ACTION_RESULT as complete conversation', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      // Log THOUGHT
-      await context.journal.logThought(
-        'Executing echo',
-        'invocation-1',
-        [
-          {
-            id: 'call_1',
-            type: 'function',
-            function: {
-              name: 'echo',
-              arguments: '{"message": "test"}',
-            },
-          },
-        ]
-      );
-
-      // Log ACTION_RESULT
-      await context.journal.logActionResult(
-        'call_1',
-        'SUCCESS',
-        '=== STDOUT ===\ntest\n=== EXIT CODE: 0 ===',
-        'exec-1'
-      );
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      expect(messages).toHaveLength(3);
-
-      // Verify assistant message
-      expect(messages[1].role).toBe('assistant');
-
-      // Verify tool message
-      expect(messages[2]).toMatchObject({
-        role: 'tool',
-        content: expect.stringContaining('test'),
-        tool_call_id: 'call_1',
-      });
-    });
-
-    test('should rebuild multiple conversation rounds correctly', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      // Round 1
-      await context.journal.logThought('First thought', 'inv-1', [
-        { id: 'call_1', type: 'function', function: { name: 'echo', arguments: '{}' } },
-      ]);
-      await context.journal.logActionResult('call_1', 'SUCCESS', 'Result 1', 'exec-1');
-
-      // Round 2
-      await context.journal.logThought('Second thought', 'inv-2', [
-        { id: 'call_2', type: 'function', function: { name: 'echo', arguments: '{}' } },
-      ]);
-      await context.journal.logActionResult('call_2', 'SUCCESS', 'Result 2', 'exec-2');
-
-      // Round 3
-      await context.journal.logThought('Third thought', 'inv-3', [
-        { id: 'call_3', type: 'function', function: { name: 'echo', arguments: '{}' } },
-      ]);
-      await context.journal.logActionResult('call_3', 'SUCCESS', 'Result 3', 'exec-3');
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      // 1 user + 3 * (1 assistant + 1 tool) = 7
-      expect(messages).toHaveLength(7);
-
-      expect(messages[0].role).toBe('user');
-      expect(messages[1].role).toBe('assistant');
-      expect(messages[2].role).toBe('tool');
-      expect(messages[3].role).toBe('assistant');
-      expect(messages[4].role).toBe('tool');
-      expect(messages[5].role).toBe('assistant');
-      expect(messages[6].role).toBe('tool');
-    });
-
-    test('should preserve original tool_calls format from LLM', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      const originalToolCalls = [
-        {
-          id: 'call_abc123',
-          type: 'function' as const,
-          function: {
-            name: 'complex_tool',
-            arguments: '{"nested": {"key": "value"}, "array": [1, 2, 3]}',
-          },
-        },
-      ];
-
-      await context.journal.logThought('Complex call', 'inv-1', originalToolCalls);
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      const assistantMsg = messages[1] as any;
-      expect(assistantMsg.tool_calls).toEqual(originalToolCalls);
-    });
-
-    test('should handle THOUGHT with null content (tool-only)', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      // Some LLMs return null content when only calling tools
-      await context.journal.logThought(
-        null as any, // null content
-        'inv-1',
-        [{ id: 'call_1', type: 'function', function: { name: 'echo', arguments: '{}' } }]
-      );
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      expect(messages).toHaveLength(2);
-      expect(messages[1]).toMatchObject({
-        role: 'assistant',
-        content: null,
-      });
-    });
-
-    test('should skip SYSTEM_MESSAGE events during rebuild', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      await context.journal.logSystemMessage('INFO', 'System log entry');
-      await context.journal.logThought('User thought', 'inv-1', undefined);
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      // Should only have user + assistant, SYSTEM_MESSAGE is skipped
-      expect(messages).toHaveLength(2);
-      expect(messages[0].role).toBe('user');
-      expect(messages[1].role).toBe('assistant');
-    });
-
-    test('should handle corrupted journal gracefully (missing fields)', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      // Manually write corrupted event
-      const journalPath = path.join(context.deltaDir, context.runId, 'journal.jsonl');
-      await fs.appendFile(
-        journalPath,
-        JSON.stringify({
-          seq: 1,
-          timestamp: new Date().toISOString(),
-          type: 'THOUGHT',
-          payload: {}, // Missing required fields
-        }) + '\n',
-        'utf-8'
-      );
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      // Should still return user message despite corruption
-      expect(messages.length).toBeGreaterThanOrEqual(1);
-      expect(messages[0].role).toBe('user');
-    });
-
-    test('should handle out-of-order events (by sequence number)', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      // Events are always written in order by journal,
-      // but we test if rebuild handles them correctly
-      await context.journal.logThought('First', 'inv-1', undefined);
-      await context.journal.logThought('Second', 'inv-2', undefined);
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      expect(messages).toHaveLength(3);
-      expect((messages[1] as any).content).toBe('First');
-      expect((messages[2] as any).content).toBe('Second');
-    });
-
-    test('should handle large journal (1000+ events) efficiently', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      // Create 500 rounds (1000 events)
-      for (let i = 0; i < 500; i++) {
-        await context.journal.logThought(`Thought ${i}`, `inv-${i}`, undefined);
-        await context.journal.logActionResult(`call-${i}`, 'SUCCESS', `Result ${i}`, `exec-${i}`);
-      }
-
-      const startTime = Date.now();
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-      const duration = Date.now() - startTime;
-
-      // Should complete in reasonable time (<1 second)
-      expect(duration).toBeLessThan(1000);
-
-      // 1 user + 500 * 2 = 1001
-      expect(messages).toHaveLength(1001);
-    });
-
-    test('should handle special characters in content', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      const specialContent = 'Test with\nnewlines\tand\ttabs, "quotes", and emoji 🚀';
-      await context.journal.logThought(specialContent, 'inv-1', undefined);
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-      const messages: ChatCompletionMessageParam[] = await rebuild();
-
-      expect(messages[1]).toMatchObject({
-        role: 'assistant',
-        content: specialContent,
-      });
-    });
-
-    test('should be safe for concurrent reads', async () => {
-      const engine = new Engine(context);
-      await engine.initialize();
-
-      await context.journal.logThought('Initial', 'inv-1', undefined);
-
-      const rebuild = (engine as any).rebuildConversationFromJournal.bind(engine);
-
-      // Trigger multiple concurrent reads
-      const results = await Promise.all([rebuild(), rebuild(), rebuild()]);
-
-      // All reads should return same result
-      expect(results[0]).toEqual(results[1]);
-      expect(results[1]).toEqual(results[2]);
-    });
-  });
+  //
+  // These 12 tests were removed because they test implementation details of a method
+  // that no longer exists. The method `rebuildConversationFromJournal()` was removed
+  // in v1.6 context composition refactor and replaced by:
+  //
+  // - `private async buildContext()` in engine.ts (delegates to ContextBuilder)
+  // - Journal-to-messages conversion logic in src/context/sources/journal-source.ts
+  //
+  // The functionality is now comprehensively tested in:
+  // - tests/unit/context/sources/journal-source.test.ts (13 test cases)
+  //
+  // This change aligns with the v1.6 architectural shift from hardcoded context
+  // building to flexible, modular context composition.
+  //
+  // Reference: docs/architecture/v1.6-context-composition.md
 
   // ============================================
   // 3. LLM Invocation & Hook Integration (10 test cases)

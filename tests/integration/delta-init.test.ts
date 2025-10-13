@@ -10,8 +10,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { v4 as uuidv4 } from 'uuid';
 import { handleInitCommand } from '../../src/commands/init.js';
-import { AgentConfigSchema } from '../../src/types.js';
-import yaml from 'yaml';
+import { loadAndValidateAgent } from '../../src/config.js';
 
 async function testDeltaInit() {
   console.log('=== Testing delta init Command (v1.3) ===\n');
@@ -76,15 +75,9 @@ async function testDeltaInit() {
     console.log(`  - README.md`);
 
     // Test 2: Validate config.yaml structure
+    // Note: Use loadAndValidateAgent() to properly expand v1.7 simplified syntax
     console.log('\nTest 2: Validate config.yaml structure...');
-    const configContent = await fs.readFile(configPath, 'utf-8');
-    const configData = yaml.parse(configContent);
-
-    // Validate using Zod schema
-    const validationResult = AgentConfigSchema.safeParse(configData);
-    if (!validationResult.success) {
-      throw new Error(`Invalid config.yaml: ${validationResult.error.message}`);
-    }
+    const { config: configData } = await loadAndValidateAgent(minimalAgentDir);
 
     console.log('✓ config.yaml has valid structure');
     console.log(`  - name: ${configData.name}`);

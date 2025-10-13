@@ -183,6 +183,22 @@ tools:
       );
     });
 
+    it('should show helpful hint when config.yaml not found in current directory (v1.8.1)', async () => {
+      // Simulate current directory path
+      const currentDir = process.cwd();
+      await fs.writeFile(path.join(tempAgentDir, 'system_prompt.md'), 'Prompt', 'utf-8');
+
+      await expect(loadAndValidateAgent(currentDir)).rejects.toThrow(
+        'No config.yaml found in current directory'
+      );
+      await expect(loadAndValidateAgent(currentDir)).rejects.toThrow(
+        "Hint: Either:"
+      );
+      await expect(loadAndValidateAgent(currentDir)).rejects.toThrow(
+        "1. Run 'delta init'"
+      );
+    });
+
     it('should reject when system_prompt is missing', async () => {
       const configYaml = `name: test
 llm:
