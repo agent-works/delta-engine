@@ -17,27 +17,27 @@ This agent uses `delta-sessions` to maintain a persistent bash session across mu
 
 ```bash
 # Navigate to agent directory
-cd examples/interactive-shell
+cd examples/2-core-features/interactive-shell
 
 # Run with Delta Engine
-delta run --agent examples/interactive-shell  -m "List files then check disk usage"
+delta run --agent examples/2-core-features/interactive-shell  -m "List files then check disk usage"
 ```
 
 ## Example Tasks
 
 ### Basic File Operations
 ```bash
-delta run --agent examples/interactive-shell   -m "Create a directory called 'test' and list its contents"
+delta run --agent examples/2-core-features/interactive-shell   -m "Create a directory called 'test' and list its contents"
 ```
 
 ### Multi-step Workflows
 ```bash
-delta run --agent examples/interactive-shell   -m "Navigate to /tmp, create 3 text files, then count them"
+delta run --agent examples/2-core-features/interactive-shell   -m "Navigate to /tmp, create 3 text files, then count them"
 ```
 
 ### System Information
 ```bash
-delta run --agent examples/interactive-shell   -m "Show current directory, disk usage, and running processes"
+delta run --agent examples/2-core-features/interactive-shell   -m "Show current directory, disk usage, and running processes"
 ```
 
 ## How It Works

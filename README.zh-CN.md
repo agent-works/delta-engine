@@ -345,7 +345,7 @@ my-agent/
 
 ## 项目信息
 
-- **当前版本**：v1.7
+- **当前版本**：v1.8
 - **许可证**：MIT
 - **仓库**：[GitHub](https://github.com/agent-works/delta-engine)
 - **问题反馈**：[Issues](https://github.com/agent-works/delta-engine/issues)

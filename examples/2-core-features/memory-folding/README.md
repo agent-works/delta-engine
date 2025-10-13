@@ -97,7 +97,7 @@ Create files and see memory compression in action:
 
 ```bash
 delta run \
-  --agent examples/memory-folding \
+  --agent examples/2-core-features/memory-folding \
   -m "Create 3 text files (file1.txt, file2.txt, file3.txt) with different content, then list them and summarize what you created" \
   --work-dir /tmp/memory-test \
   -y
@@ -114,7 +114,7 @@ Test memory retention across many iterations:
 
 ```bash
 delta run \
-  --agent examples/memory-folding \
+  --agent examples/2-core-features/memory-folding \
   -m "Create 10 files named step1.txt through step10.txt. In each file, write 'Completed step N'. After all files are created, write a report.md summarizing all steps completed." \
   --work-dir /tmp/memory-long \
   -y
@@ -132,7 +132,7 @@ Simulate a long research project:
 
 ```bash
 delta run \
-  --agent examples/memory-folding \
+  --agent examples/2-core-features/memory-folding \
   -m "Research task: Create findings.md (iteration 1-3), then outline.md (iteration 4-5), then draft.md (iteration 6-8). Each file should reference previous work. Finally create final_report.md combining everything." \
   --work-dir /tmp/memory-research \
   -y
@@ -204,7 +204,7 @@ tail -20 /path/to/workspace/.delta/*/engine.log | grep summarize
 
 **Solutions**:
 1. Verify Python 3 is installed and accessible
-2. Check `tools/summarize.py` permissions: `chmod +x examples/memory-folding/tools/summarize.py`
+2. Check `tools/summarize.py` permissions: `chmod +x examples/2-core-features/memory-folding/tools/summarize.py`
 3. Verify journal.jsonl exists before summary generation
 4. Check for Python errors in engine.log
 
@@ -242,7 +242,7 @@ grep -c "THOUGHT" /path/to/workspace/.delta/*/journal.jsonl
 ```bash
 # Run summarize.py manually
 cd /path/to/workspace
-python3 /path/to/delta-engine/examples/memory-folding/tools/summarize.py
+python3 /path/to/delta-engine/examples/2-core-features/memory-folding/tools/summarize.py
 ```
 
 **Common causes**:
@@ -269,7 +269,7 @@ python3 /path/to/delta-engine/examples/memory-folding/tools/summarize.py
 echo 'print("SUMMARY GENERATED!")' >> tools/summarize.py
 
 # Run agent and check output
-delta run --agent examples/memory-folding -m "..." | grep "SUMMARY GENERATED"
+delta run --agent examples/2-core-features/memory-folding -m "..." | grep "SUMMARY GENERATED"
 ```
 
 ---
@@ -413,7 +413,7 @@ Load different context based on task type:
 ### File Structure
 
 ```
-examples/memory-folding/
+examples/2-core-features/memory-folding/
 ├── config.yaml              # Tool definitions + LLM settings
 ├── context.yaml             # Context composition strategy
 ├── system_prompt.md         # Agent instructions (Delta-aware)

@@ -48,11 +48,11 @@ struct sockaddr_un {
 
 ```typescript
 // ❌ Wrong: Path too long
-const sessionDir = '/Users/fugen/codes/delta-engine/examples/interactive-shell/workspaces/W006/.sessions/sess_abc123de4567';
+const sessionDir = '/Users/fugen/codes/delta-engine/examples/2-core-features/interactive-shell/workspaces/W006/.sessions/sess_abc123de4567';
 const socketPath = path.join(sessionDir, 'session.sock');
 
 // socketPath length: 116 bytes
-// /Users/fugen/codes/delta-engine/examples/interactive-shell/workspaces/W006/.sessions/sess_abc123de4567/session.sock
+// /Users/fugen/codes/delta-engine/examples/2-core-features/interactive-shell/workspaces/W006/.sessions/sess_abc123de4567/session.sock
 //                                                                                                         ^
 //                                                                                                    104 bytes → TRUNCATED!
 ```

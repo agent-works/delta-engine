@@ -12,13 +12,13 @@ The simplest Delta Engine agent to get you started.
 
 ```bash
 # Say hello
-delta run --agent examples/hello-world -m "Say hello to the world"
+delta run --agent examples/1-basics/hello-world -m "Say hello to the world"
 
 # Create a file
-delta run --agent examples/hello-world -m "Create a file called test.txt with 'Hello Delta Engine' inside"
+delta run --agent examples/1-basics/hello-world -m "Create a file called test.txt with 'Hello Delta Engine' inside"
 
 # Multiple actions
-delta run --agent examples/hello-world -m "Create three files: one.txt, two.txt, three.txt, then list all files"
+delta run --agent examples/1-basics/hello-world -m "Create three files: one.txt, two.txt, three.txt, then list all files"
 ```
 
 ## How It Works
@@ -80,11 +80,11 @@ The agent has **no memory** between iterations. All state comes from:
 You can **interrupt** (Ctrl+C) and **resume** anytime:
 ```bash
 # Start task
-delta run --agent examples/hello-world -m "Create 100 files"
+delta run --agent examples/1-basics/hello-world -m "Create 100 files"
 ^C  # Interrupt after 50 files
 
 # Resume - continues from where it left off
-delta run --agent examples/hello-world -m "Continue creating files"
+delta run --agent examples/1-basics/hello-world -m "Continue creating files"
 ```
 
 The journal tells the agent what already happened.
@@ -117,7 +117,7 @@ The journal tells the agent what already happened.
 - **Cause**: Working directory is read-only or you lack permissions
 - **Solution**: Run from a writable directory or specify one:
   ```bash
-  delta run --agent examples/hello-world --work-dir /tmp/test -m "..."
+  delta run --agent examples/1-basics/hello-world --work-dir /tmp/test -m "..."
   ```
 
 **Issue**: File already exists warning
@@ -129,10 +129,10 @@ The journal tells the agent what already happened.
 - **Solution**: This is normal. Check journal for details:
   ```bash
   # Get latest run ID
-  RUN_ID=$(cat examples/hello-world/workspaces/LAST_USED/.delta/LATEST)
+  RUN_ID=$(cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/LATEST)
 
   # View journal
-  tail -20 examples/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.jsonl
+  tail -20 examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.jsonl
   ```
 
 **Issue**: "Command not found: delta"
@@ -148,26 +148,26 @@ The journal tells the agent what already happened.
 **View execution history**:
 ```bash
 # See all runs
-ls -lt examples/hello-world/workspaces/LAST_USED/.delta/
+ls -lt examples/1-basics/hello-world/workspaces/LAST_USED/.delta/
 
 # View latest run's journal
-RUN_ID=$(cat examples/hello-world/workspaces/LAST_USED/.delta/LATEST)
-cat examples/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.jsonl | jq .
+RUN_ID=$(cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/LATEST)
+cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.jsonl | jq .
 ```
 
 **Check run status**:
 ```bash
-cat examples/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/metadata.json
+cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/metadata.json
 ```
 
 **View LLM invocations**:
 ```bash
-ls -lht examples/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/io/invocations/
+ls -lht examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/io/invocations/
 ```
 
 **View tool execution logs**:
 ```bash
-ls -lht examples/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/io/tool_executions/
+ls -lht examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/io/tool_executions/
 ```
 
 ## Try It Yourself

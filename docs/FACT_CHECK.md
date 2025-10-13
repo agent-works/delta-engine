@@ -41,7 +41,7 @@ echo "npm install -g $PACKAGE_NAME"
 - [ ] tools/ directories: Confirm in example agents
 
 **Common Errors**:
-- ❌ `examples/hello-world/` (missing directory level)
+- ❌ `examples/1-basics/hello-world/` (missing directory level)
 - ✅ `examples/1-basics/hello-world/` (correct)
 
 **Verification Commands**:

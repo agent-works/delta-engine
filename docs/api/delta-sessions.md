@@ -875,8 +875,8 @@ echo "ls -la" | delta-sessions exec sess_abc123
 - **[Session Management Guide](../guides/session-management.md)** - Comprehensive usage guide with patterns and best practices
 - **[v1.5 Architecture Design](../architecture/v1.5-sessions-simplified.md)** - Technical design document and rationale
 - **[v1.4 to v1.5 Migration Guide](../migration/v1.4-to-v1.5.md)** - Upgrade from PTY-based sessions
-- **[Interactive Shell Example](../../examples/interactive-shell/)** - Working example agent
-- **[Python REPL Example](../../examples/python-repl/)** - Python execution example
+- **[Interactive Shell Example](../../examples/2-core-features/interactive-shell/)** - Working example agent
+- **[Python REPL Example](../../examples/2-core-features/python-repl/)** - Python execution example
 
 ### Experimental PTY Sessions
 

@@ -380,7 +380,7 @@ sources:
 
 **Result**: Agent remembers 100 iterations but only uses tokens for recent 5 + summary.
 
-See `examples/memory-folding/` for complete implementation.
+See `examples/2-core-features/memory-folding/` for complete implementation.
 
 ---
 
@@ -765,7 +765,7 @@ Use `on_missing: skip` for optional content:
 ## Next Steps
 
 - **Architecture details**: See [v1.6 design doc](../architecture/v1.6-context-composition.md)
-- **Complete example**: Explore `examples/memory-folding/`
+- **Complete example**: Explore `examples/2-core-features/memory-folding/`
 - **Agent development**: Read [agent development guide](./agent-development.md)
 - **API reference**: Check [delta CLI docs](../api/delta.md)
 

@@ -819,7 +819,7 @@ The generator receives environment variables:
 
 ### Complete Example
 
-See `examples/memory-folding/` for a fully working implementation demonstrating:
+See `examples/2-core-features/memory-folding/` for a fully working implementation demonstrating:
 - Custom context.yaml with all 3 source types
 - Python-based journal summarizer
 - Token-efficient context strategy
@@ -829,7 +829,7 @@ See `examples/memory-folding/` for a fully working implementation demonstrating:
 
 - **[Context Management Guide](./context-management.md)** - Comprehensive guide to context composition
 - **[v1.6 Architecture](../architecture/v1.6-context-composition.md)** - Design details and philosophy
-- **[memory-folding example](../../examples/memory-folding/)** - Working implementation
+- **[memory-folding example](../../examples/2-core-features/memory-folding/)** - Working implementation
 
 ---
 

@@ -559,8 +559,8 @@ None. All CLI commands remain the same. This is an internal architecture change 
   - Metadata persistence (JSON)
 
 - **New Example Agents:**
-  - `examples/interactive-shell/` - Persistent bash shell with multi-command execution
-  - `examples/python-repl/` - Python REPL with multi-line code, state persistence, error handling
+  - `examples/2-core-features/interactive-shell/` - Persistent bash shell with multi-command execution
+  - `examples/2-core-features/python-repl/` - Python REPL with multi-line code, state persistence, error handling
 
 - **Comprehensive Documentation:**
   - `docs/guides/session-management.md` - 500+ line user guide with patterns and troubleshooting
