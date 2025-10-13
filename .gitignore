@@ -1,6 +1,6 @@
 # Project specific exclusions
-Delta Engine Design v1.1.md
 
+docs/architecture/complete-design-v1.1-v1.9-coverage-report.md
 # Dependencies
 node_modules/
 npm-debug.log*

@@ -240,8 +240,8 @@ delta run -i --agent <path> -m "Task"
 # Silent mode (auto-create workspace)
 delta run -y --agent <path> -m "Task"
 
-# Resume interrupted run
-delta run --resume --agent <path>
+# Resume interrupted run (v1.8+)
+delta continue --work-dir <path>
 
 # Session management (v1.5)
 delta-sessions start bash           # Create session
@@ -298,8 +298,8 @@ When adding or updating documentation:
 
 ## 📖 External Resources
 
-- **GitHub Repository**: [github.com/delta-engine/delta-engine](https://github.com/delta-engine/delta-engine)
-- **Issue Tracker**: [GitHub Issues](https://github.com/delta-engine/delta-engine/issues)
+- **GitHub Repository**: [github.com/agent-works/delta-engine](https://github.com/agent-works/delta-engine)
+- **Issue Tracker**: [GitHub Issues](https://github.com/agent-works/delta-engine/issues)
 - **Examples**: [examples/](../examples/) in repository
 
 ---

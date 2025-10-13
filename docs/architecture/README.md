@@ -4,7 +4,7 @@
 
 Delta Engine is a minimalist platform for AI Agent development, following Unix philosophy and emphasizing simplicity, transparency, and composability.
 
-## Current Version: v1.7
+## Current Version: v1.9.1
 
 The current architecture implements these core principles:
 
@@ -13,16 +13,25 @@ The current architecture implements these core principles:
 3. **I/O Separation** - Clear separation between execution flow and I/O details
 4. **Human-in-the-Loop** - Interactive and asynchronous user input support (v1.2)
 5. **Simplified Sessions** - Command-based execution model (v1.5)
-6. **Context Composition** - Declarative context building with memory folding (v1.6)
+6. **Context Composition** - Declarative context building with memory folding (v1.6, required in v1.9.1)
 7. **Tool Simplification** - Syntax sugar for intuitive tool configuration (v1.7)
+8. **Unified Agent Structure** - Compositional configuration with imports mechanism (v1.9)
 
 ## Architecture Documents
+
+### Complete Design Reference (v1.1-v1.9)
+- **[Complete Design Specification (v1.1-v1.9)](./complete-design-v1.1-v1.9.md)** - Comprehensive technical reference consolidating all design specifications for knowledge base integration
+  - Organized by feature domain (not chronologically)
+  - 100% technical content coverage (all schemas, APIs, data structures)
+  - Includes all design decisions and rationale
+  - Recommended for: knowledge base ingestion, team discussions, system understanding
+- [Coverage Report](./complete-design-v1.1-v1.9-coverage-report.md) - Verification of completeness and accuracy
 
 ### Core Philosophy
 - [Delta Engine Philosophy](./philosophy-02-whitepaper.md) - Complete whitepaper: manifesto and architectural philosophy
 - [Core Principles & Code Mapping](./philosophy-03-implementation.md) - How philosophy translates to implementation
 
-### Design Specifications
+### Design Specifications (Chronological)
 - [v1.1 Design Specification](./v1.1-design.md) - Stateless core architecture
 - [v1.2 Human Interaction Specification](./v1.2-human-interaction.md) - Human-in-the-loop feature
 - [v1.3 Design Specification](./v1.3-design.md) - Directory structure simplification
@@ -31,6 +40,8 @@ The current architecture implements these core principles:
 - [v1.6 Context Composition](./v1.6-context-composition.md) - Declarative context management
 - [v1.7 Tool Simplification](./v1.7-tool-simplification.md) - Intuitive tool configuration with exec/shell syntax
 - [v1.7 Implementation Plan](./v1.7-implementation-plan.md) - Development roadmap for v1.7 features
+- [v1.8 Unified CLI API](./v1.8-unified-cli-api.md) - CLI improvements and `delta continue` command
+- [v1.9 Unified Agent Structure](./v1.9-unified-agent-structure.md) - Compositional configuration with imports mechanism and v1.9.1 context.yaml requirement
 
 ### Migration Guides
 - [Migration: v1.0 → v1.1](../migration/v1.0-to-v1.1.md) - Stateless core migration
@@ -77,7 +88,10 @@ Complexity emerges through composing simple Agents (processes).
 - **v1.4** - PTY-based sessions (deprecated, moved to experimental)
 - **v1.5** - Command-based simplified sessions (production-ready)
 - **v1.6** - Context composition layer with memory folding
-- **v1.7** (Current) - Tool configuration syntax sugar (exec/shell modes)
+- **v1.7** - Tool configuration syntax sugar (exec/shell modes)
+- **v1.8** - CLI improvements (`--task` → `-m/--message`, `delta continue` command)
+- **v1.9** - Unified agent structure (config.yaml → agent.yaml, hooks.yaml, imports)
+- **v1.9.1** (Current) - context.yaml now required (breaking change)
 - **v2.0** (Planned) - Multi-agent orchestration and ecosystem features
 
 ## See Also

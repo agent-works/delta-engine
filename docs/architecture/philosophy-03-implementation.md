@@ -16,11 +16,11 @@ Delta Engine's three philosophical pillars are not abstract ideals—they are di
 
 ### Code Implementation
 
-#### 1.1 Tool Definition (`config.yaml`)
+#### 1.1 Tool Definition (`agent.yaml`)
 
 Agents declare tools as external commands in their configuration:
 
-**File**: `<agent_home>/config.yaml`
+**File**: `<agent_home>/agent.yaml` (v1.9: renamed from `config.yaml`)
 ```yaml
 tools:
   - name: list_files
@@ -95,7 +95,7 @@ LLM-compatible tool schemas are generated from command definitions:
 **Key Function**: `convertToolsToOpenAISchema()` (`tool_schema.ts:8-42`)
 
 ```typescript
-// Converts config.yaml tools to OpenAI function calling format
+// Converts agent.yaml tools to OpenAI function calling format
 const openaiSchema = {
   type: "function",
   function: {
@@ -114,7 +114,7 @@ const openaiSchema = {
 
 Calling another agent is just defining a tool that invokes `delta run`:
 
-**Example**: `examples/3-advanced/delta-agent-generator/config.yaml`
+**Example**: `examples/3-advanced/delta-agent-generator/agent.yaml`
 ```yaml
 tools:
   - name: invoke_generated_agent
@@ -252,7 +252,7 @@ class ContextBuilder {
 }
 ```
 
-**Default Manifest** (when no `context.yaml` exists):
+**Default Template** (created by `delta init`, v1.9.1+ requires `context.yaml`):
 ```yaml
 sources:
   - type: file
@@ -312,12 +312,12 @@ const result = await execFile(command[0], command.slice(1), {
 
 Each agent is a directory with strict cohesion:
 
-**Standard Structure**:
+**Standard Structure** (v1.9+):
 ```
 <agent_name>/
-├── config.yaml          # Capability manifest (required)
+├── agent.yaml           # Capability manifest (required, v1.9: renamed from config.yaml)
 ├── system_prompt.md     # Agent instructions (required)
-├── context.yaml         # Context manifest (optional, v1.6)
+├── context.yaml         # Context manifest (required, v1.9.1+)
 ├── tools/               # Private tools (optional)
 │   ├── search.py
 │   └── analyze.sh
@@ -341,7 +341,7 @@ Each agent is a directory with strict cohesion:
 
 To create a specialized agent:
 1. Create directory: `mkdir -p generated_agents/research_agent`
-2. Write config: Write config.yaml to that directory
+2. Write config: Write agent.yaml to that directory
 3. Invoke sub-agent:
    ```
    invoke_generated_agent(
@@ -437,7 +437,7 @@ async function executeHook(
 }
 ```
 
-**Example Use Case**: `examples/3-advanced/code-reviewer/config.yaml`
+**Example Use Case**: `examples/3-advanced/code-reviewer/agent.yaml` (or `hooks.yaml` in v1.9+)
 ```yaml
 hooks:
   pre_llm_req:
@@ -562,7 +562,7 @@ class Engine {
 
 **Why Wrong**: Violates "Everything is a Command"
 
-**Correct Approach**: Define file operations as tools in `config.yaml`
+**Correct Approach**: Define file operations as tools in `agent.yaml`
 
 ### ❌ Anti-Pattern 2: In-Memory State Passing
 ```typescript
@@ -637,5 +637,5 @@ When adding new features, validate against principles:
 
 ---
 
-**Last Updated**: 2025-10-10
-**Version**: v1.6
+**Last Updated**: 2025-10-13
+**Version**: v1.9.1 (context.yaml now required)

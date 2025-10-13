@@ -80,9 +80,9 @@ A typical agent project structure looks like this:
 
 ```bash
 /path/to/MySearchAgent/
-├── config.yaml          # Core configuration file
+├── agent.yaml           # Core configuration file (v1.9: renamed from config.yaml)
 ├── system_prompt.md     # Agent's system prompt
-├── context.yaml         # (Optional) Context composition strategy (v1.6)
+├── context.yaml         # (Required, v1.9.1+) Context composition strategy
 ├── tools/               # (Optional) Custom tool scripts
 │   └── web_search.sh
 └── workspaces/          # Runtime generated: Execution workspaces (v1.3)
@@ -91,7 +91,7 @@ A typical agent project structure looks like this:
     └── W002/
 ```
 
-The `config.yaml` file is the agent's capability manifest, embodying the "Everything is a Command" philosophy. Here's a simplified example using v1.7 syntax, specifically showing how invoking another agent is also defined as a tool:
+The `agent.yaml` file (renamed from `config.yaml` in v1.9) is the agent's capability manifest, embodying the "Everything is a Command" philosophy. Here's a simplified example using v1.7 syntax, specifically showing how invoking another agent is also defined as a tool:
 
 ```yaml
 name: OrchestratorAgent

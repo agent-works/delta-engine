@@ -353,7 +353,7 @@ See: [Configuration Reference](docs/api/config.md)
 
 ## Project Info
 
-- **Current Version**: v1.9
+- **Current Version**: v1.9.1
 - **License**: MIT
 - **Repository**: [GitHub](https://github.com/agent-works/delta-engine)
 - **Issue Tracker**: [Issues](https://github.com/agent-works/delta-engine/issues)
