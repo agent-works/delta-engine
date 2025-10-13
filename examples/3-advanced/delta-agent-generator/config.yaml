@@ -20,6 +20,7 @@ llm:
 tools:
   # ===== Core Claude Code Integration (3 tools) =====
 
+  # v1.7 Simplified Syntax
   - name: claude_task
     description: |
       Execute a task with Claude Code in headless mode.
@@ -38,22 +39,9 @@ tools:
       - Starting new conversations
 
       IMPORTANT: Save session_id for refinement via claude_resume.
-    command: [bash, -c]
-    parameters:
-      - name: cmd_with_task
-        type: string
-        description: |
-          Complete bash command. Format:
-          claude -p "task description" --output-format json --permission-mode plan
+    exec: "bash -c ${cmd_with_task}"
 
-          Safety: Default to --permission-mode plan for preview first.
-          Only use --dangerously-skip-permissions if user explicitly approves.
-
-          Example:
-          claude -p "Create a Delta agent with file read/write tools" \
-            --output-format json --permission-mode plan
-        inject_as: argument
-
+  # v1.7 Simplified Syntax
   - name: claude_resume
     description: |
       Resume existing Claude Code session for iterative refinement.
@@ -65,19 +53,9 @@ tools:
       - Incremental improvements
 
       Returns: Updated JSON with same structure as claude_task.
-    command: [bash, -c]
-    parameters:
-      - name: cmd_with_resume
-        type: string
-        description: |
-          Complete bash command. Format:
-          claude --resume "session-id" -p "refinement request" --output-format json
+    exec: "bash -c ${cmd_with_resume}"
 
-          Example:
-          claude --resume "abc-123" -p "Add error handling to all tools" \
-            --output-format json --no-interactive
-        inject_as: argument
-
+  # v1.7 Simplified Syntax
   - name: claude_plan
     description: |
       Generate execution plan without making changes (preview mode).
@@ -89,21 +67,11 @@ tools:
       - High-risk changes
 
       Returns: Plan description in result field. No files modified.
-    command: [bash, -c]
-    parameters:
-      - name: cmd_with_plan
-        type: string
-        description: |
-          Complete bash command. Format:
-          claude -p "task description" --permission-mode plan --output-format json
-
-          Example:
-          claude -p "Refactor agent to use v1.6 context composition" \
-            --permission-mode plan --output-format json
-        inject_as: argument
+    exec: "bash -c ${cmd_with_plan}"
 
   # ===== Experience System (2 tools) =====
 
+  # v1.7 Simplified Syntax
   - name: read_experience
     description: |
       Read recent experience log entries to learn from past agent generations.
@@ -118,8 +86,7 @@ tools:
       - Effective task descriptions
 
       Returns: Last 50 log entries (or empty if no history).
-    command: [sh, -c, 'mkdir -p .claude-lab && if [ -f .claude-lab/sessions.jsonl ]; then tail -50 .claude-lab/sessions.jsonl; else echo "No history yet"; fi']
-    parameters: []
+    shell: 'mkdir -p .claude-lab && if [ -f .claude-lab/sessions.jsonl ]; then tail -50 .claude-lab/sessions.jsonl; else echo "No history yet"; fi'
 
   - name: analyze_experience
     description: |
@@ -158,6 +125,7 @@ tools:
           The sub-agent will read sessions.jsonl and provide intelligent insights.
         inject_as: argument
 
+  # v1.7 Simplified Syntax
   - name: record_interaction
     description: |
       Record execution to experience log for pattern learning.
@@ -176,27 +144,11 @@ tools:
       {"timestamp":"2025-10-08T10:00:00Z","action":"execute","session_id":"abc-123",
        "task":"Generate file-organizer agent","num_turns":5,"cost_usd":0.12,
        "result":"success","agent_type":"file-tools"}
-    command: [sh, -c, 'mkdir -p .claude-lab && echo "$1" >> .claude-lab/sessions.jsonl', --]
-    parameters:
-      - name: log_entry
-        type: string
-        description: |
-          JSON string (single line) containing:
-          - timestamp: ISO 8601 format
-          - action: Action type (execute/resume/plan/validate/complete/failed)
-          - session_id: Claude Code session ID
-          - task/prompt: Request description
-          - num_turns: Conversation turns (optional)
-          - cost_usd: Execution cost (optional)
-          - result: "success" or "failed"
-          - details: Additional context
-          - agent_type: Category for pattern analysis (optional)
-
-          Must be valid JSON on a single line.
-        inject_as: argument
+    shell: 'mkdir -p .claude-lab && echo ${log_entry} >> .claude-lab/sessions.jsonl'
 
   # ===== Validation & Inspection (2 tools) =====
 
+  # v1.7 Simplified Syntax
   - name: validate_agent
     description: |
       Comprehensive validation of generated Delta agent.
@@ -211,25 +163,9 @@ tools:
       Returns: Validation report with pass/fail for each check.
 
       Replaces: file_exists, run_tests (consolidated validation).
-    command: [bash, -c]
-    parameters:
-      - name: validation_script
-        type: string
-        description: |
-          Bash script that performs validation checks. Format:
+    exec: "bash -c ${validation_script}"
 
-          cd AGENT_PATH && \
-          echo "=== Validation Report ===" && \
-          echo -n "config.yaml: " && (test -f config.yaml && echo "✓" || echo "✗") && \
-          echo -n "system_prompt.md: " && (test -f system_prompt.md && echo "✓" || echo "✗") && \
-          echo -n "README.md: " && (test -f README.md && echo "✓" || echo "✗") && \
-          echo -n "Valid YAML: " && (python3 -c "import yaml; yaml.safe_load(open('config.yaml'))" 2>/dev/null && echo "✓" || echo "✗") && \
-          echo -n "Prompt length: " && wc -l system_prompt.md && \
-          echo "=== End Report ==="
-
-          Adjust AGENT_PATH to the generated agent directory.
-        inject_as: argument
-
+  # v1.7 Simplified Syntax
   - name: inspect_file
     description: |
       Read file contents for inspection (simplified from read_file/list_files).
@@ -242,27 +178,7 @@ tools:
 
       For directory listing, use: ls -la path/
       For file content: cat path/file
-    command: [bash, -c]
-    parameters:
-      - name: bash_command
-        type: string
-        description: |
-          Bash command for file inspection. Examples:
-
-          # Read file
-          cat examples/my-agent/config.yaml
-
-          # List directory
-          ls -la examples/my-agent/
-
-          # Check file size
-          wc -l examples/my-agent/system_prompt.md
-
-          # Show first 20 lines
-          head -20 examples/my-agent/README.md
-
-          Use standard bash commands for flexibility.
-        inject_as: argument
+    exec: "bash -c ${bash_command}"
 
 # ===== Lifecycle Hooks (Optional) =====
 # Auto-record interactions without explicit tool calls

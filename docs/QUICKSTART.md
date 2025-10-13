@@ -19,25 +19,17 @@ npm install -g delta-engine
 export DELTA_API_KEY="sk-..."
 ```
 
-## 💡 What's New in v1.7?
+## 💡 v1.7 Simplified Tool Syntax
 
-**77% simpler tool configuration** with new `exec:` and `shell:` syntax!
+Delta Engine v1.7 introduces clean, intuitive tool configuration:
 
 ```yaml
-# Before (v1.0-v1.6): 9 lines
-- name: list_files
-  command: [ls, -la]
-  parameters:
-    - name: directory
-      type: string
-      inject_as: argument
-
-# After (v1.7): 2 lines ✨
+# ✨ Simple and readable - just 2 lines!
 - name: list_files
   exec: "ls -la ${directory}"
 ```
 
-See `delta tool:expand config.yaml` to understand how v1.7 syntax expands internally.
+Parameters are automatically inferred from `${variable}` placeholders.
 
 ## Step 3: Try the Hello World Agent (2 minutes)
 
@@ -62,32 +54,16 @@ hello-world/
     └── greet.sh         # A simple tool
 ```
 
-**config.yaml** (tool definition - v1.7 simplified syntax):
+**config.yaml** (tool definition):
 ```yaml
 name: hello-world-agent
 description: A minimal agent demonstrating the three pillars
 
 tools:
-  # ✨ v1.7: Simplified exec: syntax (2 lines vs 9 lines!)
+  # Clean, intuitive v1.7 syntax
   - name: greet
     exec: "bash tools/greet.sh ${name}"
 ```
-
-<details>
-<summary>📦 Click to see v1.0-v1.6 legacy syntax (for reference)</summary>
-
-```yaml
-tools:
-  - name: greet
-    description: "Print a greeting message"
-    command: ["bash", "tools/greet.sh"]
-    parameters:
-      - name: name
-        type: string
-        description: "Name to greet"
-        inject_as: argument
-```
-</details>
 
 **system_prompt.md** (agent instructions):
 ```markdown
@@ -219,27 +195,10 @@ The agent will read the guidelines first!
 
 ```yaml
 tools:
-  # ✨ v1.7: Shell mode for complex commands
+  # Shell mode for complex commands
   - name: run_sub_agent
     shell: "delta run --agent ${agent_path} -m ${task}"
 ```
-
-<details>
-<summary>📦 For option injection (legacy syntax), click here</summary>
-
-```yaml
-tools:
-  - name: run_sub_agent
-    command: ["delta", "run"]
-    parameters:
-      - name: agent_path
-        inject_as: option
-        option_name: "--agent"
-      - name: task
-        inject_as: option
-        option_name: "-m"
-```
-</details>
 
 This enables **multi-agent orchestration** with zero special code.
 

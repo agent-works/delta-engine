@@ -4,7 +4,7 @@
 
 Agent configuration is defined in `config.yaml` using YAML format. This document describes all available configuration options.
 
-**✨ v1.7 Update**: Delta Engine now supports simplified tool syntax that reduces verbosity by 77%. See [v1.7 Simplified Syntax](#v17-simplified-syntax) below.
+**✨ v1.7**: Delta Engine uses simplified tool syntax with `exec:` and `shell:` modes. See [v1.7 Syntax](#v17-simplified-syntax) below.
 
 ## v1.7 Simplified Syntax
 
@@ -13,7 +13,7 @@ Delta Engine v1.7 introduces `exec:` and `shell:` modes as syntax sugar over the
 ### Quick Start
 
 ```yaml
-# ✨ v1.7: Simplified (Recommended)
+# v1.7 Syntax (Recommended)
 tools:
   - name: list_files
     exec: "ls -la ${directory}"
@@ -24,15 +24,6 @@ tools:
   - name: write_file
     exec: "tee ${filename}"
     stdin: content
-
-# 📦 Legacy (v1.0-v1.6): Still fully supported
-tools:
-  - name: list_files
-    command: [ls, -la]
-    parameters:
-      - name: directory
-        type: string
-        inject_as: argument
 ```
 
 ### exec: Mode (Direct Execution)
@@ -223,17 +214,7 @@ tools:
   - name: count_lines
     shell: "cat ${file} | wc -l"
 
-  # Legacy syntax (for option injection)
-  - name: grep_pattern
-    command: [grep]
-    parameters:
-      - name: pattern
-        type: string
-        inject_as: option
-        option_name: -e
-      - name: file
-        type: string
-        inject_as: argument
+  # Note: For option injection, use explicit syntax (see Legacy Syntax section below)
 
 # Optional: Lifecycle hooks
 lifecycle_hooks:
@@ -254,37 +235,6 @@ lifecycle_hooks:
   on_error:
     command: [./hooks/handle_error.sh]
 ```
-
-<details>
-<summary>📦 Click to see v1.0-v1.6 legacy format</summary>
-
-```yaml
-tools:
-  - name: list_files
-    command: [ls, -la]
-    parameters: []
-
-  - name: read_file
-    command: [cat]
-    parameters:
-      - name: filename
-        type: string
-        description: File to read
-        inject_as: argument
-
-  - name: write_file
-    command: [tee]
-    parameters:
-      - name: filename
-        type: string
-        description: File to write
-        inject_as: argument
-      - name: content
-        type: string
-        description: Content to write
-        inject_as: stdin
-```
-</details>
 
 ## Root Fields
 

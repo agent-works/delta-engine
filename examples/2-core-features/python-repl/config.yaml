@@ -8,35 +8,21 @@ llm:
   max_tokens: 2000
 
 tools:
-  # Start Python REPL
+  # Start Python REPL (v1.7 Simplified Syntax)
   - name: python_start
     description: "Start a persistent Python interactive session (REPL). Returns a session_id."
-    command: [delta-sessions, start, python3]
-    parameters: []
+    exec: "delta-sessions start python3"
 
-  # Execute Python code
+  # Execute Python code (v1.7 Simplified Syntax)
   - name: python_exec
     description: |
       Execute Python code in the REPL session.
       Returns complete output immediately (stdout, stderr, exit_code).
       Variables and imports persist across executions.
-    command: [delta-sessions, exec]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID from python_start"
-        inject_as: argument
-      - name: code
-        type: string
-        description: "Python code to execute (can be multi-line)"
-        inject_as: stdin
+    exec: "delta-sessions exec ${session_id}"
+    stdin: code
 
-  # End session
+  # End session (v1.7 Simplified Syntax)
   - name: python_end
     description: "Terminate the Python REPL session"
-    command: [delta-sessions, end]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID"
-        inject_as: argument
+    exec: "delta-sessions end ${session_id}"

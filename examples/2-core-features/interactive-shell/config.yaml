@@ -8,35 +8,21 @@ llm:
   max_tokens: 2000
 
 tools:
-  # Start a persistent bash session
+  # Start a persistent bash session (v1.7 Simplified Syntax)
   - name: session_start
     description: "Start a persistent bash session. Returns a session_id for subsequent commands."
-    command: [delta-sessions, start]
-    parameters: []
+    exec: "delta-sessions start"
 
-  # Execute command in session
+  # Execute command in session (v1.7 Simplified Syntax)
   - name: session_exec
     description: |
       Execute a bash command in the session.
       Returns complete output immediately (stdout, stderr, exit_code).
       Working directory and environment are preserved across commands.
-    command: [delta-sessions, exec]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID from session_start"
-        inject_as: argument
-      - name: command
-        type: string
-        description: "Bash command to execute (can be multi-line)"
-        inject_as: stdin
+    exec: "delta-sessions exec ${session_id}"
+    stdin: command
 
-  # Terminate session
+  # Terminate session (v1.7 Simplified Syntax)
   - name: session_end
     description: "Terminate the session. Always call this when done."
-    command: [delta-sessions, end]
-    parameters:
-      - name: session_id
-        type: string
-        description: "Session ID"
-        inject_as: argument
+    exec: "delta-sessions end ${session_id}"

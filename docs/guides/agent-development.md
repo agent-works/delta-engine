@@ -4,7 +4,7 @@
 
 This guide covers how to develop custom agents for Delta Engine, from basic file operations to complex multi-step workflows.
 
-**✨ v1.7 Update**: Delta Engine now supports simplified tool syntax with 77% less configuration! See [v1.7 Simplified Syntax](#v17-simplified-tool-syntax-recommended) below.
+**✨ v1.7**: Delta Engine uses simplified tool syntax with `exec:` and `shell:` modes. See [v1.7 Syntax](#v17-simplified-tool-syntax-recommended) below.
 
 ## Agent Anatomy
 
@@ -18,25 +18,13 @@ my-agent/
 
 ## v1.7 Simplified Tool Syntax (Recommended)
 
-Delta Engine v1.7 introduces simplified syntax that reduces tool configuration verbosity by 77%. **This is now the recommended way to define tools.**
-
-### Quick Comparison
+Delta Engine v1.7 introduces simplified syntax for clean, intuitive tool configuration. **This is now the recommended way to define tools.**
 
 ```yaml
-# ✨ NEW (v1.7): 2 lines - Clean and readable
+# v1.7 Syntax - Clean and readable
 tools:
   - name: list_files
     exec: "ls -la ${directory}"
-
-# 📦 OLD (v1.0-v1.6): 9 lines - Verbose and complex
-tools:
-  - name: list_files
-    command: [ls, -la]
-    parameters:
-      - name: directory
-        type: string
-        description: Directory to list
-        inject_as: argument
 ```
 
 ### Two Execution Modes
@@ -195,53 +183,6 @@ tools:
     # Built-in tool for requesting user input
     # No command needed - handled by Delta Engine
 ```
-
-<details>
-<summary>📦 Click to see v1.0-v1.6 legacy syntax</summary>
-
-```yaml
-tools:
-  - name: list_files
-    command: [ls, -la]
-    parameters: []
-
-  - name: create_file
-    command: [touch]
-    parameters:
-      - name: filename
-        type: string
-        description: Name of the file to create
-        inject_as: argument
-
-  - name: delete_file
-    command: [rm]
-    parameters:
-      - name: filename
-        type: string
-        description: Name of the file to delete
-        inject_as: argument
-
-  - name: read_file
-    command: [cat]
-    parameters:
-      - name: filename
-        type: string
-        description: File to read
-        inject_as: argument
-
-  - name: write_file
-    command: [tee]
-    parameters:
-      - name: filename
-        type: string
-        description: File to write to
-        inject_as: argument
-      - name: content
-        type: string
-        description: Content to write
-        inject_as: stdin
-```
-</details>
 
 `system_prompt.md`:
 ```markdown
