@@ -364,11 +364,136 @@ See `examples/2-core-features/memory-folding/` for complete example.
 3. Update rebuild logic in `engine.ts`
 4. Provide migration path for existing runs
 
-### Testing Workflow
-1. Run relevant test suite first (`npm run test:stateless`, `test:hooks`, etc.)
-2. Make changes
-3. Run full test suite (`npm test`)
-4. Test manually with example agents in `examples/`
+---
+
+## 🧪 Testing & Release Protocol
+
+### CRITICAL: Testing Checklist
+
+**⚠️ BEFORE saying "tests passed", you MUST:**
+
+- [ ] Run `npm run test:all` and verify ALL pass:
+  - Unit tests (330 tests)
+  - Integration tests (15 tests)
+  - E2E tests (6 core journeys minimum)
+
+**NEVER say "tests passed" after only running `npm test` (which skips E2E).**
+
+### Test Commands (Quick Reference)
+
+```bash
+# Complete test suite (required before release)
+npm run test:all              # Unit + Integration + E2E (DEFINITIVE)
+npm run test:pre-release      # Build + All Tests (use before releasing)
+
+# Individual test suites
+npm run test:unit             # 330 unit tests (fast, ~10s)
+npm run test:integration      # 15 integration tests (~20s)
+npm run test:e2e              # E2E tests (~45s)
+npm run test:e2e -- --core    # Only core 6 E2E tests (P0+P1)
+
+# Development
+npm run test:quick            # Alias for test:unit (fast feedback)
+npm run test:watch            # Watch mode for TDD
+npm test                      # Unit + Integration only (⚠️ skips E2E)
+
+# Specific integration tests
+npm run test:stateless        # Stateless core test
+npm run test:hooks            # Lifecycle hooks test
+npm run test:io               # I/O audit test
+```
+
+### Test Architecture (3-Layer Pyramid)
+
+```
+        E2E Tests (6 core journeys)
+       ─────────────────────────────
+      Integration Tests (15 scenarios)
+     ─────────────────────────────────────
+    Unit Tests (330 tests, core modules)
+   ───────────────────────────────────────────
+```
+
+**Test Strategy**:
+- **Unit**: Module-level logic, fast feedback
+- **Integration**: Component interactions, realistic scenarios
+- **E2E**: Complete user journeys, validates actual workflows
+
+**Documentation**: See `tests/TESTING_STRATEGY.md` for complete strategy.
+
+### Release Checklist (MANDATORY)
+
+**🔴 DO NOT RELEASE without completing `RELEASE_CHECKLIST.md`**
+
+Before ANY release:
+1. **Read**: `RELEASE_CHECKLIST.md` (in project root)
+2. **Complete**: Every checkbox in the checklist
+3. **Verify**: `npm run test:pre-release` passes
+4. **Confirm**: All documentation updated
+
+**The checklist includes**:
+- ✅ All test suites passing
+- ✅ Build successful
+- ✅ Documentation synchronized
+- ✅ Version bumped correctly
+- ✅ Manual smoke tests
+- ✅ Breaking change validation (if applicable)
+
+**No shortcuts. No exceptions.**
+
+### Testing Quality Standards
+
+**Rules**:
+- Tests must be independent (no shared state)
+- Tests must be deterministic (no flaky tests)
+- Test failures must provide clear error messages
+- NEVER comment out failing tests
+
+**Coverage Requirements**:
+- Core modules (engine, journal, executor): ≥80%
+- Support modules (context, config): ≥70%
+- Overall: ≥60% (CLI/LLM covered by integration tests)
+
+**Documentation**: See `docs/testing/TEST_QUALITY_STANDARDS.md`
+
+### Development Testing Workflow
+
+1. **Before coding**: Run relevant test suite
+   ```bash
+   npm run test:unit  # or specific: npm run test:hooks
+   ```
+
+2. **After changes**: Run impacted tests
+   ```bash
+   npm run test:quick  # Fast unit test feedback
+   ```
+
+3. **Before commit**: Run full test suite
+   ```bash
+   npm run test:all    # Ensure nothing broke
+   ```
+
+4. **Before PR/Release**: Complete validation
+   ```bash
+   npm run test:pre-release  # Build + All Tests
+   ```
+
+5. **Manual validation**: Test with examples
+   ```bash
+   cd examples/1-basics/hello-world
+   delta run -m "Test message"
+   ```
+
+### Release Process Summary
+
+1. **Complete** `RELEASE_CHECKLIST.md` (all checkboxes)
+2. **Run** `npm run test:pre-release` (must pass)
+3. **Update** version in `package.json`
+4. **Commit** with conventional commits format
+5. **Tag** with `git tag -a vX.Y.Z`
+6. **Push** `git push origin main && git push origin vX.Y.Z`
+
+**Detailed Process**: See `docs/testing/RELEASE_PROCESS.md`
 
 ---
 

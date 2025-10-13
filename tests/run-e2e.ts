@@ -3,19 +3,45 @@
 /**
  * E2E Test Runner
  * Runs all E2E tests and reports results
+ *
+ * Usage:
+ *   npm run test:e2e              # Run all E2E tests
+ *   npm run test:e2e -- --core    # Run only core user journey tests (P0+P1)
  */
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { execa } from 'execa';
 
+// Core user journey tests (P0 + P1 priority from TESTING_STRATEGY.md)
+const CORE_TESTS = [
+  'new-user-onboarding',
+  'resume-workflow',
+  'human-in-loop',
+  'multi-workspace-journey',
+  'hook-workflow',
+  'error-handling-journey',
+];
+
 async function runE2ETests() {
+  const coreOnly = process.argv.includes('--core');
+
   console.log('🧪 Running E2E Tests\n');
+  if (coreOnly) {
+    console.log('📌 Mode: Core user journeys only (P0 + P1)\n');
+  }
   console.log('==================================================');
 
   const e2eDir = path.join(process.cwd(), 'tests', 'e2e');
   const files = await fs.readdir(e2eDir);
-  const testFiles = files.filter(f => f.endsWith('.test.ts')).sort();
+  let testFiles = files.filter(f => f.endsWith('.test.ts')).sort();
+
+  if (coreOnly) {
+    testFiles = testFiles.filter(f => {
+      const testName = f.replace('.test.ts', '');
+      return CORE_TESTS.includes(testName);
+    });
+  }
 
   console.log(`Found ${testFiles.length} E2E test(s)\n`);
 
@@ -78,6 +104,15 @@ async function runE2ETests() {
           console.log(`    ${r.error}`);
         }
       });
+    console.log('\n💡 Tip: Run failed test individually for detailed output:');
+    console.log(`  node tests/e2e/${results.find(r => r.status === 'fail')?.name}.test.ts`);
+  } else {
+    console.log('\n✅ All E2E tests passed!');
+    if (coreOnly) {
+      console.log('📌 Core user journeys (P0 + P1) validated');
+    } else {
+      console.log('🚀 Complete E2E test suite validated');
+    }
   }
 
   process.exit(failed > 0 ? 1 : 0);
