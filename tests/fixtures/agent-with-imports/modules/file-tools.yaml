@@ -1,0 +1,22 @@
+name: file-tools-module
+version: 1.0.0
+description: Reusable file operation tools
+
+llm:
+  model: gpt-4-turbo-preview
+
+tools:
+  - name: read_file
+    description: Read file contents
+    exec: "cat ${filename}"
+
+  - name: write_file
+    description: Write content to file
+    exec: "tee ${filename}"
+    stdin: content
+
+  - name: list_files
+    description: List files in directory
+    exec: "ls -la ${path}"
+
+max_iterations: 30

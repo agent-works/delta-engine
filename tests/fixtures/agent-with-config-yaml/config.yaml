@@ -1,0 +1,28 @@
+name: legacy-agent
+version: 1.0.0
+description: Test agent using deprecated config.yaml format
+
+llm:
+  model: gpt-4-turbo-preview
+  temperature: 0.7
+  max_tokens: 1000
+
+tools:
+  - name: echo
+    description: Print a message
+    exec: "echo ${message}"
+
+  - name: write_file
+    description: Write content to file
+    exec: "tee ${filename}"
+    stdin: content
+
+lifecycle_hooks:
+  pre_llm_req:
+    command: ["echo", "Pre-LLM hook from config.yaml"]
+    timeout_ms: 5000
+  post_tool_exec:
+    command: ["echo", "Post-tool hook from config.yaml"]
+    timeout_ms: 5000
+
+max_iterations: 30

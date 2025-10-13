@@ -1,0 +1,20 @@
+name: agent-with-separate-hooks
+version: 1.9.0
+description: Test agent with hooks defined in separate hooks.yaml file
+
+llm:
+  model: gpt-4-turbo-preview
+  temperature: 0.7
+  max_tokens: 1000
+
+tools:
+  - name: echo
+    description: Print a message
+    exec: "echo ${message}"
+
+  - name: write_file
+    description: Write content to file
+    exec: "tee ${filename}"
+    stdin: content
+
+max_iterations: 30

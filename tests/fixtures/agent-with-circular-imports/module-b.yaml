@@ -1,0 +1,16 @@
+name: module-b
+version: 1.0.0
+description: Module B that imports module A (creates circular dependency)
+
+imports:
+  - module-a.yaml  # Circular: B -> A -> B
+
+llm:
+  model: gpt-4-turbo-preview
+
+tools:
+  - name: tool_b
+    description: Tool from module B
+    exec: "echo 'Tool B: ${message}'"
+
+max_iterations: 30

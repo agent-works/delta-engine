@@ -1,0 +1,24 @@
+pre_llm_req:
+  command: ["echo", "Pre-LLM hook from hooks.yaml"]
+  timeout_ms: 5000
+  description: Executed before each LLM request
+
+post_llm_resp:
+  command: ["echo", "Post-LLM response hook"]
+  timeout_ms: 5000
+  description: Executed after receiving LLM response
+
+post_tool_exec:
+  command: ["echo", "Post-tool execution hook"]
+  timeout_ms: 5000
+  description: Executed after each tool execution
+
+on_error:
+  command: ["echo", "Error handler hook"]
+  timeout_ms: 5000
+  description: Executed when an error occurs
+
+on_run_end:
+  command: ["echo", "Run end hook (v1.9)"]
+  timeout_ms: 5000
+  description: Executed when the run completes

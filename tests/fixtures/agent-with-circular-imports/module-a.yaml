@@ -1,0 +1,16 @@
+name: module-a
+version: 1.0.0
+description: Module A that imports module B
+
+imports:
+  - module-b.yaml
+
+llm:
+  model: gpt-4-turbo-preview
+
+tools:
+  - name: tool_a
+    description: Tool from module A
+    exec: "echo 'Tool A: ${message}'"
+
+max_iterations: 30

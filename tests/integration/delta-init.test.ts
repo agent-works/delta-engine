@@ -9,8 +9,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { v4 as uuidv4 } from 'uuid';
-import { handleInitCommand } from '../../src/commands/init.js';
-import { loadAndValidateAgent } from '../../src/config.js';
+import { handleInitCommand } from '../../dist/commands/init.js';
+import { loadConfigWithCompat } from '../../dist/config.js';
 
 async function testDeltaInit() {
   console.log('=== Testing delta init Command (v1.3) ===\n');
@@ -50,8 +50,8 @@ async function testDeltaInit() {
     console.log = originalLog;
     console.error = originalError;
 
-    // Verify directory structure
-    const configPath = path.join(minimalAgentDir, 'config.yaml');
+    // Verify directory structure (v1.9: agent.yaml instead of config.yaml)
+    const configPath = path.join(minimalAgentDir, 'agent.yaml');
     const systemPromptPath = path.join(minimalAgentDir, 'system_prompt.md');
     const readmePath = path.join(minimalAgentDir, 'README.md');
 
@@ -60,7 +60,7 @@ async function testDeltaInit() {
     const readmeExists = await fs.access(readmePath).then(() => true).catch(() => false);
 
     if (!configExists) {
-      throw new Error('config.yaml not created');
+      throw new Error('agent.yaml not created');
     }
     if (!systemPromptExists) {
       throw new Error('system_prompt.md not created');
@@ -70,16 +70,15 @@ async function testDeltaInit() {
     }
 
     console.log('✓ All required files created');
-    console.log(`  - config.yaml`);
+    console.log(`  - agent.yaml`);
     console.log(`  - system_prompt.md`);
     console.log(`  - README.md`);
 
-    // Test 2: Validate config.yaml structure
-    // Note: Use loadAndValidateAgent() to properly expand v1.7 simplified syntax
-    console.log('\nTest 2: Validate config.yaml structure...');
-    const { config: configData } = await loadAndValidateAgent(minimalAgentDir);
+    // Test 2: Validate agent.yaml structure (v1.9: use loadConfigWithCompat)
+    console.log('\nTest 2: Validate agent.yaml structure...');
+    const { config: configData } = await loadConfigWithCompat(minimalAgentDir);
 
-    console.log('✓ config.yaml has valid structure');
+    console.log('✓ agent.yaml has valid structure');
     console.log(`  - name: ${configData.name}`);
     console.log(`  - llm.model: ${configData.llm.model}`);
     console.log(`  - tools: ${configData.tools?.length || 0} defined`);
@@ -144,8 +143,8 @@ async function testDeltaInit() {
     console.log('delta init command features working correctly:');
     console.log('  ✓ Minimal template scaffolding works');
     console.log('  ✓ Full-featured template scaffolding works');
-    console.log('  ✓ Generated config.yaml is valid');
-    console.log('  ✓ All required files created (config, system_prompt, README)');
+    console.log('  ✓ Generated agent.yaml is valid (v1.9)');
+    console.log('  ✓ All required files created (agent.yaml, system_prompt, README)');
     console.log('  ✓ Tools are properly configured');
     console.log('  ✓ Agent names derived from directory names');
     console.log('  ✓ Non-empty directory detection works');

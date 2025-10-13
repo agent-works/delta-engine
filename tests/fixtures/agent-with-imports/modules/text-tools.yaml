@@ -1,0 +1,23 @@
+name: text-tools-module
+version: 1.0.0
+description: Reusable text processing tools
+
+llm:
+  model: gpt-4-turbo-preview
+
+tools:
+  - name: echo
+    description: Print a message
+    exec: "echo ${message}"
+
+  - name: count_lines
+    description: Count lines in text
+    shell: "wc -l"
+    stdin: text
+
+  - name: grep_text
+    description: Search for pattern in text
+    exec: "grep ${pattern}"
+    stdin: text
+
+max_iterations: 30

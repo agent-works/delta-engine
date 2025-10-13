@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { EngineContext } from './types.js';
-import { loadAndValidateAgent } from './config.js';
+import { loadConfigWithCompat } from './config.js';
 import { createJournal } from './journal.js';
 import { DeltaRunMetadata, RunStatus } from './journal-types.js';
 import {
@@ -166,8 +166,8 @@ export async function initializeContext(
   // Load environment variables in cascading order (workspace > agent > project root)
   const loadedEnvFiles = loadEnvFiles(workDir, agentPath, process.cwd());
 
-  // Load and validate agent configuration
-  const { config, systemPrompt } = await loadAndValidateAgent(agentPath);
+  // Load and validate agent configuration (v1.9: supports agent.yaml + imports)
+  const { config, systemPrompt } = await loadConfigWithCompat(agentPath);
 
   // Override max_iterations if provided via CLI
   if (maxIterations !== undefined) {
@@ -264,8 +264,8 @@ export async function loadExistingContext(workDir: string): Promise<EngineContex
       throw new Error('Invalid metadata.json: missing required fields');
     }
 
-    // Load agent configuration
-    const { config, systemPrompt } = await loadAndValidateAgent(metadata.agent_ref);
+    // Load agent configuration (v1.9: supports agent.yaml + imports)
+    const { config, systemPrompt } = await loadConfigWithCompat(metadata.agent_ref);
 
     // Count existing journal events to determine current step
     const journal = createJournal(metadata.run_id, runDir);
@@ -411,8 +411,8 @@ export async function resumeContext(workDir: string, runDir: string, isInteracti
   const metadataContent = await fs.readFile(metadataPath, 'utf-8');
   const metadata: DeltaRunMetadata = JSON.parse(metadataContent);
 
-  // Load agent configuration
-  const { config, systemPrompt } = await loadAndValidateAgent(metadata.agent_ref);
+  // Load agent configuration (v1.9: supports agent.yaml + imports)
+  const { config, systemPrompt } = await loadConfigWithCompat(metadata.agent_ref);
 
   // Create journal instance for the existing run
   const journal = createJournal(metadata.run_id, runDir);
