@@ -290,11 +290,11 @@ async function runE2ETests() {
       if (initResult.exitCode !== 0) throw new Error(`Init failed: ${initResult.stderr}`);
 
       // Verify template files
-      if (!await fileExists(path.join(agentDir, 'config.yaml'))) throw new Error('config.yaml not created');
+      if (!await fileExists(path.join(agentDir, 'agent.yaml'))) throw new Error('agent.yaml not created');
       if (!await fileExists(path.join(agentDir, 'system_prompt.md'))) throw new Error('system_prompt.md not created');
 
       // Verify v1.7 syntax in config
-      const configContent = await fs.readFile(path.join(agentDir, 'config.yaml'), 'utf-8');
+      const configContent = await fs.readFile(path.join(agentDir, 'agent.yaml'), 'utf-8');
       if (!configContent.includes('exec:')) throw new Error('Template not using v1.7 syntax');
 
       // Test execution

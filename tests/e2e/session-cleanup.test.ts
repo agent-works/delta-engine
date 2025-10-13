@@ -149,7 +149,7 @@ tools:
 
 Be concise and complete the task quickly.`;
 
-    await fs.writeFile(path.join(testAgentDir, 'config.yaml'), configContent, 'utf-8');
+    await fs.writeFile(path.join(testAgentDir, 'agent.yaml'), configContent, 'utf-8');
     await fs.writeFile(path.join(testAgentDir, 'system_prompt.md'), systemPrompt, 'utf-8');
 
     console.log('Step 1: Running agent that starts and ends a session...');
@@ -231,7 +231,7 @@ tools:
 
 Keep it brief.`;
 
-    await fs.writeFile(path.join(testAgentDir, 'config.yaml'), configContent, 'utf-8');
+    await fs.writeFile(path.join(testAgentDir, 'agent.yaml'), configContent, 'utf-8');
     await fs.writeFile(path.join(testAgentDir, 'system_prompt.md'), systemPrompt, 'utf-8');
 
     console.log('Step 1: Running agent that starts session then fails...');
@@ -305,7 +305,7 @@ tools:
 
 Be brief.`;
 
-    await fs.writeFile(path.join(testAgentDir, 'config.yaml'), configContent, 'utf-8');
+    await fs.writeFile(path.join(testAgentDir, 'agent.yaml'), configContent, 'utf-8');
     await fs.writeFile(path.join(testAgentDir, 'system_prompt.md'), systemPrompt, 'utf-8');
 
     console.log('Step 1: Starting agent and interrupting it...');
@@ -377,7 +377,7 @@ tools: []
 
 Do this FIRST before anything else.`;
 
-    await fs.writeFile(path.join(testAgentDir, 'config.yaml'), configContent, 'utf-8');
+    await fs.writeFile(path.join(testAgentDir, 'agent.yaml'), configContent, 'utf-8');
     await fs.writeFile(path.join(testAgentDir, 'system_prompt.md'), systemPrompt, 'utf-8');
 
     console.log('Step 1: Running agent with ask_human (will exit with code 101)...');

@@ -50,7 +50,7 @@ async function testHookWorkflow() {
     // Step 2: Add hooks to config
     console.log('\nStep 2: Add lifecycle hooks to config...');
 
-    const configPath = path.join(testAgentDir, 'config.yaml');
+    const configPath = path.join(testAgentDir, 'agent.yaml');
     const configContent = await fs.readFile(configPath, 'utf-8');
 
     // Create hook scripts
@@ -102,7 +102,7 @@ hooks:
     );
 
     await fs.writeFile(configPath, updatedConfig, 'utf-8');
-    console.log('  ✓ Hooks added to config.yaml');
+    console.log('  ✓ Hooks added to agent.yaml');
 
     // Step 3: Run task that triggers tools
     console.log('\nStep 3: Run task with tool executions...');

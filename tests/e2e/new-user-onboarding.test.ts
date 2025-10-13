@@ -58,11 +58,11 @@ async function testNewUserOnboarding() {
     expect(agentCreated).toBe(true);
     console.log('  ✓ Agent directory created');
 
-    // Verify config.yaml exists
-    const configPath = path.join(testAgentDir, 'config.yaml');
-    const configExists = await fs.access(configPath).then(() => true).catch(() => false);
-    expect(configExists).toBe(true);
-    console.log('  ✓ config.yaml created');
+    // v1.9: Verify agent.yaml exists (not config.yaml)
+    const agentYamlPath = path.join(testAgentDir, 'agent.yaml');
+    const agentYamlExists = await fs.access(agentYamlPath).then(() => true).catch(() => false);
+    expect(agentYamlExists).toBe(true);
+    console.log('  ✓ agent.yaml created');
 
     // Verify system_prompt.md exists
     const promptPath = path.join(testAgentDir, 'system_prompt.md');
@@ -70,12 +70,23 @@ async function testNewUserOnboarding() {
     expect(promptExists).toBe(true);
     console.log('  ✓ system_prompt.md created');
 
-    // Read and verify config content
-    const configContent = await fs.readFile(configPath, 'utf-8');
-    expect(configContent).toContain('name:');
-    expect(configContent).toContain('llm:');
-    expect(configContent).toContain('tools:');
-    console.log('  ✓ config.yaml has valid structure');
+    // v1.9.1: Verify context.yaml exists (now required)
+    const contextYamlPath = path.join(testAgentDir, 'context.yaml');
+    const contextYamlExists = await fs.access(contextYamlPath).then(() => true).catch(() => false);
+    expect(contextYamlExists).toBe(true);
+    console.log('  ✓ context.yaml created');
+
+    // Read and verify agent.yaml content
+    const agentYamlContent = await fs.readFile(agentYamlPath, 'utf-8');
+    expect(agentYamlContent).toContain('name:');
+    expect(agentYamlContent).toContain('llm:');
+    expect(agentYamlContent).toContain('tools:');
+    console.log('  ✓ agent.yaml has valid structure');
+
+    // Read and verify context.yaml content
+    const contextYamlContent = await fs.readFile(contextYamlPath, 'utf-8');
+    expect(contextYamlContent).toContain('sources:');
+    console.log('  ✓ context.yaml has valid structure');
 
     // Step 3: Run delta run (first execution)
     console.log('\nStep 3: Run `delta run` with first task...');

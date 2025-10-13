@@ -52,7 +52,7 @@ async function testErrorHandlingJourney() {
     // Step 2: Add failing tool and on_error hook
     console.log('\nStep 2: Add failing tool and on_error hook...');
 
-    const configPath = path.join(testAgentDir, 'config.yaml');
+    const configPath = path.join(testAgentDir, 'agent.yaml');
     const configContent = await fs.readFile(configPath, 'utf-8');
 
     // Create hook script

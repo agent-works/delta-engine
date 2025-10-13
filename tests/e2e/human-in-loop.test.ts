@@ -49,7 +49,7 @@ async function testHumanInLoop() {
     console.log('  ✓ Agent created');
 
     // Update config to include ask_human tool
-    const configPath = path.join(testAgentDir, 'config.yaml');
+    const configPath = path.join(testAgentDir, 'agent.yaml');
     const configContent = await fs.readFile(configPath, 'utf-8');
 
     // Add ask_human tool to config

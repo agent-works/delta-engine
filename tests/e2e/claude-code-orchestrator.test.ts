@@ -67,7 +67,7 @@ async function testClaudeCodeOrchestrator() {
     // Step 1: Verify agent exists
     console.log('Step 1: Verify claude-code-workflow agent exists...');
 
-    const agentConfigPath = path.join(agentPath, 'config.yaml');
+    const agentConfigPath = path.join(agentPath, 'agent.yaml');
     expect(await exists(agentConfigPath)).toBe(true);
     console.log('  ✓ Agent config found');
 
@@ -104,14 +104,14 @@ async function testClaudeCodeOrchestrator() {
       // Verify agent structure instead
       console.log('\nVerifying agent structure...');
 
-      // Check config.yaml has required tools
+      // Check agent.yaml has required tools
       const configContent = await fs.readFile(agentConfigPath, 'utf-8');
       expect(configContent).toContain('claude_start');
       expect(configContent).toContain('claude_write');
       expect(configContent).toContain('claude_read');
       expect(configContent).toContain('claude_end');
       expect(configContent).toContain('record_interaction');
-      console.log('  ✓ All required tools defined in config.yaml');
+      console.log('  ✓ All required tools defined in agent.yaml');
 
       // Check system prompt has workflow logic
       const promptContent = await fs.readFile(systemPromptPath, 'utf-8');
