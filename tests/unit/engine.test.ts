@@ -48,6 +48,23 @@ describe('Engine', () => {
       'utf-8'
     );
 
+    // v1.9.1 fix: Create context.yaml file (now required)
+    await fs.writeFile(
+      path.join(agentPath, 'context.yaml'),
+      `sources:
+  - type: file
+    id: system_prompt
+    path: '\${AGENT_HOME}/system_prompt.md'
+  - type: file
+    id: workspace_guide
+    path: '\${CWD}/DELTA.md'
+    on_missing: skip
+  - type: journal
+    id: conversation_history
+`,
+      'utf-8'
+    );
+
     // Create a mock agent config
     mockConfig = {
       name: 'test-agent',

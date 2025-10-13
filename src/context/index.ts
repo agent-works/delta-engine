@@ -23,7 +23,6 @@ export {
   FileSourceSchema,
   ComputedFileSourceSchema,
   JournalSourceSchema,
-  DEFAULT_MANIFEST,
 } from './types.js';
 
 // Source processors (exported for testing)

@@ -10,7 +10,41 @@ export interface Template {
   configYaml: string;
   systemPrompt: string;
   readme: string;
+  contextYaml: string; // v1.9.1: Required context.yaml content
 }
+
+/**
+ * Default context.yaml template (v1.9.1+)
+ * Used by all built-in templates to ensure explicit context configuration
+ */
+const DEFAULT_CONTEXT_YAML = `# Delta Engine Context Strategy (v1.6+)
+# This file defines HOW the Agent's attention window (LLM context) is constructed.
+# It is the explicit "recipe" for what the Agent sees.
+
+sources:
+  # 1. Core Instructions (The System Prompt)
+  # This is the primary definition of the Agent's role, rules, and goals.
+  # Note: System Prompt must be explicitly declared here to ensure recipe completeness.
+  - type: file
+    id: system_prompt
+    path: '\${AGENT_HOME}/system_prompt.md'
+
+  # 2. Workspace Guide (Optional: DELTA.md)
+  # If a DELTA.md file exists in the workspace (CWD), it is automatically loaded.
+  # Use this to provide workspace-specific context, rules, or documentation.
+  - type: file
+    id: workspace_guide
+    path: '\${CWD}/DELTA.md'
+    on_missing: skip  # Skip if DELTA.md does not exist
+
+  # 3. Conversation History (The Journal)
+  # Includes the history of Thoughts, Actions, and Observations.
+  - type: journal
+    id: conversation_history
+    # By default, the full history is included.
+    # To limit history length (save tokens or manage attention), uncomment and adjust:
+    # max_iterations: 20
+`;
 
 /**
  * Built-in template: Minimal
@@ -86,6 +120,7 @@ You are a minimal assistant agent.
 - Complete tasks efficiently
 - Provide clear feedback
 `,
+  contextYaml: DEFAULT_CONTEXT_YAML,
 };
 
 /**
@@ -206,6 +241,7 @@ When asked to "create a greeting file":
 
 Always confirm task completion with a friendly message.
 `,
+  contextYaml: DEFAULT_CONTEXT_YAML,
 };
 
 /**
@@ -346,6 +382,7 @@ You are a file management expert that helps users organize, search, and manipula
 - Check available space before large operations
 - Document organization decisions
 `,
+  contextYaml: DEFAULT_CONTEXT_YAML,
 };
 
 /**
@@ -535,6 +572,7 @@ You are an API testing expert that helps users test and validate REST APIs.
 - Document API behavior and edge cases
 - Create comprehensive test reports
 `,
+  contextYaml: DEFAULT_CONTEXT_YAML,
 };
 
 /**
@@ -601,6 +639,10 @@ export async function createAgentFromTemplate(
   // Write system_prompt.md
   const promptPath = path.join(agentPath, 'system_prompt.md');
   await fs.writeFile(promptPath, template.systemPrompt, 'utf-8');
+
+  // v1.9.1: Write context.yaml (now required)
+  const contextPath = path.join(agentPath, 'context.yaml');
+  await fs.writeFile(contextPath, template.contextYaml, 'utf-8');
 
   // Write README.md
   const readmePath = path.join(agentPath, 'README.md');

@@ -1,0 +1,27 @@
+# Delta Engine Context Strategy (v1.6+)
+# This file defines HOW the Agent's attention window (LLM context) is constructed.
+# It is the explicit "recipe" for what the Agent sees.
+
+sources:
+  # 1. Core Instructions (The System Prompt)
+  # This is the primary definition of the Agent's role, rules, and goals.
+  # Note: System Prompt must be explicitly declared here to ensure recipe completeness.
+  - type: file
+    id: system_prompt
+    path: '${AGENT_HOME}/system_prompt.md'
+
+  # 2. Workspace Guide (Optional: DELTA.md)
+  # If a DELTA.md file exists in the workspace (CWD), it is automatically loaded.
+  # Use this to provide workspace-specific context, rules, or documentation.
+  - type: file
+    id: workspace_guide
+    path: '${CWD}/DELTA.md'
+    on_missing: skip  # Skip if DELTA.md does not exist
+
+  # 3. Conversation History (The Journal)
+  # Includes the history of Thoughts, Actions, and Observations.
+  - type: journal
+    id: conversation_history
+    # By default, the full history is included.
+    # To limit history length (save tokens or manage attention), uncomment and adjust:
+    # max_iterations: 20

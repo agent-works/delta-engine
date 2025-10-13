@@ -7,7 +7,6 @@ import {
   ContextManifest,
   ContextManifestSchema,
   ContextSource,
-  DEFAULT_MANIFEST,
 } from './types.js';
 import { processFileSource } from './sources/file-source.js';
 import { processComputedFileSource } from './sources/computed-source.js';
@@ -17,7 +16,7 @@ import { processJournalSource } from './sources/journal-source.js';
  * ContextBuilder - Core of v1.6 Context Composition Layer
  *
  * Responsibilities:
- * 1. Load context.yaml (or use default manifest)
+ * 1. Load context.yaml (required in v1.9.1+)
  * 2. Process sources in order (file, computed_file, journal)
  * 3. Assemble final context messages for LLM
  *
@@ -80,14 +79,10 @@ export class ContextBuilder {
   }
 
   /**
-   * Load context.yaml if exists, otherwise use default manifest
-   *
-   * Search order:
-   * 1. ${AGENT_HOME}/context.yaml
-   * 2. If not found, use DEFAULT_MANIFEST (hardcoded default strategy)
+   * Load context.yaml (required in v1.9.1+)
    *
    * @returns Parsed and validated context manifest
-   * @throws Error if context.yaml exists but is malformed
+   * @throws Error if context.yaml is missing or malformed
    */
   async loadManifest(): Promise<ContextManifest> {
     const manifestPath = path.join(this.agentHome, 'context.yaml');
@@ -100,8 +95,25 @@ export class ContextBuilder {
       return ContextManifestSchema.parse(parsed);
     } catch (err: any) {
       if (err.code === 'ENOENT') {
-        // No context.yaml - use default strategy
-        return DEFAULT_MANIFEST;
+        // context.yaml is missing - provide helpful error message
+        throw new Error(
+          `context.yaml not found in ${this.agentHome}\n\n` +
+          `Delta Engine requires an explicit context.yaml file to define how\n` +
+          `the agent's attention window is constructed.\n\n` +
+          `Quick fix - Create context.yaml with default content:\n\n` +
+          `sources:\n` +
+          `  - type: file\n` +
+          `    id: system_prompt\n` +
+          `    path: '\${AGENT_HOME}/system_prompt.md'\n` +
+          `  - type: file\n` +
+          `    id: workspace_guide\n` +
+          `    path: '\${CWD}/DELTA.md'\n` +
+          `    on_missing: skip\n` +
+          `  - type: journal\n` +
+          `    id: conversation_history\n\n` +
+          `For more information, see:\n` +
+          `docs/architecture/v1.9-unified-agent-structure.md#9-addendum-contextyaml-status-upgrade-v191`
+        );
       }
 
       // context.yaml exists but is invalid

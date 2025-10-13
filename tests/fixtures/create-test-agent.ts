@@ -116,5 +116,22 @@ ${Object.entries((agentConfig as any).lifecycle_hooks)
     'utf-8'
   );
 
+  // v1.9.1: Write context.yaml (now required)
+  await fs.writeFile(
+    path.join(agentDir, 'context.yaml'),
+    `sources:
+  - type: file
+    id: system_prompt
+    path: '\${AGENT_HOME}/system_prompt.md'
+  - type: file
+    id: workspace_guide
+    path: '\${CWD}/DELTA.md'
+    on_missing: skip
+  - type: journal
+    id: conversation_history
+`,
+    'utf-8'
+  );
+
   return agentDir;
 }

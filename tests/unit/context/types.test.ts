@@ -5,7 +5,6 @@ import {
   JournalSourceSchema,
   ContextSourceSchema,
   ContextManifestSchema,
-  DEFAULT_MANIFEST,
 } from '../../../src/context/types.js';
 
 describe('Context Type Schemas', () => {
@@ -277,35 +276,6 @@ describe('Context Type Schemas', () => {
       const invalid = {};
 
       expect(() => ContextManifestSchema.parse(invalid)).toThrow();
-    });
-  });
-
-  describe('DEFAULT_MANIFEST', () => {
-    it('should be a valid ContextManifest', () => {
-      expect(() => ContextManifestSchema.parse(DEFAULT_MANIFEST)).not.toThrow();
-    });
-
-    it('should have 3 sources (always includes journal)', () => {
-      expect(DEFAULT_MANIFEST.sources).toHaveLength(3);
-    });
-
-    it('should have system_prompt as first source', () => {
-      const firstSource = DEFAULT_MANIFEST.sources[0];
-      expect(firstSource?.type).toBe('file');
-      expect((firstSource as any).path).toContain('system_prompt.md');
-    });
-
-    it('should have DELTA.md as second source with skip', () => {
-      const secondSource = DEFAULT_MANIFEST.sources[1];
-      expect(secondSource?.type).toBe('file');
-      expect((secondSource as any).path).toContain('DELTA.md');
-      expect((secondSource as any).on_missing).toBe('skip');
-    });
-
-    it('should ALWAYS have journal source as third source', () => {
-      const thirdSource = DEFAULT_MANIFEST.sources[2];
-      expect(thirdSource?.type).toBe('journal');
-      expect((thirdSource as any).max_iterations).toBeUndefined(); // undefined = unlimited
     });
   });
 });

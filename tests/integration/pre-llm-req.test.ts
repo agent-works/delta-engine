@@ -54,6 +54,23 @@ lifecycle_hooks:
     'utf-8'
   );
 
+  // v1.9.1: Create context.yaml (now required)
+  await fs.writeFile(
+    path.join(testAgentDir, 'context.yaml'),
+    `sources:
+  - type: file
+    id: system_prompt
+    path: '\${AGENT_HOME}/system_prompt.md'
+  - type: file
+    id: workspace_guide
+    path: '\${CWD}/DELTA.md'
+    on_missing: skip
+  - type: journal
+    id: conversation_history
+`,
+    'utf-8'
+  );
+
   // Create the hook script that modifies requests
   const hookScript = `#!/bin/bash
 set -e

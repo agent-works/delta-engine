@@ -320,13 +320,18 @@ Assistant: "I can help you test. Here are safe options:
 
 Use `delta tool expand config.yaml` to see expansion to full format.
 
-### Context Composition (v1.6)
-**Default (zero-config)**: system_prompt.md → DELTA.md (if exists) → full journal
+### Context Composition (v1.6, v1.9.1 update)
+**Required**: `context.yaml` (v1.9.1+) defines the explicit recipe for constructing the agent's attention window.
+
+**Default template** (created by `delta init`):
+- `system_prompt.md` → DELTA.md (if exists) → full journal
 
 **Custom**: Define `context.yaml` with sources:
 - `file` - Static file content
 - `computed_file` - Dynamic content via generator script (for memory folding, RAG, etc.)
 - `journal` - Conversation history (optional `max_iterations` for token efficiency)
+
+**Note**: In v1.9.1+, context.yaml is **required** (no implicit fallback). This ensures complete transparency and eliminates "magic" defaults.
 
 See `examples/2-core-features/memory-folding/` for complete example.
 
@@ -370,7 +375,7 @@ See `examples/2-core-features/memory-folding/` for complete example.
 ## 🗂️ Reference
 
 ### Current Version
-**v1.9** - Unified Agent Structure
+**v1.9.1** - context.yaml Required (Breaking Change)
 - v1.0: MVP with Think-Act-Observe
 - v1.1: Stateless core + journal.jsonl
 - v1.2: Human-in-the-loop (`ask_human`)
@@ -381,6 +386,7 @@ See `examples/2-core-features/memory-folding/` for complete example.
 - v1.7: `exec:`/`shell:` syntax sugar
 - v1.8: CLI improvements (`-m` flag, `delta continue` command)
 - v1.9: Unified agent structure (agent.yaml, hooks.yaml, imports mechanism)
+- v1.9.1: **Breaking** - context.yaml now required (eliminates implicit defaults)
 - v2.0 (planned): Multi-agent orchestration
 
 ### Documentation Structure

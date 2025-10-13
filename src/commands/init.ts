@@ -126,6 +126,7 @@ export async function handleInitCommand(
     logger.info('Created files:');
     logger.info(`  • agent.yaml`);
     logger.info(`  • system_prompt.md`);
+    logger.info(`  • context.yaml`);
     logger.info(`  • README.md`);
 
     logger.divider();
