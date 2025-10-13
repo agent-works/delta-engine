@@ -131,7 +131,7 @@ Terminate session when done.
 ### 3. Run Your Agent
 
 ```bash
-delta run -y --agent . -m "Create directory test and add 3 files"
+delta run -y -m "Create directory test and add 3 files"
 ```
 
 ---

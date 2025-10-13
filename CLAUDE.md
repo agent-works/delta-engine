@@ -16,10 +16,11 @@ npm test                        # All tests
 npm run test:unit              # Unit tests only
 npm run test:integration       # Integration tests
 
-# Run Agent (v1.8: updated to use -m/--message)
-delta run --agent <path> -m "Task description"
-delta run -i --agent <path> -m "..."  # Interactive mode
-delta run -y --agent <path> -m "..."  # Silent mode (auto-create workspace)
+# Run Agent (v1.8.1: --agent defaults to current directory)
+delta run -m "Task description"                    # Use current dir as agent
+delta run --agent <path> -m "..."                  # Or specify agent path
+delta run -i -m "..."                              # Interactive mode
+delta run -y -m "..."                              # Silent mode (auto-create workspace)
 
 # Continue Existing Run (v1.8: new command)
 delta continue --work-dir <path>                    # Resume INTERRUPTED run

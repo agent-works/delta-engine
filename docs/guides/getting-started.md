@@ -50,20 +50,20 @@ delta init my-agent -t hello-world
 
 ```bash
 cd my-agent
-delta run -y --agent . -m "Your task here"
+delta run -y -m "Your task here"
 ```
 
 **Advanced options:**
 
 ```bash
 # Interactive workspace selection (choose from existing or create new)
-delta run --agent . -m "Your task here"
+delta run -m "Your task here"
 
 # Custom workspace location
-delta run --agent . -m "Your task here" --work-dir ./my-workspace
+delta run -m "Your task here" --work-dir ./my-workspace
 
 # Interactive mode for human-in-the-loop
-delta run -i --agent . -m "Your task here"
+delta run -i -m "Your task here"
 ```
 
 ## Understanding the Output
@@ -231,7 +231,7 @@ export DELTA_BASE_URL="https://your-endpoint.com/v1"
 cat workspaces/W001/.delta/$(cat workspaces/W001/.delta/LATEST)/journal.jsonl | jq
 
 # Or use verbose mode
-delta run -v --agent . -m "Your task"
+delta run -v -m "Your task"
 ```
 
 ## Getting Help

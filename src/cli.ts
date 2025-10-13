@@ -536,13 +536,14 @@ export function createProgram(): Command {
     )
     .action(handleInitCommand);
 
-  // Define the run command (v1.8: updated to use -m/--message)
+  // Define the run command (v1.8: updated to use -m/--message, v1.9: agent defaults to current dir)
   program
     .command('run')
     .description('Execute an AI agent with a specified task')
-    .requiredOption(
+    .option(
       '-a, --agent <path>',
-      'Path to the agent directory containing config.yaml and system_prompt.txt'
+      'Path to the agent directory containing config.yaml and system_prompt.txt (defaults to current directory)',
+      '.'
     )
     .requiredOption(
       '-m, --message <description>',

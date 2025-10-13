@@ -31,7 +31,18 @@ export async function loadAndValidateAgent(
   try {
     await fs.access(configPath, fs.constants.R_OK);
   } catch (error) {
-    throw new Error(`config.yaml not found or not readable at: ${configPath}`);
+    // v1.8.1: Provide helpful hint when using current directory as agent path
+    if (agentPath === path.resolve('.') || agentPath === process.cwd()) {
+      throw new Error(
+        `No config.yaml found in current directory.\n` +
+        `\n` +
+        `Hint: Either:\n` +
+        `  1. Run 'delta init' to create a new agent here, or\n` +
+        `  2. Use --agent <path> to specify an existing agent directory`
+      );
+    } else {
+      throw new Error(`config.yaml not found or not readable at: ${configPath}`);
+    }
   }
 
   // Check for system prompt file (prefer .md over .txt)
