@@ -177,7 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/commands/tool-expand.ts` - CLI command implementation
   - `tests/unit/tool-expander.test.ts` - Comprehensive test suite
   - `docs/decisions/005-tool-syntax-simplification.md` - Architecture Decision Record
-  - `examples/v1.7-syntax-demo/` - Complete demonstration of all features
+  - `examples/1-basics/tool-syntax/` - Complete demonstration of all features
 
 - **Modified Files:**
   - `src/types.ts` - Added v1.7 schemas and detection utilities

@@ -56,7 +56,7 @@ backward compatibility with legacy `command:` array syntax.
 See how v1.7 syntax is converted to internal format:
 
 ```bash
-delta tool:expand examples/v1.7-syntax-demo/config.yaml
+delta tool expand examples/1-basics/tool-syntax/config.yaml
 ```
 
 This shows exactly how the engine will execute each tool.
@@ -65,7 +65,7 @@ This shows exactly how the engine will execute each tool.
 
 ```bash
 delta run \
-  --agent examples/v1.7-syntax-demo \
+  --agent examples/1-basics/tool-syntax \
   -m "List files in current directory and count how many there are"
 ```
 
@@ -199,7 +199,7 @@ You can mix old and new syntax in the same config file.
 2. **Use shell: for pipes/redirects** (safe via argv parameterization)
 3. **Avoid :raw unless necessary** (expert feature, requires input validation)
 4. **Legacy syntax still works** (100% backward compatible)
-5. **Use `delta tool:expand`** for transparency
+5. **Use `delta tool expand`** for transparency
 
 ---
 

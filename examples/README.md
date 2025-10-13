@@ -29,6 +29,16 @@ These examples demonstrate Delta's **Three Pillars**:
 delta run --agent examples/1-basics/hello-world -m "Create a greeting file"
 ```
 
+**[tool-syntax](./1-basics/tool-syntax/)** ⭐⭐⭐⭐⭐ (5.0/5)
+- **What**: Demonstrates v1.7 simplified tool configuration syntax
+- **Teaches**: `exec:` vs `shell:` modes, `:raw` modifier, security guarantees
+- **Use When**: Learning to configure tools or migrating from legacy syntax
+- **Highlights**: 77% verbosity reduction, `delta tool expand` debugging, backward compatibility
+
+```bash
+delta tool expand examples/1-basics/tool-syntax/config.yaml
+```
+
 ---
 
 ### 2️⃣ Core Features - Delta's Strengths
@@ -139,17 +149,18 @@ cat examples/1-basics/hello-world/config.yaml
 
 ### For Beginners
 1. **Start**: `hello-world` - Understand fundamentals
-2. **Explore**: Read generated journal to see Think-Act-Observe
-3. **Experiment**: Try interrupt (Ctrl+C) and resume
+2. **Syntax**: `tool-syntax` - Learn v1.7 simplified tool configuration
+3. **Explore**: Read generated journal to see Think-Act-Observe
+4. **Experiment**: Try interrupt (Ctrl+C) and resume
 
 ### For Intermediate Users
-4. **Sessions**: `2-core-features/interactive-shell` - Learn v1.5 session management
-5. **REPLs**: `2-core-features/python-repl` - Persistent state across executions
-6. **Context**: `2-core-features/memory-folding` - v1.6 context composition
+5. **Sessions**: `2-core-features/interactive-shell` - Learn v1.5 session management
+6. **REPLs**: `2-core-features/python-repl` - Persistent state across executions
+7. **Context**: `2-core-features/memory-folding` - v1.6 context composition
 
 ### For Advanced Users
-7. **Orchestration**: `3-advanced/delta-agent-generator` - AI-to-AI patterns, production tool
-8. **Create Your Own**: Use quality checklist in `.quality-assessments/`
+8. **Orchestration**: `3-advanced/delta-agent-generator` - AI-to-AI patterns, production tool
+9. **Create Your Own**: Use quality checklist in `.quality-assessments/`
 
 ---
 
@@ -262,7 +273,8 @@ examples/
 │   └── python-repl-FIXED.md
 │
 ├── 1-basics/                    # Quick start (5 min)
-│   └── hello-world/             # ⭐⭐⭐⭐.3
+│   ├── hello-world/             # ⭐⭐⭐⭐.3
+│   └── tool-syntax/             # ⭐⭐⭐⭐⭐ (v1.7 syntax demo)
 │
 ├── 2-core-features/             # Delta's key capabilities
 │   ├── interactive-shell/       # ⭐⭐⭐⭐⭐ (v1.5 sessions)
