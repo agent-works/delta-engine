@@ -83,6 +83,27 @@ Assistant: "Safe options: 1) git stash, 2) new branch, 3) test current state. Wh
 
 ## 🔥 Quick Reference
 
+### ⚠️ CRITICAL: Before Saying "Tests Passed" or "Ready to Release"
+
+**🔴 STOP and complete these steps IN ORDER:**
+
+1. [ ] Run `npm run test:all` (NOT `npm test` - that skips E2E!)
+2. [ ] Verify output shows: **"✅ All tests passed! 🚀 Ready for release"**
+3. [ ] Open `RELEASE_CHECKLIST.md` in project root
+4. [ ] Complete **ALL** checkboxes in the checklist (7 sections)
+5. [ ] Only then say "tests passed" or "ready to release"
+
+**Why this matters**:
+- `npm test` only runs unit + integration (skips E2E)
+- E2E tests validate complete user workflows
+- Skipping E2E = shipping broken features
+
+**If you skip ANY step above → You are violating the release protocol.**
+
+See [§ Testing & Release Protocol](#-testing--release-protocol) below for full details.
+
+---
+
 ### Essential Commands
 ```bash
 # Build & Test
@@ -379,121 +400,40 @@ See `examples/2-core-features/memory-folding/` for complete example.
 
 **NEVER say "tests passed" after only running `npm test` (which skips E2E).**
 
-### Test Commands (Quick Reference)
+### Test Commands
 
 ```bash
-# Complete test suite (required before release)
+# Complete validation (use before release)
 npm run test:all              # Unit + Integration + E2E (DEFINITIVE)
-npm run test:pre-release      # Build + All Tests (use before releasing)
+npm run test:pre-release      # Build + All Tests
 
-# Individual test suites
-npm run test:unit             # 330 unit tests (fast, ~10s)
-npm run test:integration      # 15 integration tests (~20s)
-npm run test:e2e              # E2E tests (~45s)
-npm run test:e2e -- --core    # Only core 6 E2E tests (P0+P1)
-
-# Development
-npm run test:quick            # Alias for test:unit (fast feedback)
-npm run test:watch            # Watch mode for TDD
-npm test                      # Unit + Integration only (⚠️ skips E2E)
-
-# Specific integration tests
-npm run test:stateless        # Stateless core test
-npm run test:hooks            # Lifecycle hooks test
-npm run test:io               # I/O audit test
+# Development workflow
+npm run test:quick            # Fast feedback (unit tests only)
+npm test                      # ⚠️ Incomplete (skips E2E)
 ```
 
-### Test Architecture (3-Layer Pyramid)
+**Full command reference**: See `docs/testing/README.md`
 
-```
-        E2E Tests (6 core journeys)
-       ─────────────────────────────
-      Integration Tests (15 scenarios)
-     ─────────────────────────────────────
-    Unit Tests (330 tests, core modules)
-   ───────────────────────────────────────────
-```
+### Testing Architecture
 
-**Test Strategy**:
-- **Unit**: Module-level logic, fast feedback
-- **Integration**: Component interactions, realistic scenarios
-- **E2E**: Complete user journeys, validates actual workflows
+3-layer test pyramid: Unit (330 tests) → Integration (15 tests) → E2E (6 journeys)
 
-**Documentation**: See `tests/TESTING_STRATEGY.md` for complete strategy.
+**Complete architecture**: See `docs/testing/README.md`
 
 ### Release Checklist (MANDATORY)
 
-**🔴 DO NOT RELEASE without completing `RELEASE_CHECKLIST.md`**
+**🔴 Before ANY release: Complete `RELEASE_CHECKLIST.md` (project root)**
 
-Before ANY release:
-1. **Read**: `RELEASE_CHECKLIST.md` (in project root)
-2. **Complete**: Every checkbox in the checklist
-3. **Verify**: `npm run test:pre-release` passes
-4. **Confirm**: All documentation updated
+Required: All tests pass + Version updated + Documentation synced
 
-**The checklist includes**:
-- ✅ All test suites passing
-- ✅ Build successful
-- ✅ Documentation synchronized
-- ✅ Version bumped correctly
-- ✅ Manual smoke tests
-- ✅ Breaking change validation (if applicable)
-
-**No shortcuts. No exceptions.**
+**Detailed process**: See `docs/testing/RELEASE_PROCESS.md`
 
 ### Testing Quality Standards
 
-**Rules**:
-- Tests must be independent (no shared state)
-- Tests must be deterministic (no flaky tests)
-- Test failures must provide clear error messages
-- NEVER comment out failing tests
+**Rules**: Independent tests, deterministic, clear error messages
+**Coverage**: Core ≥80%, Support ≥70%, Overall ≥60%
 
-**Coverage Requirements**:
-- Core modules (engine, journal, executor): ≥80%
-- Support modules (context, config): ≥70%
-- Overall: ≥60% (CLI/LLM covered by integration tests)
-
-**Documentation**: See `docs/testing/TEST_QUALITY_STANDARDS.md`
-
-### Development Testing Workflow
-
-1. **Before coding**: Run relevant test suite
-   ```bash
-   npm run test:unit  # or specific: npm run test:hooks
-   ```
-
-2. **After changes**: Run impacted tests
-   ```bash
-   npm run test:quick  # Fast unit test feedback
-   ```
-
-3. **Before commit**: Run full test suite
-   ```bash
-   npm run test:all    # Ensure nothing broke
-   ```
-
-4. **Before PR/Release**: Complete validation
-   ```bash
-   npm run test:pre-release  # Build + All Tests
-   ```
-
-5. **Manual validation**: Test with examples
-   ```bash
-   cd examples/1-basics/hello-world
-   delta run -m "Test message"
-   ```
-
-### Release Process Summary
-
-1. **Complete** `RELEASE_CHECKLIST.md` (all checkboxes)
-2. **Run** `npm run test:pre-release` (must pass)
-3. **Update** version in `package.json`
-4. **Commit** with conventional commits format
-5. **Tag** with `git tag -a vX.Y.Z`
-6. **Push** `git push origin main && git push origin vX.Y.Z`
-
-**Detailed Process**: See `docs/testing/RELEASE_PROCESS.md`
+**Complete standards**: See `docs/testing/TEST_QUALITY_STANDARDS.md`
 
 ---
 

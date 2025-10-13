@@ -37,6 +37,11 @@ workspaces/
 .work/
 tmp/
 
+# Test temporary directories
+test-run-*/
+test-*-agent*/
+e2e-*/
+
 # Delta Engine control plane
 .delta/
 

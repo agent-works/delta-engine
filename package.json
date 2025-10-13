@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
-    "test": "npm run test:unit && npm run test:integration",
+    "test": "echo '\n⚠️  WARNING: This only runs unit+integration tests (skips E2E).\n⚠️  For COMPLETE validation, use: npm run test:all\n' && npm run test:unit && npm run test:integration",
     "test:unit": "NODE_OPTIONS='--experimental-vm-modules' jest --no-coverage tests/unit",
     "test:integration": "tsx tests/run-integration.ts",
     "test:e2e": "tsx tests/run-e2e.ts",

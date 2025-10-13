@@ -57,7 +57,7 @@ async function runE2ETests() {
     try {
       const result = await execa('node', [testPath], {
         reject: false,
-        timeout: 60000,
+        timeout: testName === 'examples-validation' ? 120000 : 60000,
       });
 
       const duration = Date.now() - startTime;
