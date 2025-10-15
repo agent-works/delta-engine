@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * E2E Test: New User Onboarding Journey
+ * E2E Test: First-Time User Onboarding
+ * Priority: P0
  *
- * Tests complete user workflow from TESTING_STRATEGY.md Journey 1:
- * - Fresh system, no .delta/ directory
- * - Run `delta init <path>`
- * - Create basic config.yaml + system_prompt.md
- * - Run `delta run --agent <path> -m "Hello world"`
- * - Verify workspace W001 created, first run completes, journal + tools logged
+ * User Story:
+ * As a first-time user, I want to install Delta and run my first agent,
+ * so that I can validate the tool works and understand the basic workflow.
  *
- * User Journey Source: README.md Quick Start section
+ * Success Criteria:
+ * - [ ] User can initialize a new agent with `delta init`
+ * - [ ] Agent structure is created correctly (agent.yaml, system_prompt.md, context.yaml)
+ * - [ ] User can run first task with `delta run`
+ * - [ ] W001 workspace is created automatically
+ * - [ ] Journal tracks execution events
+ * - [ ] User sees clear success indicators
  */
 
 import { promises as fs } from 'node:fs';

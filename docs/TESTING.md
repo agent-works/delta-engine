@@ -14,12 +14,54 @@
 
 ```bash
 tests/
-├── unit/                    # Critical invariants only (3 files)
+├── unit/                    # Critical invariants
 │   ├── engine.test.ts       # Safety mechanisms
 │   ├── journal.test.ts      # Data integrity
 │   └── journal-format-validation.test.ts
-└── e2e/                     # Real user journeys
+└── e2e/                     # User journeys + functional validation
+    ├── 01-first-time-user.test.ts           # P0: New user onboarding
+    ├── 02-interrupt-and-resume.test.ts      # P0: Interrupt workflow
+    ├── 03-human-interaction.test.ts        # P0: ask_human workflow
+    ├── 04-concurrent-agents.test.ts        # P0: Multi-agent execution
+    ├── 05-multiple-workspaces.test.ts      # P1: Workspace isolation
+    ├── 06-error-recovery.test.ts           # P1: Error handling
+    ├── output-formats-and-io.test.ts       # P1: Output formats & I/O
+    └── examples-and-templates.test.ts      # P2: Examples validation
 ```
+
+## E2E Test Philosophy
+
+**E2E is the execution approach, not the test category.**
+
+Our E2E tests serve both purposes:
+- **User Journeys**: End-to-end validation of user workflows
+- **Functional Validation**: Technical features using E2E execution approach
+
+**Key Principles:**
+- Real CLI execution (no mocking)
+- Real filesystem operations
+- Complete workflow validation
+- Priority-based organization (P0/P1/P2) for CI/CD decisions
+
+**No separate integration layer** - all functional tests use E2E execution to maintain consistency and realistic validation.
+
+## Priority System
+
+E2E tests are organized by priority for CI/CD decisions:
+
+- **P0 (Blocker)**: Must-pass for any release
+  - First-time user onboarding
+  - Interrupt and resume workflow
+  - Human interaction (ask_human)
+  - Concurrent agents (v1.10 core feature)
+
+- **P1 (Critical)**: Should-pass for release
+  - Multiple workspace isolation
+  - Error recovery patterns
+  - Output formats and I/O separation
+
+- **P2 (Important)**: Nice-to-have validation
+  - Examples and templates validation
 
 ## Running Tests
 

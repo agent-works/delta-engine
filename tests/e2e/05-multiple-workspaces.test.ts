@@ -1,19 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * E2E Test: Multi-Workspace Management Journey
+ * E2E Test: Multiple Workspace Management
+ * Priority: P1
  *
- * Tests complete multi-workspace workflow from TESTING_STRATEGY.md Journey 4:
- * - Create agent for project A
- * - Run in workspace W001
- * - Create agent for project B
- * - Run in workspace W002
- * - Switch back to W001
- * - Verify workspace isolation
- * - Verify LAST_USED tracks active workspace
- * - Verify resume works in correct workspace
+ * User Story:
+ * As a user, I want to use the same agent across multiple projects,
+ * so that I can maintain separate context and history for each project.
  *
- * User Journey Source: v1.2.1 release notes
+ * Success Criteria:
+ * - [ ] User can create multiple workspaces (W001, W002, ...)
+ * - [ ] Each workspace has independent .delta/ control plane
+ * - [ ] Workspace data planes are completely isolated
+ * - [ ] Run histories don't interfere across workspaces
+ * - [ ] User can switch between workspaces seamlessly
+ * - [ ] LAST_USED tracks most recent workspace
  */
 
 import { promises as fs } from 'node:fs';

@@ -1,25 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * E2E Test: P0.2 - Concurrent Multi-Agent Execution
+ * E2E Test: Concurrent Multi-Agent Execution
+ * Priority: P0
  *
- * Tests v1.10 core value proposition: Multiple agents can run concurrently
- * in the same workspace without LATEST file conflicts.
+ * User Story:
+ * As a user, I want to run multiple agents concurrently in the same workspace,
+ * so that I can build complex multi-agent orchestration patterns.
  *
- * Scenario: Plan-Execute pattern with concurrent orchestration
- * - Planner agent creates execution plan
- * - Executor agent runs tasks from plan
- * - Both run simultaneously without conflicts
- *
- * Validates:
- * - Both runs complete without conflicts
- * - Separate run directories created
- * - Journal histories are independent
- * - Metadata tracking is independent
- * - No LATEST file contention
- * - Workspace data plane is shared correctly
- *
- * Test Plan Reference: docs/testing/v1.10-test-plan.md#p02-concurrent-multi-agent-execution
+ * Success Criteria:
+ * - [ ] Multiple agents can run concurrently without conflicts
+ * - [ ] Each run has independent run directory (.delta/{run_id}/)
+ * - [ ] Journal histories remain independent
+ * - [ ] No LATEST file race conditions (v1.10 Frontierless)
+ * - [ ] Workspace data plane is shared correctly
+ * - [ ] All runs complete successfully
  */
 
 import { promises as fs } from 'node:fs';

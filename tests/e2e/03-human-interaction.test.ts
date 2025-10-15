@@ -1,19 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * E2E Test: Human-in-Loop Journey
+ * E2E Test: Human Interaction (ask_human)
+ * Priority: P0
  *
- * Tests complete human interaction workflow from TESTING_STRATEGY.md Journey 3:
- * - Non-interactive mode (`delta run` without -i)
- * - Task requires ask_human tool
- * - Engine pauses with WAITING_FOR_INPUT
- * - request.json created with correct format
- * - User provides response.txt
- * - `delta run` resumes automatically
- * - Response incorporated into conversation
- * - Task completes
+ * User Story:
+ * As a user, I want my agent to ask me questions during execution,
+ * so that I can provide guidance and approval for critical decisions.
  *
- * User Journey Source: docs/architecture/v1.2-human-interaction.md
+ * Success Criteria:
+ * - [ ] Agent can call ask_human to request user input
+ * - [ ] Run pauses with status WAITING_FOR_INPUT
+ * - [ ] CLI exits with code 101 (async pause)
+ * - [ ] User can provide response in separate session
+ * - [ ] Agent resumes and receives the response
+ * - [ ] Task continues with user's guidance
  */
 
 import { promises as fs } from 'node:fs';

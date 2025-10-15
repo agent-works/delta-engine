@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * E2E Test: Error Handling Journey
+ * E2E Test: Error Recovery and Graceful Degradation
+ * Priority: P1
  *
- * Tests complete error handling workflow from TESTING_STRATEGY.md Journey 6:
- * - Agent with tool that fails intermittently
- * - Agent with on_error hook
- * - Run task that triggers tool failure
- * - Verify engine continues after tool failure
- * - Verify error logged as observation
- * - Verify on_error hook executed (if exception)
- * - Verify task eventually completes or exits gracefully
+ * User Story:
+ * As a user, I want my agent to handle tool failures gracefully,
+ * so that one failing tool doesn't crash the entire execution.
  *
- * User Journey Source: CLAUDE.md "Error Handling" section
+ * Success Criteria:
+ * - [ ] Agent continues execution after tool failures
+ * - [ ] Tool errors are logged as observations (not crashes)
+ * - [ ] on_error hook is triggered on fatal errors
+ * - [ ] Journal maintains integrity after errors
+ * - [ ] Engine completes gracefully (no crash)
+ * - [ ] User can debug failures from logs
  */
 
 import { promises as fs } from 'node:fs';

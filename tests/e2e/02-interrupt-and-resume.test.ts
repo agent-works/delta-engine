@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * E2E Test: Resume Workflow Journey
+ * E2E Test: Interrupt and Resume Workflow
+ * Priority: P0
  *
- * Tests complete resume workflow from TESTING_STRATEGY.md Journey 2:
- * - Start run with multi-step task
- * - Simulate interrupt (Ctrl+C or timeout)
- * - Verify metadata.json status = INTERRUPTED
- * - Run `delta run` again (no additional args)
- * - Verify auto-detects INTERRUPTED state and resumes
+ * User Story:
+ * As a user, I want to interrupt a running agent (Ctrl+C) and resume it later,
+ * so that I can pause work without losing progress.
  *
- * User Journey Source: CLAUDE.md "Stateless Core" specification
+ * Success Criteria:
+ * - [ ] User can interrupt agent execution with Ctrl+C or timeout
+ * - [ ] Run status changes to INTERRUPTED
+ * - [ ] Journal preserves all completed steps
+ * - [ ] User can resume with `delta run` (auto-detection)
+ * - [ ] Agent continues from last checkpoint
+ * - [ ] Task completes successfully after resume
  */
 
 import { promises as fs } from 'node:fs';

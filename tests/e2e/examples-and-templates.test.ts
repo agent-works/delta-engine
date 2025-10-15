@@ -2,11 +2,13 @@
 
 /**
  * E2E Test: Examples and Templates Validation
+ * Priority: P2
  *
- * Tests complete user workflows for all built-in examples and templates.
- * Validates that tools and configurations work correctly in real-world scenarios.
+ * Purpose:
+ * Validates that all built-in examples and templates work correctly,
+ * ensuring documentation stays in sync with code.
  *
- * Test Scenarios (8 core validations):
+ * Test Scenarios (8 validations):
  * 1. hello-world example - Basic file operations
  * 2. memory-folding example - File read/write workflow
  * 3. research-agent example - Note-taking and search
@@ -15,6 +17,13 @@
  * 6. minimal template - Template instantiation
  * 7. hello-world template - Full template workflow
  * 8. file-ops template - File organization workflow
+ *
+ * Success Criteria:
+ * - [ ] All examples execute without errors
+ * - [ ] All templates can be instantiated
+ * - [ ] Tool configurations are valid
+ * - [ ] File operations produce expected results
+ * - [ ] Documentation matches implementation
  */
 
 import { promises as fs } from 'node:fs';
