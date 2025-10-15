@@ -441,9 +441,9 @@ which claude
 
 **Debug Commands**:
 ```bash
-# Check Delta agent's journal
+# Check Delta agent's journal (v1.10: use list-runs)
 WORKSPACE_DIR="examples/claude-code-workflow/workspaces/$(cat examples/claude-code-workflow/workspaces/LAST_USED)"
-RUN_ID=$(cat $WORKSPACE_DIR/.delta/LATEST)
+RUN_ID=$(cd $WORKSPACE_DIR && delta list-runs --first)
 tail -20 $WORKSPACE_DIR/.delta/$RUN_ID/journal.jsonl
 
 # Check tool execution logs

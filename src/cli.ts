@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { initializeContext, checkForResumableRun, checkForAnyRun, resumeContext, cleanupWorkspaceSessions } from './context.js';
+import { initializeContext, checkForResumableRun, checkForSpecificRun, resumeContext, cleanupWorkspaceSessions } from './context.js';
 import { EngineContext } from './types.js';
 import { Engine } from './engine.js';
 import { RunStatus } from './journal-types.js';
 import { handleInitCommand } from './commands/init.js';
 import { handleToolExpandCommand } from './commands/tool-expand.js';
+import { handleListRunsCommand } from './commands/list-runs.js';
+import { buildRunResult, formatOutput } from './output-formatter.js';
+import { OutputFormat } from './types.js';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -20,22 +23,26 @@ const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
 /**
  * Format console output with consistent styling
+ * v1.10: All logs ALWAYS go to stderr (I/O separation principle)
+ * This ensures stdout is reserved for structured output only
  */
 const logger = {
-  info: (message: string) => console.log(`[INFO] ${message}`),
-  success: (message: string) => console.log(`[SUCCESS] ${message}`),
+  // All logging methods use stderr to maintain I/O separation
+  info: (message: string) => console.error(`[INFO] ${message}`),
+  success: (message: string) => console.error(`[SUCCESS] ${message}`),
   error: (message: string) => console.error(`[ERROR] ${message}`),
-  debug: (message: string) => console.log(`[DEBUG] ${message}`),
-  divider: () => console.log('─'.repeat(60)),
+  debug: (message: string) => console.error(`[DEBUG] ${message}`),
+  divider: () => console.error('─'.repeat(60)),
 };
 
 /**
  * v1.8: Helper function to run engine with logging and cleanup
+ * v1.10: Added format parameter for structured output
  * Reduces duplication between handleRunCommand and handleContinueCommand
  */
 async function runEngineWithLogging(
   context: EngineContext,
-  options: { verbose?: boolean }
+  options: { verbose?: boolean; format?: string }
 ): Promise<void> {
   logger.divider();
 
@@ -77,30 +84,17 @@ async function runEngineWithLogging(
     // Run the main engine loop
     const finalResponse = await engine.run();
 
-    logger.divider();
-    logger.success('✨ Agent completed successfully!');
-    logger.divider();
-
-    // Print the final response
-    logger.info('Final Response:');
-    console.log(finalResponse);
-
-    logger.divider();
-
-    // Print journal summary
+    // Get metadata and events for output formatting
     const journal = engine.getJournal();
     const events = await journal.readJournal();
     const metadata = await journal.readMetadata();
 
-    logger.info('Execution Summary:');
-    logger.info(`  • Iterations: ${metadata.iterations_completed}`);
-    logger.info(`  • Total Events: ${events.length}`);
-    logger.info(`  • Status: ${metadata.status}`);
-    if (metadata.end_time && metadata.start_time) {
-      const duration = (new Date(metadata.end_time).getTime() - new Date(metadata.start_time).getTime()) / 1000;
-      logger.info(`  • Duration: ${duration.toFixed(2)}s`);
-    }
+    // v1.10: Use output formatters for ALL formats (universal I/O separation)
+    const outputFormat = (options.format || 'text') as OutputFormat;
 
+    // Log completion to stderr (for all formats)
+    logger.divider();
+    logger.success('✨ Agent completed successfully!');
     logger.divider();
     logger.info(`Work directory: ${context.workDir}`);
     logger.info(`Journal log: ${path.join(context.deltaDir, context.runId, 'journal.jsonl')}`);
@@ -109,9 +103,18 @@ async function runEngineWithLogging(
       logger.divider();
       logger.info('Journal Events:');
       events.forEach(event => {
-        console.log(`  [${event.seq}] ${event.type} at ${new Date(event.timestamp).toLocaleTimeString()}`);
+        console.error(`  [${event.seq}] ${event.type} at ${new Date(event.timestamp).toLocaleTimeString()}`);
       });
     }
+
+    logger.divider();
+
+    // Build structured output and send to stdout (for all formats)
+    const runResult = buildRunResult(metadata, finalResponse);
+    runResult.metadata.workspace_path = context.workDir;
+
+    // Output to stdout (clean, no logs)
+    console.log(formatOutput(runResult, outputFormat));
 
     // Clean up sessions after successful completion
     logger.info('Cleaning up sessions...');
@@ -167,26 +170,28 @@ async function runEngineWithLogging(
 /**
  * Handle the run command
  * v1.8: Updated parameter name from 'task' to 'message' for semantic clarity
+ * v1.10: Added runId and format parameters
  */
 async function handleRunCommand(options: {
   agent: string;
   message: string;
   workDir?: string;
+  runId?: string;
+  format?: string;
   maxIterations?: number;
   verbose?: boolean;
   interactive?: boolean;
   yes?: boolean;
 }) {
   try {
-    // v1.8: Check if API key is configured (support both DELTA_* and OPENAI_*)
-    if (!process.env.DELTA_API_KEY && !process.env.OPENAI_API_KEY) {
+    // Check if API key is configured
+    if (!process.env.DELTA_API_KEY) {
       logger.divider();
       logger.error('API key not found!');
       logger.divider();
-      logger.info('Please set one of the following environment variables:');
+      logger.info('Please set the following environment variable:');
       logger.info('');
-      logger.info('  export DELTA_API_KEY="your-api-key-here"        # Recommended');
-      logger.info('  export OPENAI_API_KEY="your-api-key-here"       # Legacy');
+      logger.info('  export DELTA_API_KEY="your-api-key-here"');
       logger.info('');
       logger.info('Optional: Configure custom API endpoint:');
       logger.info('');
@@ -231,7 +236,8 @@ async function handleRunCommand(options: {
           options.interactive,
           options.maxIterations,
           true, // explicitWorkDir = true
-          options.yes
+          options.yes,
+          options.runId // v1.10: Client-generated run ID
         );
       }
     } else {
@@ -244,7 +250,8 @@ async function handleRunCommand(options: {
         options.interactive,
         options.maxIterations,
         false, // explicitWorkDir = false
-        options.yes
+        options.yes,
+        options.runId // v1.10: Client-generated run ID
       );
     }
 
@@ -277,10 +284,8 @@ async function handleRunCommand(options: {
     logger.info(`Number of Tools: ${context.config.tools.length}`);
     logger.info(`LLM Model: ${context.config.llm.model}`);
 
-    // v1.8: Show custom API endpoint if configured (support DELTA_* and OPENAI_*)
-    const apiEndpoint = process.env.DELTA_BASE_URL ||
-                       process.env.OPENAI_BASE_URL ||
-                       process.env.OPENAI_API_URL;
+    // v1.8: Show custom API endpoint if configured
+    const apiEndpoint = process.env.DELTA_BASE_URL;
     if (apiEndpoint) {
       logger.info(`API Endpoint: ${apiEndpoint}`);
     }
@@ -296,7 +301,8 @@ async function handleRunCommand(options: {
     }
 
     // v1.8: Use helper function for engine execution
-    await runEngineWithLogging(context, { verbose: options.verbose });
+    // v1.10: Pass format parameter
+    await runEngineWithLogging(context, { verbose: options.verbose, format: options.format });
 
   } catch (error) {
     logger.divider();
@@ -320,23 +326,27 @@ async function handleRunCommand(options: {
 
 /**
  * v1.8: Handle the continue command with state machine logic
+ * v1.10: Added force and format parameters
+ * v1.10 Blocker 2 Fix: Added runId as required parameter
  */
 async function handleContinueCommand(options: {
+  runId: string;
   workDir: string;
   message?: string;
+  force?: boolean;
+  format?: string;
   verbose?: boolean;
   interactive?: boolean;
 }) {
   try {
     // v1.8: Check if API key is configured
-    if (!process.env.DELTA_API_KEY && !process.env.OPENAI_API_KEY) {
+    if (!process.env.DELTA_API_KEY) {
       logger.divider();
       logger.error('API key not found!');
       logger.divider();
-      logger.info('Please set one of the following environment variables:');
+      logger.info('Please set the following environment variable:');
       logger.info('');
-      logger.info('  export DELTA_API_KEY="your-api-key-here"        # Recommended');
-      logger.info('  export OPENAI_API_KEY="your-api-key-here"       # Legacy');
+      logger.info('  export DELTA_API_KEY="your-api-key-here"');
       logger.info('');
       logger.info('Optional: Configure custom API endpoint:');
       logger.info('');
@@ -347,16 +357,20 @@ async function handleContinueCommand(options: {
 
     logger.divider();
     logger.info('Delta Continue - Resume or extend existing run');
+    logger.info(`Run ID: ${options.runId}`);
     logger.info(`Work Directory: ${options.workDir}`);
     logger.divider();
 
-    // Check for any existing run
-    const runInfo = await checkForAnyRun(options.workDir);
+    // v1.10 Blocker 2 Fix: Check for specific run (explicit-only continuation)
+    const runInfo = await checkForSpecificRun(options.workDir, options.runId);
 
     if (!runInfo) {
-      logger.error('No existing run found in this work directory.');
+      logger.error(`Run '${options.runId}' not found in work directory.`);
       logger.info('');
-      logger.info('Use `delta run` to start a new run.');
+      logger.info('To list available runs:');
+      logger.info(`  delta list-runs -w ${options.workDir} --resumable`);
+      logger.info('');
+      logger.info('Or use `delta run` to start a new run.');
       logger.divider();
       process.exit(1);
     }
@@ -370,11 +384,20 @@ async function handleContinueCommand(options: {
 
     switch (status) {
       case RunStatus.RUNNING:
-        logger.error('Cannot continue: Run is currently RUNNING');
+        // v1.10: With Janitor mechanism, we can attempt to continue if --force is provided
+        if (!options.force) {
+          logger.error('Cannot continue: Run is currently RUNNING');
+          logger.info('');
+          logger.info('This run may still be active. Options:');
+          logger.info('  1. Wait for the run to finish or become INTERRUPTED/WAITING_FOR_INPUT');
+          logger.info('  2. Use --force to attempt recovery (only if you are certain the process is dead)');
+          logger.divider();
+          process.exit(1);
+        }
+
+        logger.info('Attempting to resume RUNNING run with --force (Janitor check)...');
         logger.info('');
-        logger.info('Wait for the run to finish or become INTERRUPTED/WAITING_FOR_INPUT.');
-        logger.divider();
-        process.exit(1);
+        context = await resumeContext(options.workDir, runDir, options.interactive, options.message, options.force);
         break;
 
       case RunStatus.INTERRUPTED:
@@ -383,7 +406,7 @@ async function handleContinueCommand(options: {
         if (options.message) {
           logger.info(`Continuing with message: ${options.message}`);
         }
-        context = await resumeContext(options.workDir, runDir, options.interactive, options.message);
+        context = await resumeContext(options.workDir, runDir, options.interactive, options.message, options.force);
         break;
 
       case RunStatus.WAITING_FOR_INPUT:
@@ -408,7 +431,7 @@ async function handleContinueCommand(options: {
 
         logger.info(`Response written to: ${responsePath}`);
 
-        context = await resumeContext(options.workDir, runDir, options.interactive, options.message);
+        context = await resumeContext(options.workDir, runDir, options.interactive, options.message, options.force);
         break;
 
       case RunStatus.COMPLETED:
@@ -424,7 +447,7 @@ async function handleContinueCommand(options: {
         logger.info('Extending COMPLETED conversation...');
         logger.info(`New message: ${options.message}`);
 
-        context = await resumeContext(options.workDir, runDir, options.interactive, options.message);
+        context = await resumeContext(options.workDir, runDir, options.interactive, options.message, options.force);
         break;
 
       case RunStatus.FAILED:
@@ -440,7 +463,7 @@ async function handleContinueCommand(options: {
         logger.info('Retrying FAILED run with new context...');
         logger.info(`Retry message: ${options.message}`);
 
-        context = await resumeContext(options.workDir, runDir, options.interactive, options.message);
+        context = await resumeContext(options.workDir, runDir, options.interactive, options.message, options.force);
         break;
 
       default:
@@ -470,9 +493,7 @@ async function handleContinueCommand(options: {
     logger.info(`LLM Model: ${context.config.llm.model}`);
 
     // Show custom API endpoint if configured
-    const apiEndpoint = process.env.DELTA_BASE_URL ||
-                       process.env.OPENAI_BASE_URL ||
-                       process.env.OPENAI_API_URL;
+    const apiEndpoint = process.env.DELTA_BASE_URL;
     if (apiEndpoint) {
       logger.info(`API Endpoint: ${apiEndpoint}`);
     }
@@ -488,7 +509,8 @@ async function handleContinueCommand(options: {
     }
 
     // Use helper function for engine execution
-    await runEngineWithLogging(context, { verbose: options.verbose });
+    // v1.10: Pass format parameter
+    await runEngineWithLogging(context, { verbose: options.verbose, format: options.format });
 
   } catch (error) {
     logger.divider();
@@ -536,7 +558,7 @@ export function createProgram(): Command {
     )
     .action(handleInitCommand);
 
-  // Define the run command (v1.8: updated to use -m/--message, v1.9: agent defaults to current dir)
+  // Define the run command (v1.8: updated to use -m/--message, v1.9: agent defaults to current dir, v1.10: added --run-id and --format)
   program
     .command('run')
     .description('Execute an AI agent with a specified task')
@@ -552,6 +574,15 @@ export function createProgram(): Command {
     .option(
       '-w, --work-dir <path>',
       'Custom work directory path (defaults to auto-generated under agent/workspaces/)'
+    )
+    .option(
+      '--run-id <id>',
+      'Client-generated run ID for deterministic tracking (optional, auto-generated if not provided)'
+    )
+    .option(
+      '--format <format>',
+      'Output format: text (human-readable), json (structured), raw (Unix pipes)',
+      'text'
     )
     .option(
       '--max-iterations <number>',
@@ -581,10 +612,15 @@ export function createProgram(): Command {
     )
     .action(handleRunCommand);
 
-  // v1.8: Add continue command
+  // v1.8: Add continue command (v1.10: added --force and --format)
+  // v1.10 Blocker 2 Fix: --run-id is now required (Frontierless Workspace compliance)
   program
     .command('continue')
-    .description('Resume or extend an existing run with optional new message')
+    .description('Resume or extend an existing run with explicit run ID')
+    .requiredOption(
+      '--run-id <id>',
+      'Run ID to continue (use "delta list-runs" to find available runs)'
+    )
     .requiredOption(
       '-w, --work-dir <path>',
       'Work directory containing the run to continue'
@@ -592,6 +628,16 @@ export function createProgram(): Command {
     .option(
       '-m, --message <description>',
       'Optional message to inject (required for WAITING_FOR_INPUT, COMPLETED, FAILED states)'
+    )
+    .option(
+      '--force',
+      'Force continue orphaned RUNNING run from different host (skip cross-host safety check)',
+      false
+    )
+    .option(
+      '--format <format>',
+      'Output format: text (human-readable), json (structured), raw (Unix pipes)',
+      'text'
     )
     .option(
       '-v, --verbose',
@@ -604,6 +650,35 @@ export function createProgram(): Command {
       false
     )
     .action(handleContinueCommand);
+
+  // v1.10: Add list-runs command
+  program
+    .command('list-runs')
+    .description('List all runs in a work directory with optional filtering')
+    .option(
+      '-w, --work-dir <path>',
+      'Work directory to scan for runs (defaults to current directory)'
+    )
+    .option(
+      '--resumable',
+      'Show only resumable runs (WAITING_FOR_INPUT or INTERRUPTED)',
+      false
+    )
+    .option(
+      '--status <status>',
+      'Filter runs by specific status (RUNNING, COMPLETED, FAILED, etc.)'
+    )
+    .option(
+      '--first',
+      'Return only the most recent run',
+      false
+    )
+    .option(
+      '--format <format>',
+      'Output format: text (human-readable) or json (structured)',
+      'text'
+    )
+    .action(handleListRunsCommand);
 
   // v1.7: Add tool expand command
   program

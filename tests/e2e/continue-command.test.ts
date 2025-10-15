@@ -82,16 +82,16 @@ async function testInterruptedWithoutMessage(cliPath: string, agentDir: string) 
   // Create initial run and set to INTERRUPTED
   const { workspaceDir, runId } = await createRunWithStatus(cliPath, agentDir, 'INTERRUPTED');
 
-  // Continue without message
+  // Continue without message (v1.10: --run-id now required)
   const result = await execa(
     'node',
-    [cliPath, 'continue', '-w', workspaceDir],
+    [cliPath, 'continue', '-w', workspaceDir, '--run-id', runId],
     {
       reject: false,
       timeout: 5000,
       env: {
         ...process.env,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+        DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
       },
     }
   );
@@ -118,17 +118,17 @@ async function testInterruptedWithMessage(cliPath: string, agentDir: string) {
   // Create initial run and set to INTERRUPTED
   const { workspaceDir, runId } = await createRunWithStatus(cliPath, agentDir, 'INTERRUPTED');
 
-  // Continue with additional message
+  // Continue with additional message (v1.10: --run-id now required)
   const additionalMessage = 'Please add more details this time';
   const result = await execa(
     'node',
-    [cliPath, 'continue', '-w', workspaceDir, '-m', additionalMessage],
+    [cliPath, 'continue', '-w', workspaceDir, '--run-id', runId, '-m', additionalMessage],
     {
       reject: false,
       timeout: 5000,
       env: {
         ...process.env,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+        DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
       },
     }
   );
@@ -174,17 +174,17 @@ async function testWaitingForInputWithMessage(cliPath: string, agentDir: string)
     'utf-8'
   );
 
-  // Continue with response message
+  // Continue with response message (v1.10: --run-id now required)
   const userResponse = 'yes';
   const result = await execa(
     'node',
-    [cliPath, 'continue', '-w', workspaceDir, '-m', userResponse],
+    [cliPath, 'continue', '-w', workspaceDir, '--run-id', runId, '-m', userResponse],
     {
       reject: false,
       timeout: 5000,
       env: {
         ...process.env,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+        DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
       },
     }
   );
@@ -210,17 +210,17 @@ async function testCompletedWithMessage(cliPath: string, agentDir: string) {
   // Create initial run and set to COMPLETED
   const { workspaceDir, runId } = await createRunWithStatus(cliPath, agentDir, 'COMPLETED');
 
-  // Continue with new task
+  // Continue with new task (v1.10: --run-id now required)
   const newTask = 'Now create a second file';
   const result = await execa(
     'node',
-    [cliPath, 'continue', '-w', workspaceDir, '-m', newTask],
+    [cliPath, 'continue', '-w', workspaceDir, '--run-id', runId, '-m', newTask],
     {
       reject: false,
       timeout: 5000,
       env: {
         ...process.env,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+        DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
       },
     }
   );
@@ -249,12 +249,12 @@ async function testCompletedWithoutMessage(cliPath: string, agentDir: string) {
   console.log('Test 5: COMPLETED without message (error case)...');
 
   // Create initial run and set to COMPLETED
-  const { workspaceDir } = await createRunWithStatus(cliPath, agentDir, 'COMPLETED');
+  const { workspaceDir, runId } = await createRunWithStatus(cliPath, agentDir, 'COMPLETED');
 
-  // Try to continue without message (should fail)
+  // Try to continue without message (should fail) - v1.10: --run-id now required
   const result = await execa(
     'node',
-    [cliPath, 'continue', '-w', workspaceDir],
+    [cliPath, 'continue', '-w', workspaceDir, '--run-id', runId],
     {
       reject: false,
       timeout: 5000,
@@ -286,16 +286,20 @@ async function createRunWithStatus(
       timeout: 3000,
       env: {
         ...process.env,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+        DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
       },
     }
   ).catch(() => {}); // Ignore timeout
 
   const workspaceDir = path.join(agentDir, 'workspaces', 'W001');
   const deltaDir = path.join(workspaceDir, '.delta');
-  const latestPath = path.join(deltaDir, 'LATEST');
 
-  const runId = (await fs.readFile(latestPath, 'utf-8')).trim();
+  // v1.10: use delta list-runs to get run ID
+  const listRunsResult = await execa('node', [cliPath, 'list-runs', '--first', '--format', 'raw'], {
+    cwd: workspaceDir,
+    reject: false,
+  });
+  const runId = listRunsResult.stdout.trim();
   const metadataPath = path.join(deltaDir, runId, 'metadata.json');
 
   // Set desired status

@@ -112,19 +112,22 @@ npm test                        # All tests
 npm run test:unit              # Unit tests only
 npm run test:integration       # Integration tests
 
-# Run Agent (v1.8.1: --agent defaults to current directory)
+# Run Agent (v1.10: client-generated IDs + structured output)
 delta run -m "Task description"                    # Use current dir as agent
 delta run --agent <path> -m "..."                  # Or specify agent path
+delta run --run-id $(uuidgen) -m "..."             # Client-generated ID (robust)
+delta run -m "..." --format json                   # JSON output for automation
 delta run -i -m "..."                              # Interactive mode
 delta run -y -m "..."                              # Silent mode (auto-create workspace)
 
-# Continue Existing Run (v1.8: new command)
-delta continue --work-dir <path>                    # Resume INTERRUPTED run
-delta continue --work-dir <path> -m "Response"      # Respond to WAITING_FOR_INPUT
-delta continue --work-dir <path> -m "New task"      # Extend COMPLETED conversation
+# List and Continue Runs (v1.10: explicit run identification)
+delta list-runs                                     # List all runs in workspace
+delta list-runs --resumable                         # Only resumable runs
+delta list-runs --resumable --first                 # Get most recent (for scripts)
+delta continue --run-id <run_id>                    # Resume specific run
 
-# Debug
-RUN_ID=$(cat .delta/LATEST)
+# Debug (v1.10: use list-runs or scan directory)
+RUN_ID=$(delta list-runs --first)                   # Get most recent run
 tail -20 .delta/$RUN_ID/journal.jsonl               # View recent events
 cat .delta/$RUN_ID/metadata.json                    # Check run status
 ls -lht .delta/$RUN_ID/io/invocations/ | head -5   # View LLM calls
@@ -278,8 +281,7 @@ Assistant: "I can help you test. Here are safe options:
 ├── W001/                    # Sequential workspace naming
 │   └── .delta/
 │       ├── VERSION          # Schema version
-│       ├── LATEST           # Latest run ID (text file)
-│       └── {run_id}/
+│       └── {run_id}/        # v1.10: Flat structure (no LATEST file)
 │           ├── journal.jsonl      # SSOT - Core execution log
 │           ├── metadata.json      # Run metadata (status field)
 │           ├── engine.log         # Engine process logs
@@ -412,12 +414,6 @@ npm run test:quick            # Fast feedback (unit tests only)
 npm test                      # ⚠️ Incomplete (skips E2E)
 ```
 
-**Full command reference**: See `docs/testing/README.md`
-
-### Testing Architecture
-
-3-layer test pyramid: Unit (330 tests) → Integration (15 tests) → E2E (6 journeys)
-
 **Complete architecture**: See `docs/testing/README.md`
 
 ### Release Checklist (MANDATORY)
@@ -440,7 +436,7 @@ Required: All tests pass + Version updated + Documentation synced
 ## 🗂️ Reference
 
 ### Current Version
-**v1.9.1** - context.yaml Required (Breaking Change)
+**v1.10** - Frontierless Workspace (Concurrent Multi-Agent Support)
 - v1.0: MVP with Think-Act-Observe
 - v1.1: Stateless core + journal.jsonl
 - v1.2: Human-in-the-loop (`ask_human`)
@@ -451,7 +447,8 @@ Required: All tests pass + Version updated + Documentation synced
 - v1.7: `exec:`/`shell:` syntax sugar
 - v1.8: CLI improvements (`-m` flag, `delta continue` command)
 - v1.9: Unified agent structure (agent.yaml, hooks.yaml, imports mechanism)
-- v1.9.1: **Breaking** - context.yaml now required (eliminates implicit defaults)
+- v1.9.1: context.yaml now required (eliminates implicit defaults)
+- v1.10: **Breaking** - LATEST file removed, explicit run IDs, Janitor mechanism, structured output
 - v2.0 (planned): Multi-agent orchestration
 
 ### Documentation Structure
@@ -463,25 +460,14 @@ Required: All tests pass + Version updated + Documentation synced
 - **API**: `docs/api/` (cli.md, config.md, delta-sessions.md)
 - **Incidents**: `.story/incidents/` (real-world debugging cases)
 
-### Examples (Learning Progression)
-- **Level 1 (Basics)**: `examples/1-basics/hello-world/` (⭐⭐⭐⭐⭐ Entry point, v1.7)
-- **Level 2 (Core)**: `interactive-shell/`, `python-repl/`, `memory-folding/` (all ⭐⭐⭐⭐+)
-- **Level 3 (Advanced)**: `delta-agent-generator/`, `code-reviewer/`, `research-agent/` (all ⭐⭐⭐⭐⭐)
-
-**v1.7 Migration**: 5/8 examples migrated, 40 tools converted, 77% verbosity reduction
 
 ### Environment Variables (v1.8)
 
 **Supported Variables**:
 ```bash
 # Required (choose one naming style)
-DELTA_API_KEY=<your-key>              # Recommended (v1.8+)
-OPENAI_API_KEY=<your-key>             # Legacy, still supported
-
-# Optional
-DELTA_BASE_URL=<custom-endpoint>      # Recommended (v1.8+)
-OPENAI_BASE_URL=<custom-endpoint>     # Alternative (v1.8+)
-OPENAI_API_URL=<custom-endpoint>      # Legacy, still supported
+DELTA_API_KEY=<your-key>             
+DELTA_BASE_URL=<custom-endpoint>   
 ```
 
 **Loading Priority** (local overrides global):

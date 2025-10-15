@@ -63,7 +63,8 @@ export function loadEnvFiles(
       try {
         // override: false means existing env vars won't be overwritten
         // Since we load from local to global, local values are set first
-        dotenv.config({ path: envPath, override: false });
+        // quiet: true disables dotenv's stdout logging (v1.10 I/O separation)
+        dotenv.config({ path: envPath, override: false, quiet: true });
         loadedFiles.push(envPath);
       } catch (error) {
         // Log error but continue loading other files

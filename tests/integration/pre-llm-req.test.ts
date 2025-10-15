@@ -14,7 +14,7 @@ async function testPreLLMReqIntegration() {
   console.log('=== Testing pre_llm_req Hook Integration ===\n');
 
   // Set dummy API key for testing
-  process.env.OPENAI_API_KEY = 'test-key';
+  process.env.DELTA_API_KEY = 'test-key';
 
   // Step 1: Create test agent with pre_llm_req hook
   console.log('Step 1: Creating test agent with pre_llm_req hook...');

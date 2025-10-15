@@ -42,6 +42,22 @@ delta run --agent <path> -m <description> [options]
 
 #### Optional Options
 
+- `--run-id <id>` **(v1.10)**
+  - Client-generated run identifier
+  - If provided: uses specified ID for this run
+  - If not provided: engine auto-generates ID
+  - **Robustness**: Orchestrator retains ID even if process crashes
+  - **Uniqueness**: Errors immediately if ID already exists in workspace
+  - Recommended: Use UUID v4 (`uuidgen`) for automation
+  - Example: `delta run --run-id $(uuidgen) -m "Task"`
+
+- `--format <text|json|raw>` **(v1.10)**
+  - Output format for execution results
+  - **text** (default): Human-readable summary with metadata
+  - **json**: Structured JSON output (RunResult v2.0 schema) for automation
+  - **raw**: Unix-friendly pure data output (composable with pipes)
+  - See "Output Formats" section below for detailed specifications
+
 - `--interactive`, `-i` **(v1.2)**
   - Enable interactive mode for human-in-the-loop
   - Synchronous CLI interaction for ask_human tool
@@ -80,8 +96,17 @@ delta run --agent <path> -m <description> [options]
 # Basic usage - prompts for workspace selection
 delta run --agent ./my-agent -m "List all Python files"
 
-# Short form with options
-delta run -a ./my-agent -t "Create a README file"
+# v1.10: Client-generated run ID (recommended for automation)
+RUN_ID=$(uuidgen)
+delta run --run-id "$RUN_ID" --agent ./my-agent -m "Process data"
+
+# v1.10: JSON output for automation
+OUTPUT=$(delta run --agent ./my-agent -m "Task" --format json)
+RUN_ID=$(echo "$OUTPUT" | jq -r '.run_id')
+RESULT=$(echo "$OUTPUT" | jq '.result')
+
+# v1.10: Raw output for Unix pipes
+delta run --agent ./my-agent -m "Generate summary" --format raw > summary.txt
 
 # Silent mode - auto-creates new workspace W001, W002, etc.
 delta run -y --agent ./my-agent -m "Quick task"
@@ -89,21 +114,123 @@ delta run -y --agent ./my-agent -m "Quick task"
 # Interactive mode (v1.2) - synchronous CLI interaction
 delta run -i --agent ./my-agent -m "Get user preferences"
 
-# Async mode (v1.2) - file-based interaction (default)
-delta run --agent ./my-agent -m "Deploy after confirmation"
-
-# Resume after async pause (v1.2)
-# After providing response in .delta/interaction/response.txt
-delta run --agent ./my-agent
-
 # Custom working directory with short option
-delta run -a ./my-agent -t "Continue analysis" -w ./workspace
+delta run -a ./my-agent -m "Continue analysis" -w ./workspace
 
 # Limit iterations
 delta run --agent ./my-agent -m "Complex task" --max-iterations 10
 
 # Verbose output
 delta run --agent ./my-agent -m "Debug this" --verbose
+
+# v1.10: Complete automation pattern
+RUN_ID=$(uuidgen)
+delta run --run-id "$RUN_ID" -m "Task" --format json 2> run.log > result.json
+# RUN_ID available even if process crashes
+```
+
+### `list-runs` **(v1.10)**
+
+Discover and filter execution runs within a workspace.
+
+#### Syntax
+
+```bash
+delta list-runs [options]
+```
+
+#### Options
+
+- `-w, --work-dir <path>`
+  - Workspace path to search
+  - Default: current directory
+  - Searches `.delta/` directory for run histories
+
+- `--resumable`
+  - Filter to only resumable runs
+  - Includes: INTERRUPTED, WAITING_FOR_INPUT, FAILED, COMPLETED
+  - Excludes: RUNNING (active runs cannot be resumed)
+
+- `--status <status>`
+  - Filter by specific status
+  - Values: RUNNING, INTERRUPTED, WAITING_FOR_INPUT, FAILED, COMPLETED
+
+- `--first`
+  - Return only the most recent run ID
+  - Useful for scripting (single line output)
+  - Returns empty string if no runs found
+
+- `--format <text|json>`
+  - Output format
+  - text: Human-readable table (default)
+  - json: Machine-readable JSON array
+
+#### Examples
+
+```bash
+# List all runs in current workspace
+delta list-runs
+
+# List all runs in specific workspace
+delta list-runs -w /path/to/workspace
+
+# List only resumable runs
+delta list-runs --resumable
+
+# Filter by status
+delta list-runs --status FAILED
+
+# Get most recent run ID (for scripting)
+RUN_ID=$(delta list-runs --first)
+delta continue --run-id "$RUN_ID"
+
+# Get most recent resumable run
+RUN_ID=$(delta list-runs --resumable --first)
+
+# JSON output for automation
+delta list-runs --format json | jq '.[] | select(.status == "FAILED")'
+```
+
+#### Output Format
+
+**Text Format (default)**:
+```
+20251014_0430_aaaa  INTERRUPTED       "Analyze data"     2m ago
+20251014_0435_bbbb  WAITING_FOR_INPUT "Process report"   1m ago
+20251014_0440_cccc  FAILED            "Generate chart"   30s ago
+```
+
+**JSON Format** (`--format json`):
+```json
+[
+  {
+    "run_id": "20251014_0430_aaaa",
+    "status": "INTERRUPTED",
+    "task_summary": "Analyze data",
+    "last_updated": "2025-10-14T10:30:00Z"
+  },
+  {
+    "run_id": "20251014_0435_bbbb",
+    "status": "WAITING_FOR_INPUT",
+    "task_summary": "Process report",
+    "last_updated": "2025-10-14T10:35:00Z"
+  }
+]
+```
+
+#### Quick Resume Pattern
+
+```bash
+# One-liner: resume most recent resumable run
+delta continue --run-id $(delta list-runs --resumable --first)
+
+# Interactive script
+RUN_ID=$(delta list-runs --resumable --first)
+if [ -n "$RUN_ID" ]; then
+  delta continue --run-id "$RUN_ID"
+else
+  echo "No resumable runs found"
+fi
 ```
 
 ### Version Information
@@ -176,30 +303,31 @@ Each workspace has the following structure:
 ```
 $AGENT_HOME/workspaces/
 ├── LAST_USED           # v1.2.1: Tracks last used workspace
-├── W001/                     # v1.2.1: Sequential workspace naming
-│   ├── .delta/              # Control plane
-│   │   ├── VERSION    # v1.2
-│   │   ├── interaction/          # v1.2: Human interaction directory
-│   │   │   ├── request.json     # Pending interaction request
-│   │   │   └── response.txt     # User's response
-│   │   └── runs/
-│   │       ├── <run_id>/         # Single run data
-│   │       │   ├── execution/
-│   │       │   │   ├── journal.jsonl    # Execution log
-│   │       │   │   ├── metadata.json    # Run metadata
-│   │       │   │   └── engine.log       # Engine diagnostics
-│   │       │   ├── io/
-│   │       │   │   ├── invocations/     # LLM I/O
-│   │       │   │   ├── tool_executions/ # Tool I/O
-│   │       │   │   └── hooks/           # Hook I/O
-│   │       │   └── configuration/
-│   │       │       ├── resolved_config.yaml
-│   │       │       └── system_prompt.md
-│   │       └── LATEST                   # Text file containing latest run ID
+├── W001/               # v1.2.1: Sequential workspace naming
+│   ├── .delta/         # Control plane
+│   │   ├── VERSION     # v1.2: Schema version
+│   │   ├── {run_id}/   # v1.10: Flat structure (no LATEST file)
+│   │   │   ├── journal.jsonl      # Execution log (SSOT)
+│   │   │   ├── metadata.json      # Run metadata (includes pid, hostname)
+│   │   │   ├── engine.log         # Engine diagnostics
+│   │   │   ├── io/                # I/O audit logs
+│   │   │   │   ├── invocations/     # LLM request/response
+│   │   │   │   ├── tool_executions/ # Tool stdout/stderr
+│   │   │   │   └── hooks/           # Hook execution logs
+│   │   │   └── interaction/       # v1.2: Human interaction (async mode)
+│   │   │       ├── request.json     # Pending interaction request
+│   │   │       └── response.txt     # User's response
+│   │   └── {another_run_id}/      # Multiple runs coexist (v1.10 concurrency)
 │   └── [workspace files]          # Files created by agent
-├── W002/                     # Additional workspace
-└── workspace_20250930_123456/ # Legacy format (still supported)
+├── W002/                          # Additional workspace
+└── workspace_20250930_123456/    # Legacy format (still supported)
 ```
+
+**v1.10 Changes:**
+- **Removed**: `.delta/LATEST` file (eliminates race conditions)
+- **Added**: Multiple runs can coexist in same workspace
+- **Added**: `pid`, `hostname`, `process_name` fields in `metadata.json`
+- **Result**: True concurrent multi-agent support
 
 ### Workspace Selection (v1.2.1)
 
@@ -219,61 +347,174 @@ When no `--work-dir` is specified:
    - Creates directory if it doesn't exist
    - Logs creation action explicitly
 
-## Output Format
+## Output Formats **(v1.10)**
 
-### Standard Output
+Delta Engine v1.10 provides three output formats to balance human readability, automation support, and Unix composability.
 
+### I/O Philosophy
+
+- **`stderr`**: Real-time execution logs, Think-Act-Observe stream (always active, redirect with `2>`)
+- **`stdout`**: Final execution results only (controlled by `--format`)
+- **Exit Codes**: Standardized signals for script control flow
+
+### Format Overview
+
+| Format | Use Case | stdout Content | Ideal For |
+|--------|----------|----------------|-----------|
+| `text` (default) | Human readability | Human-readable summary with metadata | Interactive use, debugging |
+| `json` | Automation | Structured JSON (RunResult v2.0) | CI/CD, orchestration, robust parsing |
+| `raw` | Unix pipes | Pure data (no metadata) | Pipes, composition, stream processing |
+
+### 1. Text Format (`--format text`, default)
+
+Human-readable execution summary.
+
+**Example Output**:
 ```
-────────────────────────────────────────────────────────────
-[INFO] Starting Delta Engine...
-[INFO] Agent Path: ./my-agent
-[INFO] Task: Your task description
-────────────────────────────────────────────────────────────
-[INFO] Initializing engine context...
-[SUCCESS] Engine context initialized successfully!
-────────────────────────────────────────────────────────────
-[INFO] Run ID: 20240926_120000_abc123
-[INFO] Work Directory: /path/to/workspace
-[INFO] Agent Name: my-agent
-[INFO] Number of Tools: 5
-[INFO] LLM Model: gpt-4
-────────────────────────────────────────────────────────────
-[INFO] 🚀 Starting Delta Engine...
-────────────────────────────────────────────────────────────
+────────────────────────────────────
+Run ID:     20251014_0430_aaaa
+Status:     COMPLETED
+Duration:   2m 30s
+Iterations: 15
+────────────────────────────────────
+Result:
+{
+  "summary": "Analysis complete.",
+  "report_file": "W001/report.pdf",
+  "confidence_score": 0.95
+}
+────────────────────────────────────
+```
 
-[Iteration 1/30]
-🤔 Thinking...
-🛠️  Executing 2 tool call(s)...
-  → Executing: list_files
-  ✓ Success (exit code: 0)
-  → Executing: read_file
-  ✓ Success (exit code: 0)
+**Usage**:
+```bash
+delta run -m "Analyze data" --format text
+delta run -m "Analyze data"  # text is default
+```
 
-[Iteration 2/30]
-🤔 Thinking...
-✅ Agent completed task (no tool calls)
+### 2. JSON Format (`--format json`)
 
-────────────────────────────────────────────────────────────
-[SUCCESS] ✨ Agent completed successfully!
-────────────────────────────────────────────────────────────
-[INFO] Final Response:
-Task completed successfully. Created 3 files.
-────────────────────────────────────────────────────────────
-[INFO] Execution Summary:
-[INFO]   • Iterations: 2
-[INFO]   • Total Events: 8
-[INFO]   • Status: COMPLETED
-[INFO]   • Duration: 5.2s
-────────────────────────────────────────────────────────────
-[INFO] Work directory: /path/to/workspace
-[INFO] Journal log: /path/to/journal.jsonl
+Structured JSON output conforming to **RunResult v2.0 Schema** (see below).
+
+**Example Output**:
+```json
+{
+  "schema_version": "2.0",
+  "run_id": "20251014_0430_aaaa",
+  "status": "COMPLETED",
+  "result": {
+    "summary": "Analysis complete.",
+    "report_file": "W001/report.pdf",
+    "confidence_score": 0.95
+  },
+  "metrics": {
+    "iterations": 15,
+    "duration_ms": 150000,
+    "start_time": "2025-10-14T10:30:00Z",
+    "end_time": "2025-10-14T10:32:30Z"
+  },
+  "metadata": {
+    "agent_name": "MyAgent",
+    "workspace_path": "/path/to/W001"
+  }
+}
+```
+
+**Usage**:
+```bash
+OUTPUT=$(delta run -m "Task" --format json 2> run.log)
+RUN_ID=$(echo "$OUTPUT" | jq -r '.run_id')
+RESULT=$(echo "$OUTPUT" | jq '.result')
+```
+
+### 3. Raw Format (`--format raw`)
+
+Pure data output for Unix composition. **Exit codes** must be used to determine status.
+
+**Behavior**:
+- **COMPLETED** (exit 0): stdout contains only pure `result` data
+- **Other statuses** (exit != 0): stdout is empty, errors in stderr
+
+**Example Output** (COMPLETED):
+```json
+{
+  "summary": "Analysis complete.",
+  "report_file": "W001/report.pdf",
+  "confidence_score": 0.95
+}
+```
+
+**Usage**:
+```bash
+# Pipe to jq
+delta run -m "Analyze data" --format raw | jq '.report_file'
+
+# Pipe to file
+delta run -m "Generate summary" --format raw > summary.txt
+
+# Check status via exit code
+if delta run -m "Task" --format raw > output.txt; then
+  echo "Success"
+else
+  echo "Failed with exit code: $?"
+fi
+```
+
+### RunResult v2.0 Schema
+
+Complete execution contract for `--format json`:
+
+```typescript
+{
+  schema_version: "2.0",
+  run_id: string,
+  status: "COMPLETED" | "FAILED" | "WAITING_FOR_INPUT" | "INTERRUPTED",
+
+  // Conditional fields (only one present based on status)
+  result?: string | object,        // Only for COMPLETED
+  error?: {                         // Only for FAILED/INTERRUPTED
+    type: string,
+    message: string,
+    details?: string
+  },
+  interaction?: {                   // Only for WAITING_FOR_INPUT
+    prompt: string,
+    input_type: "text" | "password" | "confirmation",
+    sensitive: boolean
+  },
+
+  // Always present
+  metrics: {
+    iterations: number,
+    duration_ms: number,
+    start_time: string,  // ISO 8601
+    end_time: string,
+    usage: {
+      total_cost_usd: number,
+      input_tokens: number,
+      output_tokens: number,
+      model_usage: Record<string, {
+        calls: number,
+        input_tokens: number,
+        output_tokens: number,
+        cost_usd: number
+      }>
+    }
+  },
+
+  metadata: {
+    agent_name: string,
+    workspace_path: string
+  }
+}
 ```
 
 ### Exit Codes
 
-- `0` - Success (agent completed task)
-- `1` - General error (initialization failure, engine error, missing API key, etc.)
-- `101` - Waiting for user input (v1.2, async mode only)
+- `0` - Success (COMPLETED)
+- `1` - General error (FAILED, initialization error, missing API key)
+- `101` - Waiting for user input (WAITING_FOR_INPUT, async mode only)
+- `126` - Cannot execute (config error, permission issue)
 - `130` - Interrupted (Ctrl+C or SIGTERM)
 
 ## Debugging

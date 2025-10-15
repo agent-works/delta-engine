@@ -12,7 +12,7 @@ import { convertToolsToOpenAISchema } from './tool_schema.js';
  */
 export class APIKeyError extends Error {
   constructor() {
-    super('API key not found. Please set DELTA_API_KEY or OPENAI_API_KEY environment variable.');
+    super('API key not found. Please set DELTA_API_KEY environment variable.');
     this.name = 'APIKeyError';
   }
 }
@@ -26,15 +26,11 @@ export class LLMAdapter {
 
   /**
    * Initialize the LLM adapter
-   * Supports both DELTA_* (recommended) and OPENAI_* (legacy) environment variables
    * @throws APIKeyError if API key is not set
    */
   constructor() {
-    // v1.8: Support DELTA_* variables with fallback to OPENAI_* (backward compatibility)
-    const apiKey = process.env.DELTA_API_KEY || process.env.OPENAI_API_KEY;
-    const baseURL = process.env.DELTA_BASE_URL ||
-                    process.env.OPENAI_BASE_URL ||
-                    process.env.OPENAI_API_URL;
+    const apiKey = process.env.DELTA_API_KEY;
+    const baseURL = process.env.DELTA_BASE_URL;
 
     if (!apiKey) {
       throw new APIKeyError();
@@ -51,11 +47,6 @@ export class LLMAdapter {
     }
 
     this.client = new OpenAI(clientConfig);
-
-    // Show compatibility notice if using legacy variables
-    if (!process.env.DELTA_API_KEY && process.env.OPENAI_API_KEY) {
-      console.log('[INFO] Using OPENAI_API_KEY (consider migrating to DELTA_API_KEY)');
-    }
   }
 
   /**
@@ -243,7 +234,7 @@ export class LLMAdapter {
    * @returns True if configured, false otherwise
    */
   isConfigured(): boolean {
-    return !!(process.env.DELTA_API_KEY || process.env.OPENAI_API_KEY);
+    return !!process.env.DELTA_API_KEY;
   }
 
   /**

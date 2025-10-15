@@ -128,8 +128,8 @@ The journal tells the agent what already happened.
 - **Cause**: Simple tasks finish in one LLM turn
 - **Solution**: This is normal. Check journal for details:
   ```bash
-  # Get latest run ID
-  RUN_ID=$(cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/LATEST)
+  # Get latest run ID (v1.10: use list-runs)
+  RUN_ID=$(cd examples/1-basics/hello-world/workspaces/LAST_USED && delta list-runs --first)
 
   # View journal
   tail -20 examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.jsonl
@@ -150,8 +150,8 @@ The journal tells the agent what already happened.
 # See all runs
 ls -lt examples/1-basics/hello-world/workspaces/LAST_USED/.delta/
 
-# View latest run's journal
-RUN_ID=$(cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/LATEST)
+# View latest run's journal (v1.10: use list-runs)
+RUN_ID=$(cd examples/1-basics/hello-world/workspaces/LAST_USED && delta list-runs --first)
 cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.jsonl | jq .
 ```
 

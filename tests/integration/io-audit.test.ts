@@ -17,7 +17,7 @@ async function testIOAudit() {
   console.log('=== Testing I/O Audit Trail Implementation ===\n');
 
   // Set API key for testing
-  process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'test-key';
+  process.env.DELTA_API_KEY = process.env.DELTA_API_KEY || 'test-key';
 
   // Step 0: Create test agent
   const testAgentDir = path.join(os.tmpdir(), `delta-test-io-audit-${uuidv4()}`);

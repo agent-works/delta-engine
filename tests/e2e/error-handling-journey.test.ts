@@ -113,7 +113,7 @@ hooks:
         timeout: 10000,
         env: {
           ...process.env,
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+          DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
         },
       }
     );
@@ -130,9 +130,12 @@ hooks:
     expect(await exists(deltaDir)).toBe(true);
     console.log('  ✓ W001 workspace and .delta/ directory exist');
 
-    // Get run ID
-    const latestPath = path.join(deltaDir, 'LATEST');
-    const runId = (await fs.readFile(latestPath, 'utf-8')).trim();
+    // Get run ID (v1.10: use delta list-runs)
+    const listRunsResult = await execa('node', [cliPath, 'list-runs', '--first', '--format', 'raw'], {
+      cwd: workspaceDir,
+      reject: false,
+    });
+    const runId = listRunsResult.stdout.trim();
     console.log(`  ✓ Run ID: ${runId}`);
 
     // Step 5: Verify journal contains error/failure events

@@ -19,7 +19,7 @@ async function testHookProtocol() {
   console.log('=== Testing Hook Execution Protocol ===\n');
 
   // Set dummy API key
-  process.env.OPENAI_API_KEY = 'test-key';
+  process.env.DELTA_API_KEY = 'test-key';
 
   // Step 0: Create test agent
   const testAgentDir = path.join(os.tmpdir(), `delta-test-hooks-${uuidv4()}`);

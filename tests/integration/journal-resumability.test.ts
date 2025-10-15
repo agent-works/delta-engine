@@ -144,22 +144,17 @@ async function testJournalResumability() {
     console.log('  - io/tool_executions/');
     console.log('  - io/hooks/');
 
-    // Test 5: Verify LATEST file (from spec)
-    console.log('\nTest 5: Verify LATEST file tracking...');
+    // Test 5 (v1.10): Verify LATEST file removed (Frontierless Workspace)
+    console.log('\nTest 5: Verify v1.10 Frontierless Workspace (no LATEST file)...');
 
     const latestPath = path.join(context.deltaDir, 'LATEST');
     const latestExists = await fs.access(latestPath).then(() => true).catch(() => false);
 
-    if (!latestExists) {
-      throw new Error('LATEST file not found in .delta/');
+    if (latestExists) {
+      throw new Error('LATEST file should not exist in v1.10 (Frontierless Workspace)');
     }
 
-    const latestContent = await fs.readFile(latestPath, 'utf-8');
-    if (latestContent.trim() !== context.runId) {
-      throw new Error(`LATEST file contains wrong run ID: ${latestContent}`);
-    }
-
-    console.log(`✓ LATEST file correctly points to: ${context.runId}`);
+    console.log('✓ LATEST file correctly removed in v1.10 (eliminates race conditions)');
 
     // Test 6: Verify journal can be read back (SSOT test)
     console.log('\nTest 6: Verify journal can be read back (SSOT validation)...');
@@ -227,7 +222,7 @@ async function testJournalResumability() {
     console.log('  ✓ Journal is append-only JSONL format');
     console.log('  ✓ metadata.json tracks run state with valid status');
     console.log('  ✓ I/O audit directories created (invocations, tool_executions, hooks)');
-    console.log('  ✓ LATEST file tracks current run');
+    console.log('  ✓ LATEST file removed in v1.10 (Frontierless Workspace)');
     console.log('  ✓ Journal can be read back (SSOT validated)');
     console.log('  ✓ State reconstructs after simulated restart (stateless core)');
     console.log('  ✓ Run is resumable');

@@ -399,3 +399,102 @@ export function toolDefinitionToOpenAISchema(tool: ToolDefinition): ToolFunction
     },
   };
 }
+
+// ============================================
+// v1.10: Output Format and RunResult Types
+// ============================================
+
+/**
+ * v1.10: Output format enum for --format flag
+ */
+export enum OutputFormat {
+  Text = 'text',    // Human-readable summary (default)
+  Json = 'json',    // Structured JSON (RunResult v2.0)
+  Raw = 'raw',      // Pure data for Unix pipes
+}
+
+/**
+ * v1.10: RunResult v2.0 Schema - Structured output contract
+ * Used for --format json mode
+ */
+export const RunResultSchema = z.object({
+  schema_version: z.literal('2.0'),
+  run_id: z.string(),
+  status: z.enum(['COMPLETED', 'FAILED', 'WAITING_FOR_INPUT', 'INTERRUPTED']),
+
+  // Conditional fields (mutually exclusive based on status)
+  result: z.union([z.string(), z.record(z.any())]).optional(),
+  error: z.object({
+    type: z.string(),
+    message: z.string(),
+    details: z.string().optional(),
+  }).optional(),
+  interaction: z.object({
+    prompt: z.string(),
+    input_type: z.enum(['text', 'password', 'confirmation']),
+    sensitive: z.boolean(),
+  }).optional(),
+
+  metrics: z.object({
+    iterations: z.number(),
+    duration_ms: z.number(),
+    start_time: z.string(),
+    end_time: z.string(),
+    usage: z.object({
+      total_cost_usd: z.number(),
+      input_tokens: z.number(),
+      output_tokens: z.number(),
+      model_usage: z.record(z.any()),
+    }),
+  }),
+
+  metadata: z.object({
+    agent_name: z.string(),
+    workspace_path: z.string(),
+  }),
+});
+
+export type RunResult = z.infer<typeof RunResultSchema>;
+
+// ============================================
+// v1.10: Enhanced CLI Options Types
+// ============================================
+
+/**
+ * v1.10: Options for 'delta run' command
+ */
+export interface RunCommandOptions {
+  agent: string;
+  message: string;
+  workDir?: string;
+  maxIterations?: number;
+  verbose?: boolean;
+  interactive?: boolean;
+  yes?: boolean;
+  runId?: string;        // [New v1.10] Client-generated run ID
+  format?: OutputFormat; // [New v1.10] Output format
+}
+
+/**
+ * v1.10: Options for 'delta continue' command
+ */
+export interface ContinueCommandOptions {
+  workDir: string;
+  runId: string;         // [Changed v1.10] Now required
+  message?: string;
+  verbose?: boolean;
+  interactive?: boolean;
+  force?: boolean;       // [New v1.10] Force continue (skip cross-host check)
+  format?: OutputFormat; // [New v1.10] Output format
+}
+
+/**
+ * v1.10: Options for 'delta list-runs' command
+ */
+export interface ListRunsOptions {
+  workDir?: string;
+  resumable?: boolean;     // Filter to only resumable runs
+  status?: string;         // Filter by specific status
+  first?: boolean;         // Return only the most recent run
+  format?: OutputFormat;   // Output format (text or json)
+}

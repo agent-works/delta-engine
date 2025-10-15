@@ -85,6 +85,7 @@ function toAbsolutePath(inputPath: string): string {
  * @param maxIterations - Override max iterations from config
  * @param explicitWorkDir - True if workDirInput was explicitly provided by user
  * @param skipPrompt - True to skip workspace selection prompt (auto-create new)
+ * @param clientRunId - v1.10: Optional client-generated run ID for deterministic tracking
  * @returns Initialized engine context
  */
 export async function initializeContext(
@@ -94,10 +95,11 @@ export async function initializeContext(
   isInteractive?: boolean,
   maxIterations?: number,
   explicitWorkDir: boolean = false,
-  skipPrompt: boolean = false
+  skipPrompt: boolean = false,
+  clientRunId?: string
 ): Promise<EngineContext> {
-  // Generate run ID according to v1.1 spec
-  const runId = generateRunId();
+  // v1.10: Use client-provided run ID if given, otherwise generate one
+  const runId = clientRunId || generateRunId();
 
   // Convert agent path to absolute path
   const agentPath = toAbsolutePath(agentPathInput);
@@ -130,7 +132,7 @@ export async function initializeContext(
       // Directory doesn't exist - create it
       await ensureDirectory(workDir);
       if (explicitWorkDir) {
-        console.log(`[INFO] Created work directory: ${workDir}`);
+        console.error(`[INFO] Created work directory: ${workDir}`);
       }
     }
   } else {
@@ -141,7 +143,7 @@ export async function initializeContext(
     if (skipPrompt) {
       // Auto-create new workspace (silent mode with -y flag)
       workspaceName = await generateNextWorkspaceId(workRunsDir);
-      console.log(`[INFO] Auto-creating new workspace: ${workspaceName}`);
+      console.error(`[INFO] Auto-creating new workspace: ${workspaceName}`);
     } else {
       // Interactive workspace selection
       workspaceName = await promptUserForWorkspace(workRunsDir);
@@ -163,6 +165,27 @@ export async function initializeContext(
   await ensureDirectory(deltaDir);
   await fs.writeFile(path.join(deltaDir, 'VERSION'), '1.2\n', 'utf-8');
 
+  // v1.10: Blocker 1 Fix - Check run ID uniqueness to prevent data corruption
+  // If client provides a duplicate run ID, reject it immediately to prevent overwriting
+  try {
+    await fs.access(runDir);
+    // runDir exists - this is a duplicate run ID
+    throw new Error(
+      `Run ID '${runId}' already exists in workspace.\n` +
+      `Path: ${runDir}\n` +
+      `This would overwrite existing run data. Please use a different ID or remove the existing run.`
+    );
+  } catch (err: any) {
+    if (err.code !== 'ENOENT') {
+      // Error is NOT "directory doesn't exist" - it's either:
+      // 1. Our intentional duplicate ID error, or
+      // 2. Some other access error
+      throw err;
+    }
+    // err.code === 'ENOENT' means directory doesn't exist, which is what we want
+    // Safe to proceed with creating the run
+  }
+
   // Load environment variables in cascading order (workspace > agent > project root)
   const loadedEnvFiles = loadEnvFiles(workDir, agentPath, process.cwd());
 
@@ -179,9 +202,7 @@ export async function initializeContext(
   await journal.initialize();
   await journal.initializeMetadata(agentPath, task);
 
-  // Create LATEST file containing the run ID
-  const latestFile = path.join(deltaDir, 'LATEST');
-  await fs.writeFile(latestFile, runId, 'utf-8');
+  // v1.10: LATEST file removed (no longer needed in frontierless workspace model)
 
   // Build and return EngineContext with shared journal instance
   const context: EngineContext = {
@@ -204,9 +225,10 @@ export async function initializeContext(
 /**
  * Load an existing context from a work directory
  * @param workDir - Path to the work directory containing metadata.json
+ * @param runId - Optional explicit run ID to load (v1.10+)
  * @returns Engine context
  */
-export async function loadExistingContext(workDir: string): Promise<EngineContext> {
+export async function loadExistingContext(workDir: string, runId?: string): Promise<EngineContext> {
   // v1.3: Check for .delta directory
   const deltaDir = path.join(workDir, '.delta');
 
@@ -219,25 +241,16 @@ export async function loadExistingContext(workDir: string): Promise<EngineContex
     throw new Error(`Invalid or missing .delta directory: ${error}`);
   }
 
-  // Find the latest run
-  const latestFile = path.join(deltaDir, 'LATEST');
-  let runId: string;
-  let runDir: string;
+  // v1.10: Use explicit runId if provided, otherwise find the most recent run
+  let targetRunId: string;
 
-  try {
-    // Try to read the LATEST file
-    runId = await fs.readFile(latestFile, 'utf-8');
-    runId = runId.trim();
-
-    if (!runId) {
-      throw new Error('LATEST file is empty');
-    }
-
-    runDir = path.join(deltaDir, runId);
-  } catch {
-    // No LATEST file or it's empty, find the most recent run
+  if (runId) {
+    // Use explicit run ID
+    targetRunId = runId;
+  } else {
+    // Find the most recent run by scanning directory (no LATEST file)
     const runs = await fs.readdir(deltaDir);
-    const validRuns = runs.filter(r => r !== 'LATEST' && r !== 'VERSION' && !r.startsWith('.')).sort();
+    const validRuns = runs.filter(r => r !== 'VERSION' && !r.startsWith('.')).sort();
 
     if (validRuns.length === 0) {
       throw new Error('No runs found in .delta/');
@@ -248,9 +261,10 @@ export async function loadExistingContext(workDir: string): Promise<EngineContex
       throw new Error('No valid run found');
     }
 
-    runId = lastRun;
-    runDir = path.join(deltaDir, lastRun);
+    targetRunId = lastRun;
   }
+
+  const runDir = path.join(deltaDir, targetRunId);
 
   // Load metadata from the run
   const metadataPath = path.join(runDir, 'metadata.json');
@@ -291,7 +305,9 @@ export async function loadExistingContext(workDir: string): Promise<EngineContex
 }
 
 /**
- * Check if a resumable run exists in the work directory
+ * v1.10: Check if a resumable run exists in the work directory
+ * Scans all runs and returns the most recent resumable one
+ *
  * @param workDir - Path to the work directory
  * @returns The run directory path if resumable, null otherwise
  */
@@ -302,40 +318,35 @@ export async function checkForResumableRun(workDir: string): Promise<string | nu
     // Check if .delta directory exists
     await fs.access(deltaDir);
 
-    // Check for LATEST file
-    const latestFile = path.join(deltaDir, 'LATEST');
-    let runId: string;
+    // v1.10: Scan all run directories (no LATEST file)
+    const runs = await fs.readdir(deltaDir);
+    const validRuns = runs.filter(r => r !== 'VERSION' && !r.startsWith('.')).sort();
 
-    try {
-      // Read the run ID from LATEST file
-      runId = await fs.readFile(latestFile, 'utf-8');
-      runId = runId.trim();
-
-      if (!runId) {
-        return null;
-      }
-    } catch {
-      // No LATEST file exists
+    if (validRuns.length === 0) {
       return null;
     }
 
-    // Construct the run directory path
-    const runDir = path.join(deltaDir, runId);
+    // Check runs in reverse order (most recent first)
+    for (let i = validRuns.length - 1; i >= 0; i--) {
+      const runId = validRuns[i];
+      if (!runId) continue;
 
-    // Read metadata to check status
-    const metadataPath = path.join(runDir, 'metadata.json');
-    try {
-      const metadataContent = await fs.readFile(metadataPath, 'utf-8');
-      const metadata: DeltaRunMetadata = JSON.parse(metadataContent);
+      const runDir = path.join(deltaDir, runId);
+      const metadataPath = path.join(runDir, 'metadata.json');
 
-      // Check if status is resumable
-      if (metadata.status === RunStatus.WAITING_FOR_INPUT ||
-          metadata.status === RunStatus.INTERRUPTED) {
-        return runDir;
+      try {
+        const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+        const metadata: DeltaRunMetadata = JSON.parse(metadataContent);
+
+        // Check if status is resumable
+        if (metadata.status === RunStatus.WAITING_FOR_INPUT ||
+            metadata.status === RunStatus.INTERRUPTED) {
+          return runDir;
+        }
+      } catch {
+        // Metadata doesn't exist or is invalid, skip this run
+        continue;
       }
-    } catch {
-      // Metadata doesn't exist or is invalid
-      return null;
     }
 
     return null;
@@ -346,8 +357,9 @@ export async function checkForResumableRun(workDir: string): Promise<string | nu
 }
 
 /**
- * Check for any existing run in the work directory (not limited to resumable states)
+ * v1.10: Check for any existing run in the work directory (not limited to resumable states)
  * Used by `delta continue` command to support continuing COMPLETED/FAILED runs
+ * Returns the most recent run regardless of status
  *
  * @param workDir - The work directory to check
  * @returns Object with runDir and status, or null if no run exists
@@ -359,25 +371,21 @@ export async function checkForAnyRun(workDir: string): Promise<{ runDir: string;
     // Check if .delta directory exists
     await fs.access(deltaDir);
 
-    // Check for LATEST file
-    const latestFile = path.join(deltaDir, 'LATEST');
-    let runId: string;
+    // v1.10: Scan all run directories (no LATEST file)
+    const runs = await fs.readdir(deltaDir);
+    const validRuns = runs.filter(r => r !== 'VERSION' && !r.startsWith('.')).sort();
 
-    try {
-      // Read the run ID from LATEST file
-      runId = await fs.readFile(latestFile, 'utf-8');
-      runId = runId.trim();
-
-      if (!runId) {
-        return null;
-      }
-    } catch {
-      // No LATEST file exists
+    if (validRuns.length === 0) {
       return null;
     }
 
-    // Construct the run directory path
-    const runDir = path.join(deltaDir, runId);
+    // Get the most recent run
+    const latestRunId = validRuns[validRuns.length - 1];
+    if (!latestRunId) {
+      return null;
+    }
+
+    const runDir = path.join(deltaDir, latestRunId);
 
     // Read metadata to check status
     const metadataPath = path.join(runDir, 'metadata.json');
@@ -398,18 +406,79 @@ export async function checkForAnyRun(workDir: string): Promise<{ runDir: string;
 }
 
 /**
- * Resume an existing run from a work directory
+ * v1.10 Blocker 2 Fix: Check for a specific run by run ID (explicit continuation)
+ * This function supports Frontierless Workspace by requiring explicit run ID specification
+ * Used by `delta continue --run-id` command to target specific runs
+ *
+ * @param workDir - The work directory to check
+ * @param runId - The specific run ID to look for
+ * @returns Object with runDir and status, or null if run doesn't exist
+ */
+export async function checkForSpecificRun(
+  workDir: string,
+  runId: string
+): Promise<{ runDir: string; status: RunStatus } | null> {
+  const deltaDir = path.join(workDir, '.delta');
+  const runDir = path.join(deltaDir, runId);
+
+  try {
+    // Check if the specific run directory exists
+    await fs.access(runDir);
+
+    // Read metadata to get status
+    const metadataPath = path.join(runDir, 'metadata.json');
+    try {
+      const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+      const metadata: DeltaRunMetadata = JSON.parse(metadataContent);
+
+      // Return run info
+      return { runDir, status: metadata.status };
+    } catch {
+      // Metadata doesn't exist or is invalid
+      return null;
+    }
+  } catch {
+    // Run directory doesn't exist
+    return null;
+  }
+}
+
+/**
+ * v1.10: Resume an existing run from a work directory
  * @param workDir - Path to the work directory
  * @param runDir - Path to the run directory to resume
+ * @param isInteractive - Enable interactive mode
+ * @param userMessage - Optional user message to append
+ * @param force - Force resume (skip cross-host process check)
  * @returns Engine context for the resumed run
  */
-export async function resumeContext(workDir: string, runDir: string, isInteractive?: boolean, userMessage?: string): Promise<EngineContext> {
+export async function resumeContext(
+  workDir: string,
+  runDir: string,
+  isInteractive?: boolean,
+  userMessage?: string,
+  force?: boolean
+): Promise<EngineContext> {
   const deltaDir = path.join(workDir, '.delta');
 
   // Load metadata from the run (v1.3: directly in run root)
   const metadataPath = path.join(runDir, 'metadata.json');
   const metadataContent = await fs.readFile(metadataPath, 'utf-8');
-  const metadata: DeltaRunMetadata = JSON.parse(metadataContent);
+  let metadata: DeltaRunMetadata = JSON.parse(metadataContent);
+
+  // v1.10: Janitor check if run is RUNNING
+  if (metadata.status === RunStatus.RUNNING) {
+    const { janitorCheck, applyJanitorCleanup } = await import('./janitor.js');
+    const janitorResult = await janitorCheck(metadata, force || false);
+
+    if (janitorResult.cleaned) {
+      console.error(`[Janitor] Cleaned up orphaned run: ${janitorResult.reason}`);
+      metadata = applyJanitorCleanup(metadata);
+
+      // Persist cleaned metadata
+      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+    }
+  }
 
   // Load agent configuration (v1.9: supports agent.yaml + imports)
   const { config, systemPrompt } = await loadConfigWithCompat(metadata.agent_ref);
@@ -428,9 +497,7 @@ export async function resumeContext(workDir: string, runDir: string, isInteracti
     status: RunStatus.RUNNING
   });
 
-  // Update LATEST file to point to this run
-  const latestFile = path.join(deltaDir, 'LATEST');
-  await fs.writeFile(latestFile, metadata.run_id, 'utf-8');
+  // v1.10: LATEST file removed (no longer needed in frontierless workspace model)
 
   // Count existing journal events to determine current step
   const events = await journal.readJournal();

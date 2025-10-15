@@ -131,7 +131,6 @@ This ensures Delta Engine can address real-world complexity without sacrificing 
 ## Next Steps
 
 - **Deep Dive**: [Complete Whitepaper](./philosophy-02-whitepaper.md) - Full 5-chapter manifesto
-- **Implementation**: [Core Principles & Code Mapping](./philosophy-03-implementation.md) - How philosophy translates to code
 - **Quick Start**: [5-Minute Tutorial](../QUICKSTART.md) - Run your first agent
 - **Build**: [Agent Development Guide](../guides/agent-development.md) - Create custom agents
 

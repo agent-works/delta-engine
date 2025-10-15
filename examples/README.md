@@ -132,8 +132,8 @@ delta run --agent examples/1-basics/hello-world -m "Say hello and create a file"
 
 ### 3. Explore the Three Pillars
 ```bash
-# See the journal (stateless core)
-RUN_ID=$(cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/LATEST)
+# See the journal (stateless core, v1.10: use list-runs)
+RUN_ID=$(cd examples/1-basics/hello-world/workspaces/LAST_USED && delta list-runs --first)
 cat examples/1-basics/hello-world/workspaces/LAST_USED/.delta/$RUN_ID/journal.jsonl | jq .
 
 # See the workspace (environment as interface)
@@ -157,10 +157,6 @@ cat examples/1-basics/hello-world/agent.yaml
 5. **Sessions**: `2-core-features/interactive-shell` - Learn v1.5 session management
 6. **REPLs**: `2-core-features/python-repl` - Persistent state across executions
 7. **Context**: `2-core-features/memory-folding` - v1.6 context composition
-
-### For Advanced Users
-8. **Orchestration**: `3-advanced/delta-agent-generator` - AI-to-AI patterns, production tool
-9. **Create Your Own**: Use quality checklist in `.quality-assessments/`
 
 ---
 
@@ -196,15 +192,6 @@ cat examples/1-basics/hello-world/agent.yaml
 
 **Threshold**: ⭐⭐⭐⭐ (4.0/5) to be included
 
-### ❌ Anti-Patterns (Archived)
-
-Examples archived to `.archive/` because they:
-- Wrapped generic tools without Delta value
-- Had minimal documentation
-- Didn't teach Delta principles
-- Could be done with any shell script
-
-See [.archive/README.md](./.archive/README.md) for details.
 
 ---
 
@@ -220,57 +207,12 @@ See [.archive/README.md](./.archive/README.md) for details.
 
 ---
 
-## 🛠️ Creating Your Own Example
-
-### Step 1: Check Quality Standards
-Review `.quality-assessments/` for detailed criteria.
-
-### Step 2: Use Template Structure
-```
-your-example/
-├── agent.yaml           # Tool definitions, LLM settings
-├── system_prompt.md      # Agent instructions (100+ lines)
-├── README.md             # Usage guide (100+ lines)
-├── context.yaml          # Optional: v1.6 context composition
-└── tools/                # Optional: Helper scripts
-```
-
-### Step 3: Document Delta Value
-- Explain which of the Three Pillars you demonstrate
-- Show journal usage and resumability
-- Include "How It Works" section
-- Add troubleshooting guidance
-
-### Step 4: Test Quality
-Run against the checklist:
-- [ ] ⭐⭐⭐⭐ (4/5) or higher score
-- [ ] Showcases Delta-unique capability
-- [ ] Comprehensive documentation
-- [ ] Working examples
-- [ ] Teaches Delta philosophy
-
----
-
 ## 📂 Directory Structure
 
 ```
 examples/
 ├── README.md                    # This file
 ├── RESTRUCTURE_PLAN.md          # Restructure documentation
-│
-├── .archive/                    # Removed examples (reference only)
-│   ├── README.md                # Why they were archived
-│   ├── file-organizer/
-│   ├── git-analyzer/
-│   ├── test-runner/
-│   ├── api-tester/
-│   └── doc-generator/
-│
-├── .quality-assessments/        # Quality evaluation reports
-│   ├── SUMMARY.md
-│   ├── hello-world-IMPROVED.md
-│   ├── interactive-shell.md
-│   └── python-repl-FIXED.md
 │
 ├── 1-basics/                    # Quick start (5 min)
 │   ├── hello-world/             # ⭐⭐⭐⭐.3

@@ -50,7 +50,7 @@ tools:
 
   try {
     // Set dummy API key
-    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.DELTA_API_KEY = 'test-key';
 
     // Test 1: Initialize context and create paused state
     console.log('\nTest 1: Initialize context and simulate paused state...');
@@ -154,15 +154,14 @@ tools:
     }
     console.log(`✓ Explicit workspace path works: ${context2.workDir}`);
 
-    // Test 9: Verify LATEST file updated with new run
-    console.log('\nTest 9: Verify LATEST file tracking...');
+    // Test 9 (v1.10): LATEST file removed - skip this test
+    console.log('\nTest 9: Verify v1.10 Frontierless Workspace (no LATEST file)...');
     const latestPath = path.join(deltaDir, 'LATEST');
-    const latestContent = await fs.readFile(latestPath, 'utf-8');
-
-    if (latestContent.trim() !== context2.runId) {
-      throw new Error(`LATEST should point to ${context2.runId}, got ${latestContent.trim()}`);
+    const latestExists = await fs.access(latestPath).then(() => true).catch(() => false);
+    if (latestExists) {
+      throw new Error('LATEST file should not exist in v1.10');
     }
-    console.log(`✓ LATEST file updated: ${latestContent.trim()}`);
+    console.log(`✓ LATEST file correctly removed in v1.10`);
 
     // Test 10: Test interaction directory structure in v1.3
     console.log('\nTest 10: Verify v1.3 interaction directory structure...');

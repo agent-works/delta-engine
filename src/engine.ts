@@ -132,7 +132,7 @@ export class Engine {
     const pendingResponse = await checkForInteractionResponse(this.context.workDir, this.context.runId);
 
     if (pendingResponse !== null) {
-      console.log('📨 Found user response, processing...');
+      console.error('📨 Found user response, processing...');
 
       // Log the action result for ask_human
       await this.journal.logActionResult(
@@ -161,7 +161,7 @@ export class Engine {
 
       if (isInteractive) {
         // Interactive mode: prompt user for input directly
-        console.log('📨 Interactive mode: Prompting for input...');
+        console.error('📨 Interactive mode: Prompting for input...');
 
         const { handleAskHumanInteractive } = await import('./ask-human.js');
         const response = await handleAskHumanInteractive({
@@ -198,14 +198,14 @@ export class Engine {
       }
 
       // Non-interactive mode: need to pause again and wait for response.txt
-      console.log('\n' + '─'.repeat(60));
-      console.log('🔔 Agent is still waiting for your input.');
-      console.log('─'.repeat(60));
-      console.log(`\nPrompt: ${pendingPrompt}\n`);
-      console.log('Action required:');
-      console.log(`1. Provide your response in: ${path.join(this.context.workDir, '.delta', this.context.runId, 'interaction', 'response.txt')}`);
-      console.log(`2. Run 'delta run --work-dir ${this.context.workDir}' to continue.`);
-      console.log('─'.repeat(60) + '\n');
+      console.error('\n' + '─'.repeat(60));
+      console.error('🔔 Agent is still waiting for your input.');
+      console.error('─'.repeat(60));
+      console.error(`\nPrompt: ${pendingPrompt}\n`);
+      console.error('Action required:');
+      console.error(`1. Provide your response in: ${path.join(this.context.workDir, '.delta', this.context.runId, 'interaction', 'response.txt')}`);
+      console.error(`2. Run 'delta run --work-dir ${this.context.workDir}' to continue.`);
+      console.error('─'.repeat(60) + '\n');
 
       // Exit with code 101 to signal pause
       process.exit(101);
@@ -242,7 +242,7 @@ export class Engine {
         iteration++;
         this.context.currentStep++;
 
-        console.log(`\n[Iteration ${iteration}/${maxIterations}]`);
+        console.error(`\n[Iteration ${iteration}/${maxIterations}]`);
         await this.journal.writeEngineLog(`Starting iteration ${iteration}`);
 
         // Check if we're resuming with a pending ask_human
@@ -262,7 +262,7 @@ export class Engine {
         // ============================================
         // THINK: Call LLM with current conversation
         // ============================================
-        console.log('🤔 Thinking...');
+        console.error('🤔 Thinking...');
 
         // Prepare baseline LLM request (P_base)
         // Note: System prompt and DELTA.md are now handled by ContextBuilder
@@ -420,8 +420,8 @@ export class Engine {
         // Display LLM thinking content if present
         if (response.content && response.content.trim()) {
           const indentedContent = response.content.trim().split('\n').join('\n   ');
-          console.log(`💭 ${indentedContent}`);
-          console.log(); // Empty line for separation
+          console.error(`💭 ${indentedContent}`);
+          console.error(); // Empty line for separation
         }
 
         // ============================================
@@ -455,7 +455,7 @@ export class Engine {
         // CHECK TERMINATION: No tool calls means done
         // ============================================
         if (!hasToolCalls(response)) {
-          console.log('✅ Agent completed task (no tool calls)');
+          console.error('✅ Agent completed task (no tool calls)');
           finalResponse = response.content || 'Task completed successfully.';
           break;
         }
@@ -463,7 +463,7 @@ export class Engine {
         // ============================================
         // ACT: Execute tool calls
         // ============================================
-        console.log(`🛠️  Executing ${response.tool_calls!.length} tool call(s)...`);
+        console.error(`🛠️  Executing ${response.tool_calls!.length} tool call(s)...`);
 
         const parsedToolCalls = parseToolCalls(response);
 
@@ -477,7 +477,7 @@ export class Engine {
               return `${k}=${valStr}`;
             })
             .join(', ');
-          console.log(`  → ${toolCall.name}(${argsStr})`);
+          console.error(`  → ${toolCall.name}(${argsStr})`);
 
           // Check if this is the built-in ask_human tool
           if (isAskHumanTool(toolCall.name)) {
@@ -594,7 +594,7 @@ export class Engine {
                 } else if (hookResult.control?.skip) {
                   // Hook requested to skip tool execution
                   skipTool = true;
-                  console.log(`  ⏭️  Tool execution skipped by pre_tool_exec hook`);
+                  console.error(`  ⏭️  Tool execution skipped by pre_tool_exec hook`);
                 }
               } catch (error) {
                 console.error(`❌ pre_tool_exec hook error: ${error}`);
@@ -650,9 +650,9 @@ export class Engine {
             const charCount = result.stdout.length + result.stderr.length;
 
             if (result.success) {
-              console.log(`  ✓ Output: ${outputPreview} (${charCount} chars, exit ${result.exitCode})`);
+              console.error(`  ✓ Output: ${outputPreview} (${charCount} chars, exit ${result.exitCode})`);
             } else {
-              console.log(`  ✗ Failed: ${outputPreview} (exit ${result.exitCode})`);
+              console.error(`  ✗ Failed: ${outputPreview} (exit ${result.exitCode})`);
             }
 
             // ============================================

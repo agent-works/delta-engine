@@ -192,6 +192,12 @@ export class Journal {
    * @param task - Initial task description
    */
   async initializeMetadata(agentRef: string, task: string): Promise<void> {
+    // v1.10: Get current process info for PID tracking
+    const pid = process.pid;
+    const hostname = (await import('node:os')).hostname();
+    const startTimeUnix = Date.now();
+    const processName = path.basename(process.argv[0] || 'node');
+
     const metadata: DeltaRunMetadata = {
       run_id: this.runId,
       start_time: new Date().toISOString(),
@@ -199,6 +205,12 @@ export class Journal {
       task: task,
       status: RunStatus.RUNNING,
       iterations_completed: 0,
+
+      // v1.10: Process tracking fields
+      pid,
+      hostname,
+      start_time_unix: startTimeUnix,
+      process_name: processName,
     };
 
     await fs.writeFile(

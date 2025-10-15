@@ -25,11 +25,6 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
   - Strategic positioning and market analysis
   - Evolution roadmap and design principles
 
-- **[Core Principles & Code Mapping](./architecture/philosophy-03-implementation.md)** 💻 (20 min)
-  - How philosophy translates to implementation
-  - Code locations for each principle
-  - Anti-patterns and guardrails
-
 ---
 
 ## 🚀 Quick Navigation by Goal
@@ -67,14 +62,12 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
 ### 🗂️ By Feature Area
 
 #### Core Concepts
-- [Three Pillars Explained](./architecture/philosophy-03-implementation.md)
 - [Stateless Core Architecture](./architecture/v1.1-design.md)
 - [Control Plane vs Data Plane](./architecture/v1.1-design.md#control-plane-structure)
 
 #### Agent Development
 - [Agent Development Guide](./guides/agent-development.md) - Complete walkthrough
 - [Configuration Reference](./api/config.md) - `config.yaml` syntax
-- [Tool Parameter Injection](./architecture/philosophy-03-implementation.md#11-tool-definition-configyaml) - `argument`, `stdin`, `option` modes
 
 #### Advanced Features
 - [Session Management](./guides/session-management.md) - Persistent bash/Python sessions (v1.5)
@@ -137,7 +130,6 @@ Delta Engine is not just another AI framework—it's a **paradigm shift** in how
 | Document | Status | Last Major Update |
 |----------|--------|-------------------|
 | [Philosophy](./architecture/philosophy-02-whitepaper.md) | ✅ Stable | 2025-10-12 (v1.7) |
-| [Core Principles](./architecture/philosophy-03-implementation.md) | ✅ Stable | 2025-10-10 |
 | [Quick Start](./QUICKSTART.md) | ✅ Stable | 2025-10-12 (v1.7) |
 | [Getting Started](./guides/getting-started.md) | ✅ Stable | 2025-10-12 (v1.7) |
 | [Agent Development](./guides/agent-development.md) | ✅ Stable | 2025-10-12 (v1.7) |
@@ -262,9 +254,6 @@ delta init my-agent
 
 **Out of context?**
 → Implement [memory folding](./guides/context-management.md#memory-folding-pattern)
-
-**Stateless core violated?**
-→ Read [anti-patterns](./architecture/philosophy-03-implementation.md#violation-patterns-what-not-to-do)
 
 ---
 

@@ -29,7 +29,6 @@ The current architecture implements these core principles:
 
 ### Core Philosophy
 - [Delta Engine Philosophy](./philosophy-02-whitepaper.md) - Complete whitepaper: manifesto and architectural philosophy
-- [Core Principles & Code Mapping](./philosophy-03-implementation.md) - How philosophy translates to implementation
 
 ### Design Specifications (Chronological)
 - [v1.1 Design Specification](./v1.1-design.md) - Stateless core architecture
@@ -43,30 +42,7 @@ The current architecture implements these core principles:
 - [v1.8 Unified CLI API](./v1.8-unified-cli-api.md) - CLI improvements and `delta continue` command
 - [v1.9 Unified Agent Structure](./v1.9-unified-agent-structure.md) - Compositional configuration with imports mechanism and v1.9.1 context.yaml requirement
 
-### Migration Guides
-- [Migration: v1.0 → v1.1](../migration/v1.0-to-v1.1.md) - Stateless core migration
-- [Migration: v1.4 → v1.5](../migration/v1.4-to-v1.5.md) - PTY to simplified sessions
-
 **Note**: v1.7 is fully backward compatible (syntax sugar only), so no migration guide is needed. Old `command:` array syntax continues to work alongside new `exec:`/`shell:` syntax.
-
-## Key Components
-
-### Control Plane (.delta/)
-```
-.delta/
-└── runs/
-    └── {run_id}/
-        ├── execution/      # High-level execution flow
-        │   ├── journal.jsonl
-        │   └── metadata.json
-        └── io/     # Low-level I/O details
-            ├── invocations/
-            ├── tool_executions/
-            └── hooks/
-```
-
-### Data Plane (Working Directory)
-The working directory serves as the data plane where agents perform their actual work, creating and modifying files as needed.
 
 ## Design Principles
 
@@ -94,8 +70,3 @@ Complexity emerges through composing simple Agents (processes).
 - **v1.9.1** (Current) - context.yaml now required (breaking change)
 - **v2.0** (Planned) - Multi-agent orchestration and ecosystem features
 
-## See Also
-
-- [Getting Started Guide](../guides/getting-started.md)
-- [Agent Development Guide](../guides/agent-development.md)
-- [CLI Reference](../api/cli.md)

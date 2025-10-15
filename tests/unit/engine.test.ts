@@ -27,8 +27,8 @@ describe('Engine', () => {
   beforeEach(async () => {
     // API key is now loaded from tests/.env via dotenv
     // Verify it's set
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY not found in tests/.env');
+    if (!process.env.DELTA_API_KEY) {
+      throw new Error('DELTA_API_KEY not found in tests/.env');
     }
 
     // Create temporary directories for testing

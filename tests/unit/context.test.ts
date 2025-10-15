@@ -92,25 +92,6 @@ tools: []
     expect(lastUsedContent.trim()).toBe('W001');
   });
 
-  test('should create LATEST file in .delta directory', async () => {
-    const context = await initializeContext(
-      tempAgentDir,
-      'Test task',
-      undefined,
-      false,
-      undefined,
-      false,
-      true
-    );
-
-    const latestPath = path.join(context.deltaDir, 'LATEST');
-    const latestExists = await fs.access(latestPath).then(() => true).catch(() => false);
-    expect(latestExists).toBe(true);
-
-    const latestContent = await fs.readFile(latestPath, 'utf-8');
-    expect(latestContent.trim()).toBe(context.runId);
-  });
-
   test('should create VERSION file in .delta directory', async () => {
     const context = await initializeContext(
       tempAgentDir,
@@ -275,35 +256,22 @@ tools: []
     await expect(loadExistingContext(workDir)).rejects.toThrow('Unsupported schema version: 2.0');
   });
 
-  test('should fallback to finding latest run when LATEST file missing', async () => {
-    const deltaDir = path.join(workDir, '.delta');
-    const latestFile = path.join(deltaDir, 'LATEST');
-
-    // Delete LATEST file
-    await fs.unlink(latestFile);
-
-    // Should still load by finding most recent run directory
+  test('should find latest run by directory scanning (v1.10: no LATEST file)', async () => {
+    // v1.10: No LATEST file exists, system scans directories to find most recent run
     const loadedContext = await loadExistingContext(workDir);
     expect(loadedContext.workDir).toBe(workDir);
-  });
-
-  test('should reject when LATEST file is empty', async () => {
-    const deltaDir = path.join(workDir, '.delta');
-    const latestFile = path.join(deltaDir, 'LATEST');
-
-    // Write empty LATEST file
-    await fs.writeFile(latestFile, '', 'utf-8');
-
-    // Should fallback to finding latest run
-    const loadedContext = await loadExistingContext(workDir);
-    expect(loadedContext.workDir).toBe(workDir);
+    expect(loadedContext.initialTask).toBe('Initial task');
   });
 
   test('should count journal events to set currentStep', async () => {
     // Write some events to journal
     const deltaDir = path.join(workDir, '.delta');
-    const latestContent = await fs.readFile(path.join(deltaDir, 'LATEST'), 'utf-8');
-    const runId = latestContent.trim();
+
+    // v1.10: Find latest run by scanning directory (no LATEST file)
+    const runs = await fs.readdir(deltaDir);
+    const validRuns = runs.filter(r => r !== 'VERSION' && !r.startsWith('.')).sort();
+    const runId = validRuns[validRuns.length - 1];
+
     const journalPath = path.join(deltaDir, runId, 'journal.jsonl');
 
     const event1 = JSON.stringify({
@@ -414,12 +382,18 @@ tools: []
     expect(resumableRunDir).toBeNull();
   });
 
-  test('should return null when LATEST file missing', async () => {
-    const deltaDir = path.join(workDir, '.delta');
-    await fs.unlink(path.join(deltaDir, 'LATEST'));
+  test('should return null when no runs exist (v1.10)', async () => {
+    // v1.10: Create empty work directory with only .delta/VERSION
+    const emptyWorkDir = path.join(os.tmpdir(), `empty-runs-${uuidv4()}`);
+    await fs.mkdir(path.join(emptyWorkDir, '.delta'), { recursive: true });
+    await fs.writeFile(path.join(emptyWorkDir, '.delta', 'VERSION'), '1.2\n', 'utf-8');
 
-    const resumableRunDir = await checkForResumableRun(workDir);
-    expect(resumableRunDir).toBeNull();
+    try {
+      const resumableRunDir = await checkForResumableRun(emptyWorkDir);
+      expect(resumableRunDir).toBeNull();
+    } finally {
+      await fs.rm(emptyWorkDir, { recursive: true, force: true });
+    }
   });
 
   test('should return null when .delta directory missing', async () => {
@@ -444,26 +418,6 @@ tools: []
     // Verify status updated to RUNNING
     const updatedMetadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
     expect(updatedMetadata.status).toBe(RunStatus.RUNNING);
-  });
-
-  test('should update LATEST file when resuming', async () => {
-    const deltaDir = path.join(workDir, '.delta');
-
-    // Set status to INTERRUPTED
-    const metadataPath = path.join(runDir, 'metadata.json');
-    const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
-    const originalRunId = metadata.run_id;
-    metadata.status = RunStatus.INTERRUPTED;
-    await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
-
-    // Manually change LATEST to different value
-    await fs.writeFile(path.join(deltaDir, 'LATEST'), 'different_run_id', 'utf-8');
-
-    // Resume should restore LATEST
-    await resumeContext(workDir, runDir, false);
-
-    const latestContent = await fs.readFile(path.join(deltaDir, 'LATEST'), 'utf-8');
-    expect(latestContent.trim()).toBe(originalRunId);
   });
 
   test('should set isInteractive flag when resuming', async () => {

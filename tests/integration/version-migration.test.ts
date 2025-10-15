@@ -40,7 +40,7 @@ tools: []
 
   try {
     // Set dummy API key
-    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.DELTA_API_KEY = 'test-key';
 
     // Test 1: Initialize context and verify VERSION file creation
     console.log('\nTest 1: Initialize context and verify VERSION file...');
@@ -89,21 +89,16 @@ tools: []
     }
     console.log(`✓ Schema version is ${version} (>= 1.2)`);
 
-    // Test 4: Verify LATEST file also exists (v1.3 metadata)
-    console.log('\nTest 4: Verify LATEST file exists...');
+    // Test 4 (v1.10): Verify LATEST file removed (Frontierless Workspace)
+    console.log('\nTest 4: Verify v1.10 Frontierless Workspace (no LATEST file)...');
     const latestFile = path.join(deltaDir, 'LATEST');
     const latestExists = await fs.access(latestFile).then(() => true).catch(() => false);
 
-    if (!latestExists) {
-      throw new Error('LATEST file not created');
+    if (latestExists) {
+      throw new Error('LATEST file should not exist in v1.10');
     }
 
-    const latestContent = await fs.readFile(latestFile, 'utf-8');
-    console.log(`✓ LATEST file exists with runId: ${latestContent.trim()}`);
-
-    if (latestContent.trim() !== context.runId) {
-      throw new Error(`LATEST should contain ${context.runId}, got ${latestContent.trim()}`);
-    }
+    console.log('✓ LATEST file correctly not created in v1.10 (eliminates race conditions)');
 
     // Test 5: Verify v1.3 directory structure (no 'runs/' subdirectory)
     console.log('\nTest 5: Verify v1.3 directory structure...');
@@ -182,10 +177,10 @@ tools: []
     console.log(`✓ LAST_USED file exists: ${lastUsedContent.trim()}`);
 
     console.log('\n=== ✅ ALL TESTS PASSED ===');
-    console.log('VERSION file and v1.3 schema features working correctly:');
+    console.log('VERSION file and schema features working correctly (v1.10):');
     console.log('  ✓ VERSION file created with valid format');
     console.log('  ✓ Schema version >= 1.2');
-    console.log('  ✓ LATEST file created and points to correct runId');
+    console.log('  ✓ LATEST file removed in v1.10 (Frontierless Workspace)');
     console.log('  ✓ v1.3 directory structure (no "runs/" nesting)');
     console.log('  ✓ journal.jsonl at .delta/{runId}/journal.jsonl');
     console.log('  ✓ io/ directory (not runtime_io/)');

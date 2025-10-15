@@ -32,7 +32,7 @@ async function testV19Compatibility() {
   console.log(`Test base directory: ${testBaseDir}`);
 
   // Set dummy API key
-  process.env.OPENAI_API_KEY = 'test-key';
+  process.env.DELTA_API_KEY = 'test-key';
 
   try {
     // ========================================

@@ -92,7 +92,7 @@ delta-engine run --agent <agent_path> -m "<task_description>" [--work-dir <path_
 ### 4.3 LLM Interaction Specification
 
 1. **Protocol:** Use OpenAI Tool Calling API.
-2. **Authentication:** Get API key through environment variable `OPENAI_API_KEY`.
+2. **Authentication:** Get API key through environment variable `DELTA_API_KEY`.
 
 ### 4.4 Logging Specification (trace.jsonl)
 

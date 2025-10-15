@@ -226,7 +226,6 @@ This enables **multi-agent orchestration** with zero special code.
 - [Code Reviewer Agent](../examples/3-advanced/code-reviewer/) - Lifecycle hooks in action
 
 ### 🏗️ Understand the Architecture
-- [Core Principles & Code](./architecture/philosophy-03-implementation.md) - How philosophy becomes code
 - [Architecture Overview](./architecture/README.md) - System design deep dive
 
 ## Troubleshooting

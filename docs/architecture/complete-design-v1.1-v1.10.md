@@ -1,12 +1,12 @@
-# Delta Engine Complete Design Specification (v1.1-v1.9)
+# Delta Engine Complete Design Specification (v1.1-v1.10)
 
-**Document Purpose**: Comprehensive technical reference consolidating all design specifications from v1.1 to v1.9 for knowledge base integration and team discussion.
+**Document Purpose**: Comprehensive technical reference consolidating all design specifications from v1.1 to v1.10 for knowledge base integration and team discussion.
 
-**Versioning**: This document represents the complete state as of v1.9.1
-**Last Updated**: October 13, 2025
+**Versioning**: This document represents the complete state as of v1.10.0
+**Last Updated**: October 15, 2025
 **Maintained By**: Delta Engine Team
 
-**Source Documents**: v1.1-design.md, v1.2-human-interaction.md, v1.3-design.md, v1.4-pty-deprecation.md, v1.5-sessions-simplified.md, v1.6-context-composition.md, v1.7-tool-simplification.md, v1.8-unified-cli-api.md, v1.9-unified-agent-structure.md
+**Source Documents**: v1.1-design.md, v1.2-human-interaction.md, v1.3-design.md, v1.4-pty-deprecation.md, v1.5-sessions-simplified.md, v1.6-context-composition.md, v1.7-tool-simplification.md, v1.8-unified-cli-api.md, v1.9-unified-agent-structure.md, v1.10-frontierless-workspace.md
 
 ---
 
@@ -21,7 +21,7 @@
 
 ## Part I: System Overview (Current State)
 
-### 1.1 Current Architecture (v1.9.1)
+### 1.1 Current Architecture (v1.10.0)
 
 Delta Engine is an AI agent execution framework built on three core philosophical principles:
 
@@ -52,8 +52,11 @@ OpenAI   External Tools   journal.jsonl
 - **Resumable Execution** [v1.2]: Runs can be interrupted and resumed from any state
 - **Declarative Context** [v1.6, v1.9.1]: Context construction defined via `context.yaml` (required)
 - **Compositional Configuration** [v1.9]: Agent capabilities assembled via `imports` mechanism
+- **Frontierless Workspace** [v1.10]: No shared mutable state; enables concurrent multi-agent execution
+- **Explicit Run Identification** [v1.10]: All operations require explicit `run_id` specification
+- **Robust Recovery** [v1.10]: Janitor mechanism + Client-generated IDs ensure safe crash recovery
 
-### 1.2 Directory Structure (v1.9.1)
+### 1.2 Directory Structure (v1.10.0)
 
 #### Agent Project Structure
 
@@ -71,8 +74,7 @@ OpenAI   External Tools   journal.jsonl
     │   ├── [data plane: agent's work artifacts]
     │   └── .delta/    # [control plane: engine's exclusive domain]
     │       ├── VERSION
-    │       ├── LATEST
-    │       └── {run_id}/
+    │       └── {run_id}/    # [v1.10: LATEST file removed for concurrency]
     │           ├── journal.jsonl     # [v1.1] SSOT: execution history
     │           ├── metadata.json     # [v1.2] Run status and metadata
     │           ├── engine.log        # Engine process logs
@@ -89,15 +91,16 @@ OpenAI   External Tools   journal.jsonl
 **Key Design Decisions:**
 - **Data Plane vs Control Plane** [v1.1]: Clear separation of workspace artifacts (visible to agent) from execution history (engine-only)
 - **Sequential Workspace Naming** [v1.3]: W001, W002... for simplicity
-- **LATEST File** [v1.2]: Quick access to most recent run ID
+- **No LATEST File** [v1.10]: Removed to enable concurrent execution; explicit run IDs required
 - **Unified io/ Directory** [v1.3]: Simplified from `runtime_io/` for clarity
+- **Flat .delta/ Structure** [v1.10]: Direct {run_id}/ directories without intermediate `runs/` subdirectory
 
 #### Workspace Detail: .delta/{run_id}/ Contents
 
 ```
 {run_id}/
 ├── journal.jsonl          # Append-only event log (SSOT)
-├── metadata.json          # Run status: RUNNING | WAITING_FOR_INPUT | COMPLETED | FAILED | INTERRUPTED
+├── metadata.json          # Run status + [v1.10] PID tracking (pid, hostname, start_time, process_name)
 ├── engine.log             # Engine process logs (stdout/stderr)
 ├── io/
 │   ├── invocations/
@@ -132,10 +135,10 @@ LOOP (until MAX_ITERATIONS or finish):
   3. OBSERVE: Return result to LLM → next iteration
 ```
 
-**Status-Based Resumption** [v1.2, v1.8]
+**Status-Based Resumption** [v1.2, v1.8, v1.10]
 - Run status tracked in `metadata.json`
 - States: `RUNNING`, `WAITING_FOR_INPUT`, `COMPLETED`, `FAILED`, `INTERRUPTED`
-- Resumption via `delta run` (auto-detect) or `delta continue` (explicit)
+- Resumption via `delta continue --run-id <id>` (v1.10: explicit ID required)
 
 **Declarative Context Composition** [v1.6, v1.9.1]
 - Context construction defined in `context.yaml` (required as of v1.9.1)
@@ -146,6 +149,19 @@ LOOP (until MAX_ITERATIONS or finish):
 - Agent capabilities assembled via `imports` mechanism in `agent.yaml`
 - Tools can be defined locally or imported from modules
 - **Conflict Resolution**: Last-write-wins (local tools override imported)
+
+**Client-Generated Run IDs** [v1.10]
+- Caller can specify run ID via `delta run --run-id <ID>`
+- Ensures tracking even in catastrophic failure (e.g., `kill -9`)
+- Engine validates uniqueness within workspace
+- **Recommendation**: Use UUID v4 for automated orchestration
+
+**Janitor Mechanism** [v1.10]
+- Automatic cleanup of orphaned RUNNING processes
+- Triggered on `delta continue` when status is RUNNING
+- PID-based liveness check with process name verification
+- Cross-host detection with `--force` escape hatch
+- Safe state transition: RUNNING → INTERRUPTED
 
 ---
 
@@ -334,7 +350,7 @@ LOOP (while iterations < MAX_ITERATIONS and not finished):
 - Agent can choose to retry, work around, or fail gracefully
 - Only unrecoverable engine-level errors terminate execution
 
-#### 2.1.4 Run Metadata [v1.2]
+#### 2.1.4 Run Metadata [v1.2, v1.10]
 
 **File**: `.delta/{run_id}/metadata.json`
 **Purpose**: Single source of truth for run state and status
@@ -354,7 +370,13 @@ LOOP (while iterations < MAX_ITERATIONS and not finished):
   "max_iterations": 30,
   "error": null,  // String if status is FAILED
   "agent_home": "/path/to/agent",
-  "work_dir": "/path/to/workspace"
+  "work_dir": "/path/to/workspace",
+
+  // [v1.10] Process tracking fields for Janitor mechanism
+  "pid": 12345,                              // Process ID
+  "hostname": "host-a",                      // Hostname where process started
+  "start_time_unix": 1697207722123,          // Unix timestamp for process start
+  "process_name": "node"                     // Process name (e.g., "node", "delta")
 }
 ```
 
@@ -389,6 +411,63 @@ export enum RunStatus {
 - Engine checks status before resuming to determine behavior
 - `delta run` auto-resumes if status is `INTERRUPTED` or `WAITING_FOR_INPUT`
 - `delta continue` explicitly handles all five states (v1.8)
+
+#### 2.1.5 Janitor Mechanism [v1.10]
+
+**Purpose**: Automatically clean up orphaned RUNNING processes to enable safe recovery after crashes
+
+**Trigger**: Activated during `delta continue` when run status is `RUNNING`
+
+**Algorithm**:
+```typescript
+async function janitorCheck(metadata: RunMetadata, force?: boolean): Promise<void> {
+  if (metadata.status !== 'RUNNING') return;
+
+  // Step 1: Cross-host detection
+  if (metadata.hostname !== os.hostname() && !force) {
+    throw new Error(`Run started on different host ${metadata.hostname}`);
+  }
+
+  // Step 2: PID liveness check
+  const isAlive = await isProcessAlive(metadata.pid);  // kill -0 on Unix
+
+  if (!isAlive) {
+    // Process is dead, safe to clean up
+    metadata.status = 'INTERRUPTED';
+    return;
+  }
+
+  // Step 3: Process name verification (prevent PID reuse false positive)
+  const processName = await getProcessName(metadata.pid);
+  if (!processName.includes('node') && !processName.includes('delta')) {
+    // PID was reused by different process
+    metadata.status = 'INTERRUPTED';
+    return;
+  }
+
+  // Process still alive
+  throw new Error(`Run ${metadata.run_id} is still active (PID ${metadata.pid})`);
+}
+```
+
+**Safety Features**:
+- **PID Verification**: Uses `kill -0` (Unix) to check process existence
+- **Process Name Check**: Prevents false positives from PID reuse
+- **Cross-Host Detection**: Refuses automatic cleanup across hosts
+- **Force Flag**: `--force` allows manual override for cross-host scenarios
+- **State Transition**: Safe RUNNING → INTERRUPTED transition
+
+**Error Messages**:
+```bash
+# Cross-host scenario
+Error: Run 20251014_0430_aaaa was started on host 'host-a'.
+Cannot verify process status from host 'host-b'.
+If you're certain the original process is dead, use --force.
+
+# Process still running
+Error: Run 20251014_0430_aaaa is still active (PID 12345).
+Cannot continue while original process is running.
+```
 
 ---
 
@@ -1696,13 +1775,14 @@ RUNNING → ask_human (async) → WAITING_FOR_INPUT → user response → RUNNIN
 
 ### 2.6 CLI & User Interface
 
-#### 2.6.1 delta run Command [v1.1, v1.8]
+#### 2.6.1 delta run Command [v1.1, v1.8, v1.10]
 
 **Evolution**:
 - v1.1: Original command with `--task` parameter
 - v1.8: Renamed to `-m/--message` for semantic clarity (breaking change)
+- v1.10: Added `--run-id` and `--format` options; removed auto-resume logic
 
-**Current Signature** (v1.8):
+**Current Signature** (v1.10):
 ```bash
 delta run
   --agent <path>          # Required: Agent directory (default: .)
@@ -1712,6 +1792,8 @@ delta run
   [-v, --verbose]         # Optional: Verbose logging
   [-i, --interactive]     # Optional: Interactive mode (sync CLI prompts)
   [-y, --yes]             # Optional: Skip workspace selection prompt
+  [--run-id <id>]         # [v1.10] Optional: Client-generated run ID (must be unique)
+  [--format <format>]     # [v1.10] Optional: Output format (text|json|raw, default: text)
 ```
 
 **Examples**:
@@ -1730,9 +1812,20 @@ delta run -y -m "Run tests"
 
 # Custom workspace
 delta run -w ./existing-workspace -m "Continue analysis"
+
+# [v1.10] Client-generated run ID (robust orchestration)
+RUN_ID=$(uuidgen)
+delta run --run-id "$RUN_ID" -m "Process batch job" --format json
+
+# [v1.10] JSON output for automation
+OUTPUT=$(delta run -m "Generate report" --format json 2>/dev/null)
+RESULT=$(echo "$OUTPUT" | jq -r '.result')
+
+# [v1.10] Raw output for Unix pipes
+delta run -m "List files" --format raw | grep ".txt"
 ```
 
-**Smart Resume Logic** [v1.2, v1.8]:
+**Smart Resume Logic** [v1.2-v1.9, REMOVED in v1.10]:
 ```
 1. Check if .delta/LATEST exists in work-dir
 2. Read metadata.json status
@@ -1740,23 +1833,31 @@ delta run -w ./existing-workspace -m "Continue analysis"
 4. Otherwise → create new run
 ```
 
-**Auto-Resume Behavior**:
-- ✅ Preserved in v1.8 (backward compatible)
-- ✅ Automatic for `INTERRUPTED` and `WAITING_FOR_INPUT` states
-- ✅ User can override by providing new `-m` message
+**v1.10 Breaking Change**:
+- ❌ **Auto-resume removed** to enable concurrent execution
+- ❌ **LATEST file removed** from workspace structure
+- ✅ **Explicit resumption required** via `delta continue --run-id <id>`
+- ✅ **Rationale**: Eliminates race conditions in concurrent workflows
 
-#### 2.6.2 delta continue Command [v1.8]
+#### 2.6.2 delta continue Command [v1.8, v1.10]
 
 **Purpose**: Explicit continuation of existing runs with state-aware semantics.
 
-**Signature**:
+**Evolution**:
+- v1.8: Introduced as explicit continuation alternative to auto-resume
+- v1.10: `--run-id` now required; Janitor mechanism added for orphan cleanup
+
+**Signature** (v1.10):
 ```bash
 delta continue
+  --run-id <id>           # [v1.10] Required: Specific run ID to continue
   -w, --work-dir <path>   # Required: Workspace containing run to continue
   [-m, --message <text>]  # Optional/Required: Depends on state (see below)
   [--max-iterations <n>]  # Optional: Max iterations (default: 30)
   [-v, --verbose]         # Optional: Verbose logging
   [-i, --interactive]     # Optional: Interactive mode
+  [--force]               # [v1.10] Optional: Skip cross-host check for Janitor
+  [--format <format>]     # [v1.10] Optional: Output format (text|json|raw)
 ```
 
 **State Machine Logic**:
@@ -1767,25 +1868,33 @@ delta continue
 | `WAITING_FOR_INPUT` | Provide response | **Yes** (required) | Write to `interaction/response.txt` then resume |
 | `COMPLETED` | Extend conversation | **Yes** (required) | Append USER_MESSAGE then continue execution |
 | `FAILED` | Retry after error | **Yes** (required) | Append USER_MESSAGE then retry |
-| `RUNNING` | N/A | N/A | **ERROR**: "Run is currently executing" |
+| `RUNNING` | [v1.10] Janitor check | N/A | **Janitor activates**: Check PID liveness, clean if dead, error if alive |
 
 **Examples**:
 
 ```bash
+# [v1.10] All operations require --run-id
+
 # INTERRUPTED: Simple resume
-delta continue -w ./workspace
+delta continue --run-id 20251014_0430_aaaa -w ./workspace
 
 # INTERRUPTED: Resume with additional instruction
-delta continue -w ./workspace -m "Skip validation step"
+delta continue --run-id 20251014_0430_aaaa -w ./workspace -m "Skip validation step"
 
 # WAITING_FOR_INPUT: Provide response
-delta continue -w ./workspace -m "yes, proceed"
+delta continue --run-id 20251014_0430_bbbb -w ./workspace -m "yes, proceed"
 
 # COMPLETED: Extend conversation
-delta continue -w ./workspace -m "Now create summary report"
+delta continue --run-id 20251014_0430_cccc -w ./workspace -m "Now create summary report"
 
 # FAILED: Retry with corrected info
-delta continue -w ./workspace -m "API key is in ~/.api-key"
+delta continue --run-id 20251014_0430_dddd -w ./workspace -m "API key is in ~/.api-key"
+
+# [v1.10] Orphaned RUNNING process (Janitor cleanup)
+delta continue --run-id 20251014_0430_eeee -w ./workspace  # Auto-cleans if process dead
+
+# [v1.10] Cross-host scenario with --force
+delta continue --run-id 20251014_0430_ffff -w ./workspace --force
 ```
 
 **Error Handling**:
@@ -1813,35 +1922,199 @@ Error: Run is currently executing. Wait for completion or interrupt first.
 - ✅ State-aware semantics (message optional/required depends on state)
 - ✅ Complementary to `delta run` (not replacement)
 
-#### 2.6.3 Comparison: run vs continue
+#### 2.6.3 Comparison: run vs continue [v1.10 Updated]
 
 | Aspect | `delta run` | `delta continue` |
 |--------|------------|------------------|
-| **Purpose** | Start new or auto-resume | Explicit continuation |
+| **Purpose** | Start new run only | Explicit continuation |
 | **Agent parameter** | Required (`--agent`) | Not needed (from metadata) |
 | **Workspace** | Optional (auto-select) | Required (`-w`) |
 | **Message** | Always required | State-dependent |
-| **Auto-resume** | Yes (INTERRUPTED/WAITING) | N/A (always explicit) |
-| **State handling** | Limited (2 states) | Complete (5 states) |
-| **Mental model** | "Start something" | "Continue something" |
-| **Use case** | New tasks | Extend/retry/resume existing work |
+| **Auto-resume** | [v1.10] **Removed** | N/A (always explicit) |
+| **Run ID** | [v1.10] Optional (`--run-id`) | [v1.10] **Required** (`--run-id`) |
+| **State handling** | Creates new run only | Complete (5 states + Janitor) |
+| **Mental model** | "Start new task" | "Continue specific run" |
+| **Use case** | New tasks only | Extend/retry/resume existing work |
 
-**Recommendation** (v1.8+):
+**Recommendation** (v1.10+):
 - Use `delta run` for starting new tasks
-- Use `delta continue` for explicit continuation (clearer intent)
+- Use `delta list-runs` to find run IDs
+- Use `delta continue --run-id <id>` for explicit continuation
 
-#### 2.6.4 Environment Variables [v1.8]
+#### 2.6.4 delta list-runs Command [v1.10]
+
+**Purpose**: List runs in a workspace with filtering and formatting options
+
+**Signature**:
+```bash
+delta list-runs
+  [-w, --work-dir <path>] # Optional: Workspace path (default: current directory)
+  [--resumable]           # Optional: Filter to resumable runs only
+  [--status <status>]     # Optional: Filter by specific status
+  [--first]               # Optional: Return only most recent run
+  [--format <format>]     # Optional: Output format (text|json, default: text)
+```
+
+**Filter Logic**:
+- `--resumable`: Shows INTERRUPTED, WAITING_FOR_INPUT, FAILED, COMPLETED
+- `--status`: Filter by exact status match
+- `--first`: Returns single most recent run (useful for scripting)
+
+**Output Formats**:
+
+**Text Format** (default):
+```bash
+$ delta list-runs -w W001 --resumable
+20251014_0430_aaaa  INTERRUPTED       "Analyze data"     2m ago
+20251014_0435_bbbb  WAITING_FOR_INPUT "Process report"   1m ago
+20251014_0440_cccc  FAILED            "Generate chart"   30s ago
+```
+
+**JSON Format**:
+```json
+[
+  {
+    "run_id": "20251014_0430_aaaa",
+    "status": "INTERRUPTED",
+    "task_summary": "Analyze data",
+    "last_updated": "2025-10-14T10:30:00Z"
+  }
+]
+```
+
+**Common Patterns**:
+```bash
+# List all runs
+delta list-runs
+
+# Find resumable runs
+delta list-runs --resumable
+
+# Get most recent resumable run ID (for scripting)
+RUN_ID=$(delta list-runs --resumable --first --format json | jq -r '.[0].run_id')
+
+# Quick continue pattern
+delta continue --run-id $(delta list-runs --resumable --first)
+```
+
+#### 2.6.5 Output Formats [v1.10]
+
+**Purpose**: Standardized output for human readability and machine processing
+
+**Available Formats**:
+1. `text` (default) - Human-readable summaries
+2. `json` - Structured data for automation (RunResult v2.0 schema)
+3. `raw` - Pure data for Unix pipes
+
+**I/O Separation**:
+- **stderr**: Real-time execution logs, Think-Act-Observe stream
+- **stdout**: Final result based on format
+
+**Format Specifications**:
+
+**Text Format** (`--format text`):
+```text
+--- Run Summary ---
+Run ID:     20251014_0430_aaaa
+Status:     COMPLETED
+Duration:   2m 30s
+-------------------
+Result:
+{
+  "summary": "Analysis complete.",
+  "report_file": "W001/report.pdf"
+}
+-------------------
+```
+
+**JSON Format** (`--format json`):
+```json
+{
+  "schema_version": "2.0",
+  "run_id": "20251014_0430_aaaa",
+  "status": "COMPLETED",
+  "result": {
+    "summary": "Analysis complete.",
+    "report_file": "W001/report.pdf"
+  },
+  "metrics": {
+    "iterations": 15,
+    "duration_ms": 150000,
+    "usage": { /* token usage */ }
+  }
+}
+```
+
+**Raw Format** (`--format raw`):
+- **COMPLETED** (exit 0): Pure result data on stdout
+- **Other statuses** (exit != 0): Empty stdout, error in stderr
+- **Use case**: Unix pipeline composition
+
+**Exit Codes**:
+| Code | Status | Meaning |
+|------|--------|---------|
+| 0 | COMPLETED | Success |
+| 1 | FAILED | General failure |
+| 101 | WAITING_FOR_INPUT | Interaction required |
+| 126 | FAILED | Config/permission error |
+| 130 | INTERRUPTED | User interrupt (Ctrl+C) |
+
+#### 2.6.6 RunResult v2.0 Schema [v1.10]
+
+**Purpose**: Structured output contract for `--format json`
+
+**Schema**:
+```typescript
+interface RunResult {
+  schema_version: "2.0";
+  run_id: string;
+  status: "COMPLETED" | "FAILED" | "WAITING_FOR_INPUT" | "INTERRUPTED";
+
+  // Conditional fields (only one present based on status)
+  result?: any;        // When COMPLETED
+  error?: {            // When FAILED or INTERRUPTED
+    type: string;
+    message: string;
+    details?: string;
+  };
+  interaction?: {      // When WAITING_FOR_INPUT
+    prompt: string;
+    input_type: string;
+    sensitive: boolean;
+  };
+
+  metrics: {
+    iterations: number;
+    duration_ms: number;
+    start_time: string;
+    end_time: string;
+    usage: {
+      total_cost_usd: number;
+      input_tokens: number;
+      output_tokens: number;
+      model_usage: Record<string, any>;
+    };
+  };
+
+  metadata: {
+    agent_name: string;
+    workspace_path: string;
+  };
+}
+```
+
+#### 2.6.7 Environment Variables [v1.8]
 
 **Supported Variables**:
 ```bash
 # API Key (choose one naming style)
 DELTA_API_KEY=<your-key>              # Recommended (v1.8+)
-OPENAI_API_KEY=<your-key>             # Legacy, still supported
+DELTA_API_KEY=<your-key>             # Legacy, still supported
 
 # Base URL (choose one)
 DELTA_BASE_URL=<custom-endpoint>      # Recommended (v1.8+)
-OPENAI_BASE_URL=<custom-endpoint>     # Alternative (v1.8+)
-OPENAI_API_URL=<custom-endpoint>      # Legacy, still supported
+DELTA_BASE_URL=<custom-endpoint>     # Alternative (v1.8+)
+DELTA_BASE_URL=<custom-endpoint>      # Legacy, still supported
 ```
 
 **Loading Priority** (local overrides global):
@@ -2249,9 +2522,176 @@ docs/architecture/v1.9-unified-agent-structure.md#9-addendum
 
 ---
 
+### 2.8 Orchestration & Concurrency [v1.10]
+
+#### 2.8.1 Frontierless Workspace Model
+
+**Problem**: v1.x relied on `.delta/LATEST` file as a global pointer to track the "most recent" run, creating race conditions in concurrent scenarios.
+
+**Solution**: Remove all shared mutable state from the workspace control plane.
+
+**Architecture Changes**:
+```
+# v1.9 Structure (with contention)
+.delta/
+  ├── LATEST         # [Problem] Race condition source
+  └── {run_id}/
+
+# v1.10 Structure (frontierless)
+.delta/
+  └── {run_id}/      # [Solution] No shared state
+```
+
+**Contract**: The orchestrator (parent agent, script, CI/CD) is responsible for tracking specific `run_id` values, not the engine.
+
+#### 2.8.2 Client-Generated Run IDs
+
+**Purpose**: Ensure run tracking even in catastrophic failure scenarios
+
+**Mechanism**:
+```bash
+# Generate ID client-side
+RUN_ID=$(uuidgen)
+
+# Pass to engine
+delta run --run-id "$RUN_ID" -m "Task" --format json
+
+# ID persists even if engine crashes (kill -9)
+# Can always recover with:
+delta continue --run-id "$RUN_ID"
+```
+
+**Uniqueness Guarantee**:
+- Engine validates ID doesn't exist in workspace
+- Exits immediately on conflict
+- Recommended: Use UUID v4 for automated orchestration
+
+#### 2.8.3 Concurrent Execution Patterns
+
+**Plan-Execute Pattern**:
+```bash
+# Planner agent creates plan
+PLAN_ID=$(uuidgen)
+delta run --run-id "$PLAN_ID" --agent planner -m "Design system" --format json
+PLAN=$(cat .delta/$PLAN_ID/io/tool_executions/finish_*.json | jq -r '.output')
+
+# Execute plan steps concurrently
+for STEP in $(echo "$PLAN" | jq -r '.steps[]'); do
+  STEP_ID=$(uuidgen)
+  delta run --run-id "$STEP_ID" --agent executor -m "$STEP" --format json &
+done
+wait
+```
+
+**Map-Reduce Pattern**:
+```bash
+# Map phase: Process items in parallel
+for ITEM in data/*.json; do
+  RUN_ID=$(uuidgen)
+  delta run --run-id "$RUN_ID" --agent processor -m "Process $ITEM" &
+done
+wait
+
+# Reduce phase: Aggregate results
+REDUCE_ID=$(uuidgen)
+delta run --run-id "$REDUCE_ID" --agent aggregator -m "Combine results"
+```
+
+#### 2.8.4 Explicit-Only Resumption
+
+**v1.10 Breaking Change**: All resumption must be explicit
+
+**Before (v1.9)**:
+```bash
+# Auto-resume based on LATEST
+delta run -m "Task"  # Could auto-resume existing run
+delta continue       # Implicit: uses LATEST
+```
+
+**After (v1.10)**:
+```bash
+# No auto-resume
+delta run -m "Task"  # Always creates new run
+
+# Explicit resumption required
+delta continue --run-id 20251014_0430_aaaa
+
+# Find run IDs with list-runs
+delta list-runs --resumable
+```
+
+**Rationale**:
+- Eliminates race conditions
+- Makes intent explicit
+- Enables safe concurrency
+- Follows "Explicit over Implicit" principle
+
+#### 2.8.5 Robust Recovery Patterns
+
+**Pattern 1: Track and Recover**:
+```bash
+#!/bin/bash
+RUN_ID=$(uuidgen)
+echo "$RUN_ID" > current_run.txt
+
+# Start run (may crash)
+delta run --run-id "$RUN_ID" -m "Critical task" --format json || true
+
+# Always able to recover
+SAVED_ID=$(cat current_run.txt)
+delta continue --run-id "$SAVED_ID"
+```
+
+**Pattern 2: Concurrent with Recovery**:
+```bash
+# Track all spawned runs
+> run_ids.txt
+
+for TASK in "${TASKS[@]}"; do
+  RUN_ID=$(uuidgen)
+  echo "$RUN_ID" >> run_ids.txt
+  delta run --run-id "$RUN_ID" -m "$TASK" &
+done
+
+# Can recover any crashed run
+for RUN_ID in $(cat run_ids.txt); do
+  STATUS=$(delta list-runs --format json | jq -r ".[] | select(.run_id==\"$RUN_ID\") | .status")
+  if [ "$STATUS" = "INTERRUPTED" ]; then
+    delta continue --run-id "$RUN_ID"
+  fi
+done
+```
+
+#### 2.8.6 Janitor and Concurrent Safety
+
+**Guarantee**: At most one active process per `run_id`
+
+**Mechanism**:
+1. Each run records PID in metadata.json
+2. On `delta continue`, if status is RUNNING:
+   - Check if PID exists (kill -0)
+   - Check process name matches
+   - If dead: Clean up (RUNNING → INTERRUPTED)
+   - If alive: Reject continuation
+
+**Cross-Host Safety**:
+```bash
+# Different host scenario
+$ delta continue --run-id xxx
+Error: Run xxx was started on host 'host-a'.
+Cannot verify process status from host 'host-b'.
+If you're certain the original process is dead, use --force.
+
+# Force flag for manual override
+$ delta continue --run-id xxx --force
+[Janitor] Cleaned up orphaned run: Process 12345 no longer exists
+```
+
+---
+
 ## Part III: Version Evolution Timeline
 
-### 3.1 Feature Map (v1.1 - v1.9)
+### 3.1 Feature Map (v1.1 - v1.10)
 
 | Version | Release Date | Key Features | Impact |
 |---------|-------------|--------------|--------|
@@ -2265,8 +2705,44 @@ docs/architecture/v1.9-unified-agent-structure.md#9-addendum
 | **v1.8** | Oct 2025 | CLI improvements (--task → -m/--message), delta continue command, environment variables (.env support) | UX improvement - Semantic clarity |
 | **v1.9** | Oct 2025 | Unified agent structure (config.yaml → agent.yaml), hooks.yaml separation, imports mechanism | Architecture - Composition and modularity |
 | **v1.9.1** | Oct 2025 | context.yaml now REQUIRED (breaking change) | Breaking - Eliminates implicit magic |
+| **v1.10** | Oct 2025 | Frontierless workspace (LATEST removed), client-generated run IDs, Janitor mechanism, delta list-runs, output formats (text/json/raw), explicit-only resumption | Concurrency - Production robustness |
 
 ### 3.2 Breaking Changes Log
+
+#### v1.10: Frontierless Workspace
+
+**Change 1**: `.delta/LATEST` file removed from workspace structure
+
+**Impact**: Any tools or scripts relying on LATEST must update to either:
+- Scan `.delta/` directory directly
+- Use explicit `run_id` tracking
+- Use `delta list-runs` command
+
+**Change 2**: `delta continue` now requires `--run-id` parameter
+
+**Impact**: Implicit continuation no longer possible
+
+**Migration**:
+```bash
+# Before (v1.9)
+delta continue -w ./workspace
+
+# After (v1.10)
+delta continue --run-id 20251014_0430_aaaa -w ./workspace
+
+# Find run ID using list-runs
+delta list-runs --resumable --first
+```
+
+**Change 3**: Auto-resume removed from `delta run`
+
+**Impact**: `delta run` always creates new run, never resumes existing
+
+**Rationale**: Eliminates race conditions, enables concurrent multi-agent workflows
+
+**Timeline**: Direct breaking change (no deprecation period due to early adoption stage)
+
+---
 
 #### v1.9.1: context.yaml Required
 
@@ -2519,6 +2995,36 @@ tools:
 - No surprises (behavior fully specified in visible files)
 - Documentation becomes "explain the contract" rather than "explain the magic"
 
+---
+
+#### ADR-006: Frontierless Workspace [v1.10]
+
+**Decision**: Remove all shared mutable state from workspace control plane
+
+**Context**: v1.x relied on `.delta/LATEST` file to track the "most recent" run, causing:
+- Race conditions in concurrent execution
+- Undefined behavior when multiple agents run simultaneously
+- Inability to implement robust orchestration patterns (Plan-Execute, Map-Reduce)
+
+**Rationale**:
+- ✅ **Concurrency-Safe**: No shared state to contend over
+- ✅ **Deterministic**: Each run has unique ID, no ambiguity
+- ✅ **Orchestrator Control**: Caller manages run tracking (not engine)
+- ✅ **Robust Recovery**: Client-generated IDs persist through crashes
+- ⚠️ **Trade-off**: More explicit management required
+
+**Implementation**:
+- Remove `.delta/LATEST` file completely
+- Require `--run-id` for `delta continue`
+- Add `delta list-runs` for discovery
+- Introduce Janitor mechanism for orphan cleanup
+
+**Consequences**:
+- Enables true concurrent multi-agent execution
+- Scripts must track run IDs explicitly
+- Recovery patterns become more robust
+- Foundation for v2.0 multi-agent orchestration
+
 ### 4.2 Philosophy-to-Implementation Mapping
 
 | Philosophy Principle | Implementation Mechanism | Code Location | Example |
@@ -2639,6 +3145,44 @@ tools:
 
 ---
 
+#### Implicit vs Explicit Resumption [v1.10]
+
+**Trade-off**: Auto-resume convenience vs explicit control
+
+**Choice**: Explicit-only resumption (v1.10 removes auto-resume)
+
+**Rationale**:
+- ✅ **Concurrency-Safe**: No race conditions from implicit state checks
+- ✅ **Predictable**: Always know what operation will occur
+- ✅ **Orchestration-Friendly**: Scripts have full control
+- ✅ **Debug-Friendly**: Clear intent in command history
+- ⚠️ **Trade-off**: More typing required
+
+**Before (v1.9)**:
+```bash
+delta run -m "Task"  # Could auto-resume OR create new
+delta continue       # Implicit: uses LATEST
+```
+
+**After (v1.10)**:
+```bash
+delta run -m "Task"  # Always creates new run
+delta continue --run-id xxx  # Explicit: specify exact run
+```
+
+**Mitigation**:
+- `delta list-runs` command for discovery
+- Shell aliases/functions for convenience
+- Client-generated IDs for robust tracking
+
+**Consequences**:
+- Scripts become more robust (explicit is better for automation)
+- Enables concurrent execution patterns
+- Slightly higher learning curve for interactive use
+- Foundation for multi-agent orchestration
+
+---
+
 ### 4.4 Design Principles Summary
 
 **What Delta Engine Optimizes For**:
@@ -2656,71 +3200,6 @@ tools:
 5. ❌ **Maximum Abstraction** (files and processes, not complex frameworks)
 
 **Target User**: Expert developers who value control, transparency, and Unix philosophy.
-
----
-
-## Appendices
-
-### A. Complete Schema Reference
-
-All schemas are defined using TypeScript and Zod for runtime validation.
-
-**Location**: `src/types.ts`
-
-**Key Schemas**:
-- `AgentConfigSchema` - agent.yaml structure (v1.9)
-- `ToolDefinitionSchema` - Tool definitions (v1.1, v1.7, v1.9)
-- `ToolParameterSchema` - Tool parameters (v1.1, v1.7)
-- `JournalEventSchema` - Journal event types (v1.1, v1.2)
-- `RunMetadataSchema` - metadata.json structure (v1.2)
-- `ContextManifestSchema` - context.yaml structure (v1.6)
-- `LifecycleHooksSchema` - hooks.yaml structure (v1.9)
-
-**Reference**: See `src/types.ts` for complete, authoritative schemas.
-
-### B. Complete API Reference
-
-**CLI Commands**:
-- `delta run` - Start new run or auto-resume (v1.1, v1.8)
-- `delta continue` - Explicit continuation (v1.8)
-- `delta init` - Initialize new agent project (v1.3)
-- `delta tool expand` - Expand syntax sugar to full format (v1.7)
-- `delta-sessions start` - Create session (v1.5)
-- `delta-sessions exec` - Execute command in session (v1.5)
-- `delta-sessions end` - Terminate session (v1.5)
-- `delta-sessions list` - List active sessions (v1.5)
-
-**Reference**: See `docs/api/cli.md` for complete parameter documentation.
-
-### C. Migration Guides
-
-**Available Guides**:
-- v1.4 → v1.5: Session API changes (PTY → Simplified)
-- v1.7 → v1.8: --task → -m/--message parameter rename
-- v1.9 → v1.9.1: context.yaml now required
-
-**Reference**: See `docs/guides/migration-*.md` for step-by-step instructions.
-
-### D. Example Agents
-
-**Learning Progression**:
-
-**Level 1 (Basics)**:
-- `examples/1-basics/hello-world/` - Entry point (⭐⭐⭐⭐⭐, v1.7)
-- `examples/1-basics/file-reader/` - Basic tool usage
-- `examples/1-basics/calculator/` - Parameter injection
-
-**Level 2 (Core Features)**:
-- `examples/2-core-features/interactive-shell/` - v1.5 sessions (⭐⭐⭐⭐+)
-- `examples/2-core-features/python-repl/` - REPL pattern (⭐⭐⭐⭐+)
-- `examples/2-core-features/memory-folding/` - v1.6 context composition (⭐⭐⭐⭐+)
-
-**Level 3 (Advanced)**:
-- `examples/3-advanced/delta-agent-generator/` - Agent orchestration (⭐⭐⭐⭐⭐)
-- `examples/3-advanced/code-reviewer/` - Production pattern (⭐⭐⭐⭐⭐)
-- `examples/3-advanced/research-agent/` - Context management (⭐⭐⭐⭐⭐)
-
-**Reference**: See `examples/` directory for complete agent implementations.
 
 ---
 
@@ -2751,6 +3230,7 @@ This document consolidates **100% of technical specifications** from:
 ✅ **v1.7-tool-simplification.md** - exec/shell modes, :raw modifier, safety mechanisms
 ✅ **v1.8-unified-cli-api.md** - CLI improvements, delta continue, environment variables
 ✅ **v1.9-unified-agent-structure.md** - agent.yaml, hooks.yaml, imports mechanism, v1.9.1 context.yaml requirement
+✅ **v1.10-frontierless-workspace.md** - Frontierless workspace, client IDs, Janitor, output formats, delta list-runs
 
 **Coverage Areas** (100% Complete):
 - ✅ All schemas (Zod definitions)

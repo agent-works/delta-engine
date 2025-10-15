@@ -28,10 +28,10 @@ dotenv.config({ path: path.join(process.cwd(), 'tests', '.env') });
 
 async function testMultiRunHistory() {
   console.log('=== Testing Multi-Run History Tracking (Integration) ===\n');
-  console.log('Validates TESTING_STRATEGY.md Scenario 6');
-  console.log('  - LATEST file updates');
+  console.log('Validates TESTING_STRATEGY.md Scenario 6 (v1.10 updated)');
+  console.log('  - Multiple runs in same workspace (v1.10: no LATEST file)');
   console.log('  - Historical run preservation');
-  console.log('  - Access to previous runs\n');
+  console.log('  - Access to previous runs via directory scanning\n');
 
   const testAgentDir = path.join(os.tmpdir(), `test-multi-run-${uuidv4()}`);
 
@@ -97,12 +97,12 @@ async function testMultiRunHistory() {
     expect(run1Exists).toBe(true);
     console.log(`  ✓ Run directory exists: ${run1Dir}`);
 
-    // Test 2: Verify LATEST points to run_id_1
-    console.log('\nTest 2: Verify LATEST → run_id_1...');
+    // Test 2 (v1.10): Verify NO LATEST file (Frontierless Workspace)
+    console.log('\nTest 2: Verify v1.10 Frontierless Workspace (no LATEST)...');
 
-    const latestContent1 = await fs.readFile(latestPath, 'utf-8');
-    expect(latestContent1.trim()).toBe(runId1);
-    console.log(`  ✓ LATEST file points to run_id_1: ${latestContent1.trim()}`);
+    const latestExists = await fs.access(latestPath).then(() => true).catch(() => false);
+    expect(latestExists).toBe(false);
+    console.log('  ✓ LATEST file correctly not created (v1.10: eliminates race conditions)');
 
     // Test 3: Run second task in same workspace
     console.log('\nTest 3: Run second task and capture run_id_2...');
@@ -136,19 +136,16 @@ async function testMultiRunHistory() {
 
     await context2.journal.close();
 
-    // Test 4: Verify LATEST updated to run_id_2
-    console.log('\nTest 4: Verify LATEST → run_id_2...');
-
-    const latestContent2 = await fs.readFile(latestPath, 'utf-8');
-    expect(latestContent2.trim()).toBe(runId2);
-    console.log(`  ✓ LATEST file updated to run_id_2: ${latestContent2.trim()}`);
-
-    // Test 5: Verify both run directories exist
-    console.log('\nTest 5: Verify both run directories exist...');
+    // Test 4 (v1.10): Verify run_id_2 directory exists
+    console.log('\nTest 4: Verify run_id_2 directory exists...');
 
     const run2Dir = path.join(deltaDir, runId2);
     const run2Exists = await fs.access(run2Dir).then(() => true).catch(() => false);
     expect(run2Exists).toBe(true);
+    console.log(`  ✓ Run 2 directory exists: ${run2Dir}`);
+
+    // Test 5: Verify both run directories exist (historical preservation)
+    console.log('\nTest 5: Verify both run directories exist (historical preservation)...');
 
     // Both should exist
     const run1StillExists = await fs.access(run1Dir).then(() => true).catch(() => false);
@@ -157,12 +154,12 @@ async function testMultiRunHistory() {
     console.log(`  ✓ run_id_1 directory preserved: ${run1Dir}`);
     console.log(`  ✓ run_id_2 directory exists: ${run2Dir}`);
 
-    // Test 6: List all runs in .delta directory
-    console.log('\nTest 6: List all historical runs...');
+    // Test 6: List all runs in .delta directory (v1.10: direct directory scan)
+    console.log('\nTest 6: List all historical runs via directory scanning...');
 
     const deltaEntries = await fs.readdir(deltaDir);
     const runDirs = deltaEntries.filter(entry =>
-      !entry.startsWith('.') && entry !== 'LATEST' && entry !== 'VERSION'
+      !entry.startsWith('.') && entry !== 'VERSION' // v1.10: LATEST removed
     );
 
     expect(runDirs).toContain(runId1);
@@ -189,24 +186,21 @@ async function testMultiRunHistory() {
     expect(journal1Lines.length).toBeGreaterThan(0);
     console.log(`  ✓ Run 1 journal accessible: ${journal1Lines.length} events`);
 
-    // Test 8: Load context from historical run
-    console.log('\nTest 8: Load context from historical run...');
+    // Test 8 (v1.10): Load context with explicit run_id
+    console.log('\nTest 8: Load context with explicit run_id (v1.10 pattern)...');
 
-    const contextLoaded = await loadExistingContext(workDir);
+    // In v1.10, we load runs by explicit run_id, not via LATEST file
+    const contextLoaded = await loadExistingContext(workDir, runId2);
 
-    // loadExistingContext uses LATEST, so it should load run_id_2
     expect(contextLoaded.runId).toBe(runId2);
-    console.log(`  ✓ loadExistingContext loads latest run: ${contextLoaded.runId}`);
+    console.log(`  ✓ loadExistingContext with explicit run_id: ${contextLoaded.runId}`);
 
     await contextLoaded.journal.close();
 
-    // Test 9: Manually switch LATEST to access run_id_1
-    console.log('\nTest 9: Manually switch LATEST to access run_id_1...');
+    // Test 9 (v1.10): Load historical run_id_1 with explicit ID
+    console.log('\nTest 9: Load historical run_id_1 with explicit ID...');
 
-    // Update LATEST to point to run_id_1
-    await fs.writeFile(latestPath, runId1, 'utf-8');
-
-    const contextRun1 = await loadExistingContext(workDir);
+    const contextRun1 = await loadExistingContext(workDir, runId1);
     expect(contextRun1.runId).toBe(runId1);
     expect(contextRun1.initialTask).toBe('First task - echo hello');
     console.log(`  ✓ Successfully loaded historical run_id_1`);
@@ -232,15 +226,15 @@ async function testMultiRunHistory() {
 
     // Summary
     console.log('\n=== ✅ ALL INTEGRATION TESTS PASSED ===');
-    console.log('Validated multi-run history features:');
+    console.log('Validated multi-run history features (v1.10):');
     console.log('  ✓ Multiple runs in same workspace');
-    console.log('  ✓ LATEST file updates to newest run');
+    console.log('  ✓ No LATEST file (v1.10: Frontierless Workspace)');
     console.log('  ✓ Historical run directories preserved');
     console.log('  ✓ All run metadata and journals accessible');
-    console.log('  ✓ loadExistingContext uses LATEST file');
-    console.log('  ✓ Can manually switch LATEST to access historical runs');
+    console.log('  ✓ loadExistingContext with explicit run_id (v1.10 pattern)');
+    console.log('  ✓ Can load any historical run by explicit ID');
     console.log('  ✓ Run directories are independent');
-    console.log('\nMulti-run history tracking validated!');
+    console.log('\nMulti-run history tracking validated (v1.10: Frontierless Workspace)!');
 
   } finally {
     // Clean up

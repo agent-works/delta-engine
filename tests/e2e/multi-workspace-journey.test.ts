@@ -67,7 +67,7 @@ async function testMultiWorkspaceJourney() {
         timeout: 10000,
         env: {
           ...process.env,
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+          DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
         },
       }
     );
@@ -84,9 +84,12 @@ async function testMultiWorkspaceJourney() {
     expect(await exists(w001DeltaDir)).toBe(true);
     console.log('  ✓ W001 .delta/ directory created');
 
-    // Get W001 run ID
-    const w001LatestPath = path.join(w001DeltaDir, 'LATEST');
-    const w001RunId = (await fs.readFile(w001LatestPath, 'utf-8')).trim();
+    // Get W001 run ID (v1.10: use delta list-runs)
+    const w001ListRunsResult = await execa('node', [cliPath, 'list-runs', '--first', '--format', 'raw'], {
+      cwd: w001Dir,
+      reject: false,
+    });
+    const w001RunId = w001ListRunsResult.stdout.trim();
     console.log(`  ✓ W001 run ID: ${w001RunId}`);
 
     // Verify LAST_USED points to W001
@@ -116,7 +119,7 @@ async function testMultiWorkspaceJourney() {
         timeout: 10000,
         env: {
           ...process.env,
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+          DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
         },
       }
     );
@@ -128,9 +131,12 @@ async function testMultiWorkspaceJourney() {
     expect(await exists(w002DeltaDir)).toBe(true);
     console.log('  ✓ W002 .delta/ directory created');
 
-    // Get W002 run ID
-    const w002LatestPath = path.join(w002DeltaDir, 'LATEST');
-    const w002RunId = (await fs.readFile(w002LatestPath, 'utf-8')).trim();
+    // Get W002 run ID (v1.10: use delta list-runs)
+    const w002ListRunsResult = await execa('node', [cliPath, 'list-runs', '--first', '--format', 'raw'], {
+      cwd: w002Dir,
+      reject: false,
+    });
+    const w002RunId = w002ListRunsResult.stdout.trim();
     expect(w002RunId).not.toBe(w001RunId);
     console.log(`  ✓ W002 run ID: ${w002RunId}`);
 
@@ -182,7 +188,7 @@ async function testMultiWorkspaceJourney() {
         timeout: 10000,
         env: {
           ...process.env,
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+          DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
         },
       }
     );
@@ -194,8 +200,12 @@ async function testMultiWorkspaceJourney() {
     expect(lastUsed3).toBe('W001');
     console.log('  ✓ LAST_USED still W001 (consistent with explicit work-dir behavior)');
 
-    // Verify new run in W001
-    const w001LatestAfter = (await fs.readFile(w001LatestPath, 'utf-8')).trim();
+    // Verify new run in W001 (v1.10: get latest run ID)
+    const w001LatestResult = await execa('node', [cliPath, 'list-runs', '--first', '--format', 'raw'], {
+      cwd: w001Dir,
+      reject: false,
+    });
+    const w001LatestAfter = w001LatestResult.stdout.trim();
     console.log(`  ✓ W001 new run ID: ${w001LatestAfter}`);
 
     // Step 6: Verify both workspaces still exist

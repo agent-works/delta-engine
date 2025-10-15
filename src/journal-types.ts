@@ -281,6 +281,12 @@ export interface DeltaRunMetadata {
   status: RunStatus;
   iterations_completed: number;
   error?: string;
+
+  // v1.10: Process tracking fields for Janitor mechanism
+  pid: number;                  // Process ID of the delta run process
+  hostname: string;             // Hostname where the run started
+  start_time_unix: number;      // Unix timestamp (ms) for process start time
+  process_name: string;         // Process name (e.g., "node")
 }
 
 export interface WorkspaceManifest {

@@ -106,7 +106,7 @@ async function testNewUserOnboarding() {
         timeout: 10000, // 10 second timeout
         env: {
           ...process.env,
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key-for-testing',
+          DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key-for-testing',
         },
       }
     );
@@ -129,21 +129,27 @@ async function testNewUserOnboarding() {
     expect(deltaDirExists).toBe(true);
     console.log('  ✓ .delta control plane directory created');
 
-    // Step 5: Verify LATEST file
-    console.log('\nStep 5: Verify LATEST file tracking...');
+    // Step 5 (v1.10): Verify run ID discovery (no LATEST file)
+    console.log('\nStep 5: Verify run ID discovery (v1.10: Frontierless Workspace)...');
 
     const latestPath = path.join(deltaDir, 'LATEST');
     const latestExists = await fs.access(latestPath).then(() => true).catch(() => false);
-    expect(latestExists).toBe(true);
+    expect(latestExists).toBe(false);
+    console.log('  ✓ LATEST file correctly not created (v1.10)');
 
-    const runId = await fs.readFile(latestPath, 'utf-8');
-    expect(runId.trim().length).toBeGreaterThan(0);
-    console.log(`  ✓ LATEST file points to: ${runId.trim()}`);
+    // Get run ID using delta list-runs
+    const listRunsResult = await execa('node', [cliPath, 'list-runs', '--first', '--format', 'raw'], {
+      cwd: w001Dir,
+      reject: false,
+    });
+    const runId = listRunsResult.stdout.trim();
+    expect(runId.length).toBeGreaterThan(0);
+    console.log(`  ✓ Run ID discovered via list-runs: ${runId}`);
 
     // Step 6: Verify run directory structure
     console.log('\nStep 6: Verify run directory structure...');
 
-    const runDir = path.join(deltaDir, runId.trim());
+    const runDir = path.join(deltaDir, runId);
     const runDirExists = await fs.access(runDir).then(() => true).catch(() => false);
     expect(runDirExists).toBe(true);
     console.log('  ✓ Run directory exists');
@@ -172,7 +178,7 @@ async function testNewUserOnboarding() {
     expect(metadataExists).toBe(true);
 
     const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
-    expect(metadata.run_id).toBe(runId.trim());
+    expect(metadata.run_id).toBe(runId);
     expect(metadata.task).toBe('Echo hello world');
     expect(metadata.status).toBeDefined();
     console.log(`  ✓ metadata.json valid, status: ${metadata.status}`);
@@ -213,15 +219,16 @@ async function testNewUserOnboarding() {
 
     // Summary
     console.log('\n=== ✅ NEW USER ONBOARDING JOURNEY COMPLETE ===');
-    console.log('Validated complete first-time user experience:');
+    console.log('Validated complete first-time user experience (v1.10):');
     console.log('  ✓ delta init creates agent structure');
     console.log('  ✓ delta run creates W001 workspace');
     console.log('  ✓ .delta/ control plane initialized');
     console.log('  ✓ journal.jsonl tracks execution');
     console.log('  ✓ metadata.json tracks run state');
     console.log('  ✓ I/O audit structure created');
-    console.log('  ✓ LATEST and LAST_USED files track state');
-    console.log('\nNew user onboarding validated end-to-end!');
+    console.log('  ✓ No LATEST file (v1.10: Frontierless Workspace)');
+    console.log('  ✓ LAST_USED file tracks workspace');
+    console.log('\nNew user onboarding validated end-to-end (v1.10: Frontierless Workspace)!');
 
   } finally {
     // Clean up

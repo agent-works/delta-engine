@@ -6,6 +6,35 @@
 
 ---
 
+## 🚨 NEW: Testing System 2.0 (October 2025)
+
+**Delta Engine has a NEW comprehensive testing system created after v1.10 failure analysis.**
+
+**Start here**: **[NEW-TESTING-SYSTEM.md](./NEW-TESTING-SYSTEM.md)** - Complete rebuild with:
+- 5 Core Principles (Design as Truth, Adversarial Testing, Multiple Verification, etc.)
+- Comprehensive process documentation
+- Mandatory checklists and enforcement
+- Tools and automation
+
+**Key Documents**:
+- [TESTING-PHILOSOPHY.md](./TESTING-PHILOSOPHY.md) - Master document (30 min read)
+- [DESIGN-DRIVEN-DEVELOPMENT.md](./DESIGN-DRIVEN-DEVELOPMENT.md) - Implementation process
+- [ADVERSARIAL-TESTING.md](./ADVERSARIAL-TESTING.md) - How to write tests that catch bugs
+- [VALIDATION-CHECKLIST-TEMPLATE.md](./VALIDATION-CHECKLIST-TEMPLATE.md) - QA validation
+- [SMOKE-TEST-GUIDE.md](./SMOKE-TEST-GUIDE.md) - Manual testing procedures
+
+**Why**: v1.10 had 553 tests passing but 2 of 5 core features unimplemented. New system ensures this never happens again.
+
+**Status**: 🟢 **MANDATORY** for all new development
+
+---
+
+## Legacy Testing Guide (Below)
+
+The sections below cover **how to run existing tests** and **test architecture**. For **how to write new tests and validate features**, see Testing System 2.0 above.
+
+---
+
 ## Table of Contents
 
 1. [Quick Start](#quick-start)

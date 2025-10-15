@@ -55,7 +55,7 @@ async function testResumeWorkflow() {
         timeout: 3000, // 3 second timeout (simulates interrupt)
         env: {
           ...process.env,
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+          DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
         },
       }
     );
@@ -84,8 +84,12 @@ async function testResumeWorkflow() {
     // Step 4: Check run metadata (may be INTERRUPTED, FAILED, or RUNNING)
     console.log('\nStep 4: Check run metadata status...');
 
-    const latestPath = path.join(deltaDir, 'LATEST');
-    const runId = (await fs.readFile(latestPath, 'utf-8')).trim();
+    // v1.10: use delta list-runs to get run ID
+    const listRunsResult = await execa('node', [cliPath, 'list-runs', '--first', '--format', 'raw'], {
+      cwd: workspaceDir,
+      reject: false,
+    });
+    const runId = listRunsResult.stdout.trim();
     const metadataPath = path.join(deltaDir, runId, 'metadata.json');
 
     const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf-8'));
@@ -108,7 +112,7 @@ async function testResumeWorkflow() {
         timeout: 5000,
         env: {
           ...process.env,
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy-key',
+          DELTA_API_KEY: process.env.DELTA_API_KEY || 'dummy-key',
         },
       }
     );
