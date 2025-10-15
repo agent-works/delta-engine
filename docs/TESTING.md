@@ -2,65 +2,47 @@
 
 ## Core Principle
 
-**Tests verify the DESIGN, not the CODE.**
+**Tests are quality gates, not documentation.**
 
-When we design a feature (Design Document), we define what users should be able to do.
-Tests verify that users can actually do those things.
+- **E2E Tests** = User value delivery
+- **Unit Tests** = Critical invariant protection
+  - Data integrity (sequences, concurrency)
+  - Safety mechanisms (max_iterations, ask_human)
+  - Fatal error tracking
 
-## The Three-Document Method and Testing
+## Test Structure
 
-```
-Design Document → Test Document → Implementation
-      ↓                ↓                ↓
-   (Why & What)    (How to Verify)   (How to Build)
-```
-
-**Test Document** is based on Design, NOT implementation:
-- Written from user's perspective
-- Defines acceptance criteria in plain language
-- Acts as independent "referee"
-
-## Test Document Template
-
-```markdown
-# v{X.Y} Test Verification Plan
-
-## Design Goals
-[What did we design? Link to design doc]
-
-## User Scenarios to Verify
-1. Can user do X as designed?
-2. Does Y behave as specified?
-3. Is Z accessible as documented?
-
-## Acceptance Criteria
-- [ ] Scenario 1: [Specific user action] produces [Expected result]
-- [ ] Scenario 2: [Specific user action] produces [Expected result]
-- [ ] Scenario 3: Edge case handling works
-
-## How to Verify
-[Manual steps or commands to verify each scenario]
+```bash
+tests/
+├── unit/                    # Critical invariants only (3 files)
+│   ├── engine.test.ts       # Safety mechanisms
+│   ├── journal.test.ts      # Data integrity
+│   └── journal-format-validation.test.ts
+└── e2e/                     # Real user journeys
 ```
 
 ## Running Tests
 
 ```bash
-# Complete validation before release
-npm run test:all
-
-# During development
-npm run test:quick
+npm test        # Unit tests (<2s)
+npm run test:e2e  # User journeys
+npm run test:all  # Everything
 ```
 
-## What NOT to Do
+## Maintenance Rule
 
-❌ Don't test implementation details
-❌ Don't write tests to make coverage numbers
-❌ Don't let developers test their own work (referee ≠ athlete)
-❌ Don't focus on HOW code works, focus on WHAT users can do
+**Keep a test only if its failure indicates real user impact.**
 
-## Remember
+If AI breaks it and users won't notice, delete it.
 
-> "The best test is a user successfully using the feature."
+## Key Insight for AI Workflow
 
-Testing is about **verifying value delivery**, not code correctness.
+**E2E tests are the final quality gate** - if they pass, we can ship with confidence.
+
+**Unit tests serve a different role in AI workflow:**
+- Traditional: Unit tests verify code correctness
+- AI Workflow: Unit tests detect when AI modifies critical invariants
+
+In AI coding, humans don't read code. Unit tests alert us when AI accidentally breaks critical safety mechanisms (like max_iterations or data integrity).
+
+*"The best test suite is the smallest one that prevents catastrophe."*

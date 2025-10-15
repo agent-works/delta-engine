@@ -16,6 +16,14 @@ This document defines the core methodology and philosophy for working with the D
 - Safety > Speed
 - Clarity > Cleverness
 - Recovery > Efficiency
+- Less > More (非必要不增加)
+
+## Methodology Principles
+
+**High-level guidance, not low-level rules.**
+
+Overly specific instructions lead to mechanical execution.
+Clear principles enable intelligent adaptation.
 
 ---
 
@@ -53,12 +61,13 @@ Every feature implementation requires three distinct documents that serve as the
 - End-to-end validation from user perspective
 - Written scenarios in plain language
 - Acts as "referee" independent from "athlete"
+- **Role Separation:** Test validation should ideally be performed by someone other than the implementer (or through an independent review process) to maintain true independence
 - Defines what "done" actually means
 
 **Location:** `docs/architecture/vX.Y-test-plan.md`
 
 **Why Three Documents?**
-- Separates builder from validator (athlete vs referee)
+- Separates builder from validator (athlete vs referee) - the implementer creates, but ideally another party validates
 - Documents serve as recovery blueprint if work is lost
 - Forces clear thinking before coding
 - Creates confidence to ship
@@ -97,6 +106,7 @@ Principles:
 ### Verify Phase
 Rules:
 - Execute test document scenarios
+- **Independent Verification:** When possible, have someone other than the implementer execute test scenarios (maintaining referee independence)
 - End-to-end validation from user perspective
 - Tests reveal problems, don't hide them
 - NEVER modify tests just to pass
