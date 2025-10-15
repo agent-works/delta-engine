@@ -1,16 +1,16 @@
 # Delta Agent Generator
 
-**Production-grade AI orchestration tool for generating Delta Engine agents using Claude Code CLI.**
+**AI orchestration tool for generating Delta Engine agents using Claude Code CLI.**
 
 ---
 
 ## 🎯 What Is This?
 
-A **production tool** (not just an example) that the Delta team uses internally to generate Delta Engine agents. It demonstrates **AI orchestrating AI** - a Delta agent controlling Claude Code through command-line invocation.
+A tool that demonstrates **AI orchestrating AI** - a Delta agent controlling Claude Code through command-line invocation to generate new agents.
 
 ### The Vision
 
-> "Claude Code is powerful and widely-used. Delta's advantage is quickly integrating powerful tools. This should be production-grade - a tool we'll use ourselves to generate agents."
+> "Claude Code is powerful. Delta's advantage is quickly integrating powerful tools. This should be a practical tool for generating agents."
 
 ---
 
@@ -20,19 +20,15 @@ A **production tool** (not just an example) that the Delta team uses internally 
 - Execute agent generation via `claude -p` with structured JSON output
 - Resume conversations for iterative refinement
 - Preview execution with plan mode
-- Learn from experience over time
 
 **Production Quality**:
 - Command-line based (no PTY, no timing issues)
 - Comprehensive validation (config, prompt, README)
 - Cost tracking and budget awareness
 - Error recovery and retry strategies
-- Experience logging for pattern learning
 
-**Simplified Architecture** (v2.0):
-- **7 core tools** (down from 11 in v1.0)
-- **36% reduction in tool count**
-- **32% reduction in config size** (205 → 144 lines)
+**Simplified Architecture**:
+- **7 core tools** for agent generation
 - Auto-initialization (no manual setup)
 - Consolidated validation
 
@@ -61,12 +57,10 @@ delta run --agent examples/claude-code-workflow \
 
 ### What Happens
 
-1. **Analyzes** request and checks experience history (if exists)
-2. **Plans** execution using `claude -p --permission-mode plan`
-3. **Generates** agent with agent.yaml, system_prompt.md, README.md
-4. **Validates** all required files and structure
-5. **Reports** success with cost and session ID
-6. **Records** to `.claude-lab/sessions.jsonl` for learning
+1. **Plans** execution using `claude -p --permission-mode plan`
+2. **Generates** agent with agent.yaml, system_prompt.md, README.md
+3. **Validates** all required files and structure
+4. **Reports** success with cost and session ID
 
 ### Expected Output
 
@@ -134,39 +128,9 @@ Next steps:
 
 ---
 
-### 3-Phase Workflow
+### 2-Phase Workflow
 
-#### Phase 1: Analyze & Plan
-
-**Check Experience**:
-```bash
-read_experience()
-→ Reads .claude-lab/sessions.jsonl
-→ Identifies similar past tasks
-→ Extracts success patterns
-→ Estimates cost
-```
-
-**Pattern Analysis**:
-- Agent category (file-tools, api-wrapper, data-processor)
-- Similar successful agents
-- Resume iterations needed
-- Cost range for category
-
-**Example**:
-```
-Request: "Create file organizer agent"
-
-History shows:
-- 2 similar agents (success rate: 100%)
-- Avg cost: $0.18
-- Common tools: list_files, move_file, create_directory
-- Expect 1-2 resume iterations
-```
-
----
-
-#### Phase 2: Execute & Refine
+#### Phase 1: Plan & Execute
 
 **2.1 Preview (Plan Mode)**:
 ```bash
@@ -209,27 +173,7 @@ claude_resume(
 
 ---
 
-#### Phase 3: Complete & Record
-
-**Record Interactions**:
-```bash
-record_interaction(log: '{
-  "timestamp": "2025-10-08T10:30:00Z",
-  "action": "complete",
-  "session_id": "abc-123",
-  "task": "Generate file-organizer agent",
-  "num_turns": 5,
-  "cost_usd": 0.18,
-  "result": "success",
-  "agent_type": "file-tools"
-}')
-```
-
-**Experience Accumulation**:
-- All interactions logged to `.claude-lab/sessions.jsonl`
-- Patterns extracted for future generations
-- Cost tracking per agent category
-- Success rate metrics
+#### Phase 2: Complete
 
 ---
 
@@ -243,12 +187,6 @@ record_interaction(log: '{
 | **claude_resume** | Iterative refinement | `claude --resume "id" -p "fix" --output-format json` |
 | **claude_plan** | Preview execution | `claude -p "task" --permission-mode plan --output-format json` |
 
-### Experience Tools (2)
-
-| Tool | Purpose | Usage |
-|------|---------|-------|
-| **read_experience** | Learn from history | Reads last 50 sessions from `.claude-lab/sessions.jsonl` |
-| **record_interaction** | Log actions | Appends to `.claude-lab/sessions.jsonl` |
 
 ### Validation Tools (2)
 
@@ -319,64 +257,6 @@ delta run --agent examples/claude-code-workflow \
 ```
 
 **Total Cost**: $0.23 for fully-featured API testing agent
-
----
-
-## 🎓 Experience System
-
-### Learning from History
-
-Every generation is logged to `.claude-lab/sessions.jsonl`:
-
-```jsonl
-{"timestamp":"2025-10-08T10:00:00Z","action":"execute","session_id":"abc-123","task":"Generate file-organizer","num_turns":5,"cost_usd":0.18,"result":"success","agent_type":"file-tools"}
-{"timestamp":"2025-10-08T10:05:00Z","action":"resume","session_id":"abc-123","prompt":"Add error handling","result":"success"}
-{"timestamp":"2025-10-08T10:10:00Z","action":"complete","details":"file-organizer generated successfully","total_cost":0.20}
-```
-
-### Pattern Recognition
-
-**Tool Combinations**:
-```
-file-tools agents (15 generated):
-- read_file: 100% (15/15)
-- write_file: 93% (14/15)
-- list_files: 87% (13/15)
-→ Suggests standard file-tools set
-```
-
-**Cost Patterns**:
-```
-Simple agents: $0.05-$0.15 (avg: $0.10)
-Medium agents: $0.15-$0.40 (avg: $0.25)
-Complex agents: $0.40-$1.00 (avg: $0.65)
-```
-
-**Success Metrics**:
-```
-Recent performance:
-- 15 generations attempted
-- 12 successful (80%)
-- Avg cost: $0.18
-- Avg resumes: 1.4
-```
-
-### Inspect Experience
-
-```bash
-# View all history
-cat .claude-lab/sessions.jsonl | jq .
-
-# Count successful generations
-grep '"result":"success"' .claude-lab/sessions.jsonl | wc -l
-
-# Calculate total cost
-cat .claude-lab/sessions.jsonl | jq -s 'map(.cost_usd // 0) | add'
-
-# Find successful session IDs
-cat .claude-lab/sessions.jsonl | \
-  jq -r 'select(.result=="success") | .session_id' | sort -u
-```
 
 ---
 
@@ -568,9 +448,9 @@ cat .claude-lab/sessions.jsonl | jq -s 'map(.cost_usd // 0) | add'
 
 ## 🔗 Related Examples
 
-- **[hello-world](../1-basics/hello-world/)** - Learn Delta basics
-- **[interactive-shell](../2-core-features/interactive-shell/)** - Session management (v1.5)
-- **[python-repl](../2-core-features/python-repl/)** - REPL state preservation
+- **[hello-world](../hello-world/)** - Learn Delta basics
+- **[interactive-shell](../interactive-shell/)** - Session management
+- **[python-repl](../python-repl/)** - REPL state preservation
 
 ---
 
@@ -626,32 +506,14 @@ Demonstrates meta-level automation - AI controlling AI through structured interf
 
 ### Future Enhancements
 
-**Phase 3 (Planned)**:
-- Pattern extraction from sessions.jsonl
-- Cost prediction based on agent type
-- Success rate dashboards
-- Auto-suggested tool sets
-
-**Phase 4 (Planned)**:
-- Advanced error detection
-- Automatic retry with fixes
-- Validation before completion
-- Safe rollback on failures
-
-**Phase 5 (Planned)**:
-- Agent templates (web-scraper, file-processor, etc.)
-- Multi-agent generation (coordinated sets)
-- Version management (track iterations)
-- CI/CD integration
+This is an experimental tool demonstrating AI-to-AI orchestration patterns.
 
 ---
 
 ## 📖 Documentation
 
-- **[Production Plan](../.quality-assessments/claude-code-workflow-PRODUCTION-PLAN.md)** - Full roadmap
 - **[Architecture](../../docs/architecture/)** - Delta Engine design
 - **[Agent Development](../../docs/guides/agent-development.md)** - Creating agents
-- **[v1.5 Sessions](../../docs/architecture/v1.5-sessions-simplified.md)** - Session management
 
 ---
 
@@ -675,15 +537,10 @@ Demonstrates meta-level automation - AI controlling AI through structured interf
 
 ---
 
-**Status**: **v2.0 - Production Ready**
+**Status**: **Experimental - Simplified**
 
-**Changes from v1.0**:
-- Tools: 11 → 7 (simplified)
-- Config: 205 → 144 lines (cleaner)
-- Prompt: 271 → 632 lines (comprehensive)
-- README: 275 → 700+ lines (detailed)
-- Quality: ⭐⭐⭐⭐ → Production-grade tool
+A focused tool demonstrating AI-to-AI orchestration patterns.
 
 ---
 
-**Start generating agents now**: `delta run --agent examples/claude-code-workflow -m "Your task here"`
+**Start generating agents**: `delta run --agent examples/delta-agent-generator -m "Generate a simple agent"`
