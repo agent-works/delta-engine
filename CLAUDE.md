@@ -1,520 +1,244 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This document defines the core methodology and philosophy for working with the Delta Engine project.
 
-**Documentation Language**: All docs must be in English (README.md, CLAUDE.md, docs/, code comments, commits). Localized versions allowed: `README.{lang}.md` (e.g., README.zh-CN.md).
+**Language**: All documentation must be in English.
 
----
+## Core Philosophy
 
-## 🚨 CRITICAL CHECKLISTS - READ FIRST
+**Delta's Three Pillars:**
+1. **Everything is a Command** - All agent capabilities are external CLI programs
+2. **Environment as Interface** - Agents interact only through working directory
+3. **Composition Defines Intelligence** - Complex behaviors emerge from composing simple agents
 
-### ⚠️ Before Starting ANY Version Implementation
-
-**Version Iteration Charter (MANDATORY)**
-
-Every version release MUST complete these steps BEFORE writing any code:
-
-- [ ] ✅ **Architecture design doc created**: `docs/architecture/vX.Y-feature-name.md`
-  - Complete technical specification
-  - Design decisions and rationale
-  - API specifications and use cases
-
-- [ ] ✅ **Implementation plan created**: `docs/architecture/vX.Y-implementation-plan.md`
-  - Phase breakdown with detailed tasks
-  - Risk assessment and mitigation strategies
-  - Testing strategy and success criteria
-  - Timeline and rollback plan
-
-- [ ] ✅ **Both documents reviewed and approved**
-  - Self-review completed
-  - Technical accuracy verified
-
-- [ ] 🔴 **If ANY checkbox is unchecked → STOP. Create these documents first.**
-
-**Why This Matters:**
-- 🔴 Risk of complete work loss (see `.story/incidents/2025-10-13-v1.8-data-loss.md`)
-- 🔴 Days/weeks of effort may be permanently lost without recovery blueprint
-- 🔴 Project momentum severely damaged
-
-**Violation Consequences:**
-- Implementation work cannot be recovered if lost
-- No recovery path if work is interrupted
-- Stakeholders cannot review decisions retroactively
+**Project Values:**
+- Simplicity > Features
+- Safety > Speed
+- Clarity > Cleverness
+- Recovery > Efficiency
 
 ---
 
-### 🚨 Before ANY Git Dangerous Operation
+## 🎯 The Three-Document Method
 
-**Git Safety Protocol (MANDATORY)**
+Every feature implementation requires three distinct documents that serve as the backbone of development:
 
-NEVER execute these commands without ALL steps completed:
+### 1. Design Document (Why & What)
+**Purpose:** Define WHY we're building this and WHAT it looks like
+- **Why:** The problem and its importance
+  - What pain does this solve?
+  - Why does it matter now?
+  - What happens if we don't solve it?
+- **What:** The solution from user's perspective
+  - User interface and experience
+  - Success criteria and acceptance tests
+- NO implementation details
+- NO code
+
+**Location:** `docs/architecture/vX.Y-feature-name.md`
+
+### 2. Implementation Plan (How)
+**Purpose:** Break down the technical approach into manageable phases
+- Phases for focused AI attention (smaller context = higher quality)
+- Architecture decisions and trade-offs
+- Critical logic and schemas (but not "writing code in markdown")
+- Each phase independently verifiable
+- Risk assessment and mitigation
+
+**Location:** `docs/architecture/vX.Y-implementation-plan.md`
+
+### 3. Test Document (Verify)
+**Purpose:** Independent quality gatekeeper
+- Based on Design Document, NOT implementation
+- End-to-end validation from user perspective
+- Written scenarios in plain language
+- Acts as "referee" independent from "athlete"
+- Defines what "done" actually means
+
+**Location:** `docs/architecture/vX.Y-test-plan.md`
+
+**Why Three Documents?**
+- Separates builder from validator (athlete vs referee)
+- Documents serve as recovery blueprint if work is lost
+- Forces clear thinking before coding
+- Creates confidence to ship
+
+---
+
+## 🔄 Development Workflow
+
+```
+Think → Document → Build → Verify → Ship
+```
+
+### Think Phase
+Questions to answer:
+- What problem are we solving?
+- What's the simplest solution that works?
+- Can this be done with existing tools?
+- What could go wrong?
+
+### Document Phase
+Actions:
+1. Create Design Document (why it matters + what users see)
+2. Create Implementation Plan (technical breakdown)
+3. Create Test Document (validation criteria)
+4. Review all three for consistency
+
+Remember: Documents are your recovery blueprint.
+
+### Build Phase
+Principles:
+- Follow implementation plan phases strictly
+- Small, verifiable increments
+- Always maintain working state
+- If stuck, refer back to documents
+
+### Verify Phase
+Rules:
+- Execute test document scenarios
+- End-to-end validation from user perspective
+- Tests reveal problems, don't hide them
+- NEVER modify tests just to pass
+
+### Ship Phase
+Checklist:
+- All test scenarios genuinely pass
+- User can actually use the feature
+- Documentation reflects reality
+- No "we'll fix it later" items
+
+---
+
+## 🚨 Critical Safety Rules
+
+These are the only rules that truly matter because violating them causes irreversible damage:
+
+### 1. Destructive Operations
+**The Rule:** NEVER execute without explicit user request by exact command name
 
 **Dangerous Commands:**
-- `git checkout HEAD -- .` / `git checkout -- <file>` (discards uncommitted changes)
-- `git reset --hard` (discards all uncommitted work)
+- `git checkout HEAD -- .` (discards all uncommitted changes)
+- `git reset --hard` (destroys all uncommitted work)
 - `git clean -fd` (deletes untracked files)
-- `rm -rf <directory>` (recursive force delete)
+- `rm -rf` (recursive force delete)
 - `git push --force` (overwrites remote history)
 
-**Safety Checklist - ALL must be ✅:**
+**Required Protocol:**
+1. User must request by exact command name
+2. Warn about specific data loss
+3. Get explicit confirmation
+4. Only then execute
 
-- [ ] ✅ **Explicit user request**: User asked for this operation by exact command name
-- [ ] ✅ **Clear necessity**: No safer read-only alternative exists (git status, git diff, git stash)
-- [ ] ✅ **Explicit risk warning**: Warned user about specific data loss (which files/changes)
-- [ ] ✅ **User confirmation**: Got explicit "yes, proceed" confirmation
-- [ ] 🔴 **If ANY checkbox is unchecked → STOP. Do NOT execute the command.**
+**Safe Alternatives First:**
+- Instead of `git checkout HEAD -- .` → Use `git stash`
+- Instead of `git reset --hard` → Use `git stash` or new branch
+- Instead of `rm -rf` → Move to temp location first
 
-**Example - WRONG ❌:**
-```
-User: "I want to check if tests pass without my changes"
-Assistant: *silently runs git checkout HEAD -- .*
-Result: DISASTER - 100+ files destroyed
-```
+### 2. Test Integrity
+**The Rule:** Tests are sacred - they judge the code, not vice versa
 
-**Example - RIGHT ✅:**
-```
-User: "I want to check if tests pass without my changes"
-Assistant: "Safe options: 1) git stash, 2) new branch, 3) test current state. Which?"
-```
+**Requirements:**
+- Run `npm run test:all` for complete validation (NOT just `npm test`)
+- NEVER say "tests passed" without full test run
+- NEVER modify tests to make them pass
+- Test failure = feature incomplete, period
 
-**Incident Reference**: `.story/incidents/2025-10-13-v1.8-data-loss.md` - 100+ files destroyed, entire v1.8.0 work permanently lost.
+### 3. Work Preservation
+**The Rule:** Never lose work
+
+**Protocol:**
+- Check for uncommitted changes before ANY cleanup
+- Create documents BEFORE implementation (recovery blueprint)
+- Commit frequently with meaningful messages
+- When in doubt, create a backup
+
+---
+
+## 🧭 Decision Framework
+
+When facing any decision, ask these questions in order:
+
+1. **Is it safe?**
+   - Will this lose data?
+   - Can we recover if it goes wrong?
+
+2. **Is it simple?**
+   - Is there a simpler solution?
+   - Are we over-engineering?
+
+3. **Is it necessary?**
+   - Does the user actually need this?
+   - What happens if we don't do it?
+
+4. **Is it testable?**
+   - Can we verify it works?
+   - Will users be able to use it?
+
+Stop at the first "No" and reconsider.
 
 ---
 
-## 🔥 Quick Reference
-
-### ⚠️ CRITICAL: Before Saying "Tests Passed" or "Ready to Release"
-
-**🔴 STOP and complete these steps IN ORDER:**
-
-1. [ ] Run `npm run test:all` (NOT `npm test` - that skips E2E!)
-2. [ ] Verify output shows: **"✅ All tests passed! 🚀 Ready for release"**
-3. [ ] Open `RELEASE_CHECKLIST.md` in project root
-4. [ ] Complete **ALL** checkboxes in the checklist (7 sections)
-5. [ ] Only then say "tests passed" or "ready to release"
-
-**Why this matters**:
-- `npm test` only runs unit + integration (skips E2E)
-- E2E tests validate complete user workflows
-- Skipping E2E = shipping broken features
-
-**If you skip ANY step above → You are violating the release protocol.**
-
-See [§ Testing & Release Protocol](#-testing--release-protocol) below for full details.
-
----
+## 📍 Quick Reference
 
 ### Essential Commands
 ```bash
-# Build & Test
-npm run build                   # TypeScript → dist/
-npm test                        # All tests
-npm run test:unit              # Unit tests only
-npm run test:integration       # Integration tests
+# Run agent
+delta run -m "Task description"         # Simple run
+delta run -i -m "Task"                  # Interactive mode
+delta continue --run-id <id>            # Resume run
 
-# Run Agent (v1.10: client-generated IDs + structured output)
-delta run -m "Task description"                    # Use current dir as agent
-delta run --agent <path> -m "..."                  # Or specify agent path
-delta run --run-id $(uuidgen) -m "..."             # Client-generated ID (robust)
-delta run -m "..." --format json                   # JSON output for automation
-delta run -i -m "..."                              # Interactive mode
-delta run -y -m "..."                              # Silent mode (auto-create workspace)
+# Complete test validation
+npm run test:all                        # The ONLY way to verify
 
-# List and Continue Runs (v1.10: explicit run identification)
-delta list-runs                                     # List all runs in workspace
-delta list-runs --resumable                         # Only resumable runs
-delta list-runs --resumable --first                 # Get most recent (for scripts)
-delta continue --run-id <run_id>                    # Resume specific run
-
-# Debug (v1.10: use list-runs or scan directory)
-RUN_ID=$(delta list-runs --first)                   # Get most recent run
-tail -20 .delta/$RUN_ID/journal.jsonl               # View recent events
-cat .delta/$RUN_ID/metadata.json                    # Check run status
-ls -lht .delta/$RUN_ID/io/invocations/ | head -5   # View LLM calls
-
-# Sessions (v1.5)
-delta-sessions start bash       # Create session
-delta-sessions exec <id>        # Execute command (from stdin)
-delta-sessions end <id>         # Terminate session
+# Debug
+delta list-runs                         # List all runs
+tail .delta/{run_id}/journal.jsonl      # Check progress
+cat .delta/{run_id}/metadata.json       # Check status
 ```
-
-### 3 Critical Rules
-1. **ESM imports MUST use `.js` extension**: `import { Engine } from './engine.js'` (not `'./engine'`)
-2. **Never store state in memory**: Rebuild from journal every iteration (stateless core)
-3. **Never open `journal.jsonl` with VSCode plugins**: Use `cat`, `less`, `jq` only
-
----
-
-## ⚠️ Critical Rules - MUST FOLLOW
-
-### ESM Import Must Include .js Extension
-- **Symptom**: Compiles but fails at runtime with "Cannot find module"
-- **Solution**: All imports must use `.js`: `import { Engine } from './engine.js'`
-- **Why**: TypeScript doesn't validate ESM paths, Node.js runtime requires extension
-
-### File Descriptor Leak
-- **Symptom**: "Too many open files" / "EMFILE" after long runs
-- **Solution**: Always close file handles in `finally` block
-```typescript
-const handle = await fs.open(path);
-try { /* operations */ } finally { await handle.close(); }
-```
-- **High-risk areas**: `journal.ts`, `ask-human.ts`
-
-### Journal Format Corruption
-- **Symptom**: Resume fails with parse errors; file renamed to `journal.json`
-- **Impact**: 🔴 CRITICAL - All state reconstruction fails
-- **Prevention**:
-  - ❌ DON'T open `journal.jsonl` with VSCode JSONL viewer plugins
-  - ✅ DO use `cat`, `less`, `jq` for inspection
-  - ✅ Runtime validation in `journal.ts:validateJournalFormat()`
-- **See**: `.story/incidents/2025-10-09-journal-corruption.md`
-
-### Stateless Core
-- **Never** store state in memory between iterations
-- **Always** rebuild from journal via `buildContext()` (v1.6+)
-- **Journal is SSOT**: Single Source of Truth
-
-### TypeScript/Node.js
-- Target: ES2022, NodeNext modules, strict mode enabled
-- Use `fs.promises` for all file I/O (async, never sync)
-- Zod validation for all configs and types
-- Use `uuid v4` for ID generation
-
-### Error Handling
-- Tool failures don't break the loop - errors become observations
-- All async operations wrapped in try-catch
-- Errors logged to both journal and `io/`
-
-### Version Iteration Charter (MANDATORY)
-⚠️ **CRITICAL**: Every version release MUST follow this process
-
-**Before ANY implementation work begins:**
-1. **Create Architecture Design Doc**: `docs/architecture/vX.Y-feature-name.md`
-   - Complete technical specification
-   - Design decisions and rationale
-   - API specifications
-   - Use cases and examples
-
-2. **Create Implementation Plan**: `docs/architecture/vX.Y-implementation-plan.md`
-   - Phase breakdown with detailed tasks
-   - Risk assessment and mitigation
-   - Testing strategy and success criteria
-   - Timeline and rollback plan
-
-**Why This Matters:**
-- Documents serve as recovery blueprint if work is lost
-- Forces thorough design thinking before coding
-- Creates reviewable specification for stakeholders
-- Enables parallel work and handoffs
-- Prevents "lost work disasters"
-
-**Violation Consequences:**
-- Loss of implementation work cannot be recovered
-- Days/weeks of effort may be permanently lost
-- Project momentum severely damaged
-
-**Incident Reference**: See `.story/incidents/2025-10-13-v1.8-data-loss.md` - Complete incident report of catastrophic data loss (100+ files) due to unnecessary `git checkout HEAD -- .`. **This charter exists because of that disaster.**
-
-### Git Dangerous Operations Charter (CRITICAL SAFETY)
-🚨 **EXTREME CAUTION**: These commands cause irreversible data loss
-
-**Dangerous Commands** (require explicit user request + multi-step confirmation):
-- `git checkout HEAD -- .` / `git checkout -- <file>` (discards uncommitted changes)
-- `git reset --hard` (discards all uncommitted work)
-- `git clean -fd` (deletes untracked files)
-- `rm -rf <directory>` (recursive force delete)
-- `git push --force` (overwrites remote history)
-
-**Safety Protocol - MUST follow ALL steps:**
-1. ✅ **Explicit User Request**: User must ask for the dangerous operation by exact command name
-2. ✅ **Clear Necessity**: No safer read-only alternative exists
-3. ✅ **Explicit Risk Warning**: Warn user about specific data loss (which files/changes will be lost)
-4. ✅ **User Confirmation**: Get explicit "yes, proceed" confirmation
-5. ✅ **Never Assume**: Never execute based on implied intent
-
-**NEVER execute these commands if:**
-- ❌ User did not explicitly request by name
-- ❌ You're trying to "verify" or "test" something
-- ❌ There's a safer read-only alternative (use `git status`, `git diff`, `git stash`)
-- ❌ Working on implementing new features (uncommitted work exists)
-- ❌ User said "check if..." or "see if..." (implies exploration, not destruction)
-
-**Example - WRONG ❌:**
-```
-User: "I want to check if tests pass without my changes"
-Assistant: *silently runs git checkout HEAD -- .*
-Result: DISASTER - 100+ files of work destroyed
-```
-
-**Example - RIGHT ✅:**
-```
-User: "I want to check if tests pass without my changes"
-Assistant: "I can help you test. Here are safe options:
-  1. git stash (saves your changes, reversible)
-  2. Create new branch and test there
-  3. Run tests on the current state with your changes
-  Which approach do you prefer?"
-```
-
-**If Accidentally Executed:**
-1. STOP immediately
-2. Inform user of data loss
-3. Check if recovery possible (git reflog, IDE history, file system recovery)
-4. Document incident in `.story/incidents/`
-
-**Incident Reference**: See `.story/incidents/2025-10-13-v1.8-data-loss.md` - Complete incident report. 100+ files destroyed by unnecessary `git checkout HEAD -- .` executed without user request or necessity. Entire v1.8.0 implementation work permanently lost.
-
----
-
-## 🏗️ Architecture Essentials
-
-### Three Pillars (Core Philosophy)
-1. **Everything is a Command** - All agent capabilities are external CLI programs
-2. **Environment as Interface** - Agents interact only through working directory (CWD)
-3. **Composition Defines Intelligence** - Complex behaviors emerge from composing simple agents
 
 ### Directory Structure
 ```
-<AGENT_HOME>/workspaces/
-├── LAST_USED                # Tracks last used workspace
-├── W001/                    # Sequential workspace naming
-│   └── .delta/
-│       ├── VERSION          # Schema version
-│       └── {run_id}/        # v1.10: Flat structure (no LATEST file)
-│           ├── journal.jsonl      # SSOT - Core execution log
-│           ├── metadata.json      # Run metadata (status field)
-│           ├── engine.log         # Engine process logs
-│           ├── io/                # I/O audit logs
-│           │   ├── invocations/   # LLM invocation records
-│           │   ├── tool_executions/  # Tool execution details
-│           │   └── hooks/         # Hook execution records
-│           └── interaction/       # Human interaction (async mode)
-│               ├── request.json
-│               └── response.txt
-└── W002/
+workspaces/
+└── W001/                               # Workspace
+    └── .delta/
+        └── {run_id}/                   # Each run (v1.10: no LATEST file)
+            ├── journal.jsonl           # Single source of truth
+            ├── metadata.json           # Run status
+            └── io/                     # Audit trail
 ```
-
-### Key Files
-- **engine.ts** - Think-Act-Observe loop, `buildContext()` rebuilds state (MAX_ITERATIONS=30)
-- **journal.ts** - JSONL event logging (append-only)
-- **executor.ts** - Tool execution (injection modes: argument, stdin, option)
-- **ask-human.ts** - Human-in-the-loop (two modes: CLI sync, async file-based)
-- **hook-executor.ts** - Lifecycle hooks execution
-- **workspace-manager.ts** - Workspace selection/management
-- **types.ts** - Zod schemas for all configs
-- **context/** - v1.6 context composition (builder.ts, sources/, types.ts)
-- **sessions/** - v1.5 session management (manager.ts, executor.ts, storage.ts)
-
-### Run States (metadata.json)
-- `RUNNING` - Normal execution
-- `WAITING_FOR_INPUT` - Paused for user input
-- `COMPLETED` - Task completed successfully
-- `FAILED` - Unrecoverable error
-- `INTERRUPTED` - External interrupt (Ctrl+C)
-
-### Journal Event Types
-- `ENGINE_START`, `THOUGHT`, `ACTION_RESULT`, `ENGINE_END`, `ERROR`
-
-### Tool Parameter Injection Modes
-1. **argument** - CLI argument
-2. **stdin** - Piped via stdin (max 1 per tool)
-3. **option** - Named flag (requires `option_name`)
-
-### v1.7 Simplified Tool Syntax
-```yaml
-# exec: Direct execution (safest)
-- name: list_files
-  exec: "ls -F ${directory}"
-
-# shell: For pipes/redirects
-- name: count_lines
-  shell: "cat ${file} | wc -l"
-
-# stdin parameter
-- name: write_file
-  exec: "tee ${filename}"
-  stdin: content
-
-# :raw modifier (unquoted parameters)
-- name: run_docker
-  shell: "docker run ${flags:raw} ${image}"
-```
-
-Use `delta tool expand config.yaml` to see expansion to full format.
-
-### Context Composition (v1.6, v1.9.1 update)
-**Required**: `context.yaml` (v1.9.1+) defines the explicit recipe for constructing the agent's attention window.
-
-**Default template** (created by `delta init`):
-- `system_prompt.md` → DELTA.md (if exists) → full journal
-
-**Custom**: Define `context.yaml` with sources:
-- `file` - Static file content
-- `computed_file` - Dynamic content via generator script (for memory folding, RAG, etc.)
-- `journal` - Conversation history (optional `max_iterations` for token efficiency)
-
-**Note**: In v1.9.1+, context.yaml is **required** (no implicit fallback). This ensures complete transparency and eliminates "magic" defaults.
-
-See `examples/2-core-features/memory-folding/` for complete example.
-
-### Session Management (v1.5)
-- **Command-based execution**: Synchronous, returns complete output immediately
-- **State preservation**: CWD persists across commands via wrapper scripts
-- **File-based storage**: Sessions in `.sessions/` (stateless, debuggable)
-- **Simple API**: 3 commands (start, exec, end) vs 8 PTY commands in v1.4
-- **LLM-optimized**: No timing guesses, no escape sequences
-
----
-
-## 📋 Development Workflows
-
-### Adding Tool Parameter Type
-1. Update `ToolParameterSchema` in `types.ts`
-2. Modify injection logic in `executor.ts`
-3. Update OpenAI schema conversion in `tool_schema.ts`
-4. Add tests in `tests/unit/`
-
-### Adding Lifecycle Hook
-1. Define hook type in `hook-executor.ts`
-2. Call `executeHook()` at target location
-3. Update schema in `types.ts` → `LifecycleHooksSchema`
-
-### Modifying Journal Format
-⚠️ **Danger**: Consider backward compatibility
-1. Update event types in `journal-types.ts`
-2. Modify read/write logic in `journal.ts`
-3. Update rebuild logic in `engine.ts`
-4. Provide migration path for existing runs
-
----
-
-## 🧪 Testing & Release Protocol
-
-### CRITICAL: Testing Checklist
-
-**⚠️ BEFORE saying "tests passed", you MUST:**
-
-- [ ] Run `npm run test:all` and verify ALL pass:
-  - Unit tests (330 tests)
-  - Integration tests (15 tests)
-  - E2E tests (6 core journeys minimum)
-
-**NEVER say "tests passed" after only running `npm test` (which skips E2E).**
-
-### Test Commands
-
-```bash
-# Complete validation (use before release)
-npm run test:all              # Unit + Integration + E2E (DEFINITIVE)
-npm run test:pre-release      # Build + All Tests
-
-# Development workflow
-npm run test:quick            # Fast feedback (unit tests only)
-npm test                      # ⚠️ Incomplete (skips E2E)
-```
-
-**Complete architecture**: See `docs/testing/README.md`
-
-### Release Checklist (MANDATORY)
-
-**🔴 Before ANY release: Complete `RELEASE_CHECKLIST.md` (project root)**
-
-Required: All tests pass + Version updated + Documentation synced
-
-**Detailed process**: See `docs/testing/RELEASE_PROCESS.md`
-
-### Testing Quality Standards
-
-**Rules**: Independent tests, deterministic, clear error messages
-**Coverage**: Core ≥80%, Support ≥70%, Overall ≥60%
-
-**Complete standards**: See `docs/testing/TEST_QUALITY_STANDARDS.md`
-
----
-
-## 🗂️ Reference
 
 ### Current Version
-**v1.10** - Frontierless Workspace (Concurrent Multi-Agent Support)
-- v1.0: MVP with Think-Act-Observe
-- v1.1: Stateless core + journal.jsonl
-- v1.2: Human-in-the-loop (`ask_human`)
-- v1.3: Directory structure simplification
-- v1.4: PTY-based sessions (deprecated)
-- v1.5: Command-based simplified sessions
-- v1.6: Context composition + memory folding
-- v1.7: `exec:`/`shell:` syntax sugar
-- v1.8: CLI improvements (`-m` flag, `delta continue` command)
-- v1.9: Unified agent structure (agent.yaml, hooks.yaml, imports mechanism)
-- v1.9.1: context.yaml now required (eliminates implicit defaults)
-- v1.10: **Breaking** - LATEST file removed, explicit run IDs, Janitor mechanism, structured output
-- v2.0 (planned): Multi-agent orchestration
-
-### Documentation Structure
-- **Philosophy**: `docs/architecture/philosophy-02-whitepaper.md` (complete), `docs/architecture/philosophy-01-overview.md` (5-min)
-- **Getting Started**: `docs/QUICKSTART.md`, `docs/guides/getting-started.md`
-- **Architecture Specs**: `docs/architecture/v1.{1-7}-*.md`
-- **ADRs**: `docs/decisions/` (001-005)
-- **Guides**: `docs/guides/` (agent-development, session-management, context-management, hooks)
-- **API**: `docs/api/` (cli.md, config.md, delta-sessions.md)
-- **Incidents**: `.story/incidents/` (real-world debugging cases)
-
-
-### Environment Variables (v1.8)
-
-**Supported Variables**:
-```bash
-# Required (choose one naming style)
-DELTA_API_KEY=<your-key>             
-DELTA_BASE_URL=<custom-endpoint>   
-```
-
-**Loading Priority** (local overrides global):
-```
-workspace/.env > agent/.env > project root/.env > process.env
-```
-
-**How it works**:
-1. Delta searches for `.env` files from most local to most global
-2. Workspace: `{workDir}/.env` (if exists)
-3. Agent: `{agentPath}/.env` (if exists)
-4. Project root: Search upward from CWD for `.git` directory, use `.env` if found
-5. System: `process.env` (lowest priority)
-
-**Note**: Local variables override global ones. System environment variables (from shell) have lowest priority.
-
-### Design Philosophy Check
-When adding features, ask:
-1. Can this be implemented through external commands? (Everything is a Command)
-2. Does this add unnecessary complexity? (Simplicity over features)
-3. Does this violate stateless core? (Journal is SSOT)
-4. Can agents discover this through CWD? (Environment as Interface)
-
-**Project emphasis**: Simplicity and Unix philosophy over feature completeness.
+**v1.10** - Frontierless Workspace
+- Explicit run IDs (no LATEST file)
+- Concurrent agent support
+- Structured output formats
 
 ---
 
-## 📝 Documentation Quality Standards
+## 📚 Where to Find Details
 
-### Pre-Flight Verification (MUST DO)
-Before documenting anything:
-- **Package names**: `cat package.json | grep '"name"'` → Use exact name
-- **File paths**: `ls -la <path>` → Verify exists before documenting
-- **Code references**: `grep -rn "functionName" src/` → Verify before referencing
-- **CLI commands**: Test command first, then document verified flags
-- **URLs**: Check existing docs, NEVER invent GitHub URLs
+This document focuses on methodology. Technical details live elsewhere:
 
-### Documentation Best Practices
-1. **Source-of-Truth References**: Link to code instead of duplicating implementation details
-2. **Stable Interfaces**: Document **what** (API) not **how** (implementation)
-3. **Pattern References**: Use `.delta/{run_id}/` not `.delta/20250930_112833_ddbdb0/`
+- **Code conventions** → Look at existing code
+- **API documentation** → `docs/api/`
+- **Testing philosophy** → `docs/TESTING.md`
+- **Incident history** → `.story/incidents/`
+- **Version history** → Git commits and tags
 
-### CLAUDE.md Maintenance
-Update this file when:
-- [ ] Directory structure changes → Update "Directory Structure"
-- [ ] New journal events → Update "Journal Event Types"
-- [ ] CLI commands added/removed → Update "Quick Reference"
-- [ ] Critical bugs discovered → Add to "Critical Rules"
+Don't duplicate what can be found elsewhere. Link, don't copy.
 
-**Keep this file under 350 lines** to minimize token usage.
+---
+
+## 🎓 Final Wisdom
+
+> "The best code is no code.
+> The best documentation is self-evident design.
+> The best test is user success."
+
+**Remember:**
+- Methodology over technology
+- Thinking over typing
+- Safety over speed
+
+Keep this file under 250 lines. If it grows larger, move details elsewhere.
