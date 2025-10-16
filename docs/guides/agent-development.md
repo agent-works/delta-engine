@@ -760,17 +760,22 @@ The generator receives environment variables:
 
 ### Complete Example
 
-See `examples/2-core-features/memory-folding/` for a fully working implementation demonstrating:
+The code example above demonstrates a complete memory folding implementation with:
 - Custom context.yaml with all 3 source types
 - Python-based journal summarizer
 - Token-efficient context strategy
-- Complete README with usage instructions
+- Automatic compression of conversation history
+
+For production use, you can:
+- Adjust `max_iterations` based on your token budget
+- Customize the summarizer logic for your domain
+- Add RAG/vector search for knowledge retrieval
+- Implement domain-specific context compression
 
 ### Learn More
 
 - **[Context Management Guide](./context-management.md)** - Comprehensive guide to context composition
 - **[v1.6 Architecture](../architecture/v1.6-context-composition.md)** - Design details and philosophy
-- **[memory-folding example](../../examples/2-core-features/memory-folding/)** - Working implementation
 
 ---
 

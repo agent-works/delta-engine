@@ -70,7 +70,7 @@ Without `context.yaml`, Delta Engine uses a sensible default:
 echo "# Project Context\n\nThis is a TypeScript project." > DELTA.md
 
 # Run any agent - DELTA.md is automatically loaded
-delta run --agent examples/1-basics/hello-world -m "Tell me about this project"
+delta run --agent examples/hello-world -m "Tell me about this project"
 ```
 
 The agent will see the DELTA.md content without any configuration!
@@ -380,7 +380,7 @@ sources:
 
 **Result**: Agent remembers 100 iterations but only uses tokens for recent 5 + summary.
 
-See `examples/2-core-features/memory-folding/` for complete implementation.
+The code examples above demonstrate a complete memory folding implementation that you can adapt for your specific needs.
 
 ---
 
@@ -765,9 +765,8 @@ Use `on_missing: skip` for optional content:
 ## Next Steps
 
 - **Architecture details**: See [v1.6 design doc](../architecture/v1.6-context-composition.md)
-- **Complete example**: Explore `examples/2-core-features/memory-folding/`
-- **Agent development**: Read [agent development guide](./agent-development.md)
-- **API reference**: Check [delta CLI docs](../api/delta.md)
+- **Agent development**: Read [agent development guide](./agent-development.md) for complete examples
+- **API reference**: Check [CLI documentation](../api/cli.md)
 
 ---
 

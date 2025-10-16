@@ -22,7 +22,7 @@ npm link
 ### 1. Run an Example Agent
 
 ```bash
-delta run --agent examples/1-basics/hello-world -m "Create a greeting file"
+delta run --agent examples/hello-world -m "Create a greeting file"
 ```
 
 ### 2. Create Your First Agent (v1.3)
@@ -227,8 +227,9 @@ export DELTA_BASE_URL="https://your-endpoint.com/v1"
 
 ### Debug Mode
 ```bash
-# View latest journal
-cat workspaces/W001/.delta/$(cat workspaces/W001/.delta/LATEST)/journal.jsonl | jq
+# View latest journal (find most recent run directory)
+RUN_DIR=$(ls -t workspaces/W001/.delta/ | grep -v VERSION | head -1)
+cat workspaces/W001/.delta/$RUN_DIR/journal.jsonl | jq
 
 # Or use verbose mode
 delta run -v -m "Your task"

@@ -150,7 +150,7 @@ Use `delta tool expand config.yaml` to see full format.
 ### Requirements (v1.9.1+)
 - `context.yaml` is REQUIRED (no implicit fallback)
 - Ensures transparency and eliminates "magic" defaults
-- See `examples/2-core-features/memory-folding/` for examples
+- See [Context Management Guide](./context-management.md) for examples
 
 ## Session Management (v1.5)
 

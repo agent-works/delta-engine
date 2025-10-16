@@ -615,8 +615,8 @@ If you have agents using v1.4 PTY-based sessions, see the complete [v1.4 to v1.5
 ## Examples
 
 See complete working examples:
-- **[interactive-shell](../../examples/2-core-features/interactive-shell/)** - Bash session patterns
-- **[python-repl](../../examples/2-core-features/python-repl/)** - Python execution
+- **[interactive-shell](../../examples/interactive-shell/)** - Bash session patterns
+- **[python-repl](../../examples/python-repl/)** - Python execution
 
 ---
 

@@ -685,37 +685,37 @@ tools:
     exec: "bash tools/deploy.sh ${environment} ${version}"
 ```
 
-### Example 3: Research Agent with Nested Imports
+### Example 3: Document Analysis Agent with Nested Imports
 
 ```
-research-agent/
+doc-analyzer/
 ├── agent.yaml
 ├── modules/
 │   ├── base/
 │   │   ├── file-ops.yaml
 │   │   └── text-ops.yaml
-│   ├── web-research.yaml     # Imports base/file-ops.yaml
-│   ├── paper-analysis.yaml   # Imports base/text-ops.yaml
-│   └── citation-tools.yaml   # Imports paper-analysis.yaml
+│   ├── web-tools.yaml        # Imports base/file-ops.yaml
+│   ├── text-analysis.yaml    # Imports base/text-ops.yaml
+│   └── report-tools.yaml     # Imports text-analysis.yaml
 └── tools/
-    └── summarize.py
+    └── analyze.py
 ```
 
 ```yaml
-# modules/web-research.yaml
+# modules/web-tools.yaml
 imports:
   - modules/base/file-ops.yaml
 
 tools:
-  - name: search_arxiv
-    exec: "curl -s 'https://export.arxiv.org/api/query?search_query=${query}'"
-  - name: download_paper
+  - name: fetch_document
+    exec: "curl -s ${url}"
+  - name: download_file
     exec: "wget -O ${output} ${url}"
 ```
 
 ```yaml
 # agent.yaml
-name: research-agent
+name: doc-analyzer
 version: 1.0.0
 
 llm:
@@ -723,13 +723,13 @@ llm:
   temperature: 0.7
 
 imports:
-  - modules/web-research.yaml      # Includes base/file-ops.yaml
-  - modules/paper-analysis.yaml    # Includes base/text-ops.yaml
-  - modules/citation-tools.yaml    # Includes paper-analysis.yaml
+  - modules/web-tools.yaml      # Includes base/file-ops.yaml
+  - modules/text-analysis.yaml  # Includes base/text-ops.yaml
+  - modules/report-tools.yaml   # Includes text-analysis.yaml
 
 tools:
-  - name: summarize_paper
-    exec: "python3 tools/summarize.py ${paper_file}"
+  - name: analyze_document
+    exec: "python3 tools/analyze.py ${document_file}"
 ```
 
 ## See Also

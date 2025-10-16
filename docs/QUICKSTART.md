@@ -36,7 +36,7 @@ Parameters are automatically inferred from `${variable}` placeholders.
 ### Clone Examples
 ```bash
 git clone https://github.com/agent-works/delta-engine.git
-cd delta-engine/examples/1-basics/hello-world
+cd delta-engine/examples/hello-world
 ```
 
 ### Examine the Agent Structure
@@ -105,16 +105,17 @@ You'll see:
 ```
 .delta/
 ├── VERSION
-├── LATEST               # Points to latest run
-└── 20251010_143022_a1b2c3/
-    ├── journal.jsonl    # Complete execution log
-    ├── metadata.json    # Run status
-    └── io/              # I/O audit trail
+└── 20251010_143022_a1b2c3/      # Run directory
+    ├── journal.jsonl            # Complete execution log
+    ├── metadata.json            # Run status
+    └── io/                      # I/O audit trail
 ```
 
 **View the journal**:
 ```bash
-cat workspaces/W001/.delta/$(cat workspaces/W001/.delta/LATEST)/journal.jsonl | jq
+# Find the run directory
+RUN_DIR=$(ls -t workspaces/W001/.delta/ | grep -v VERSION | head -1)
+cat workspaces/W001/.delta/$RUN_DIR/journal.jsonl | jq
 ```
 
 This shows every thought, action, and observation—the **complete audit trail**.
@@ -221,9 +222,10 @@ This enables **multi-agent orchestration** with zero special code.
 - [Configuration Reference](./api/config.md) - Complete agent.yaml syntax
 
 ### 🚀 Explore Advanced Examples
-- [Interactive Shell Agent](../examples/2-core-features/interactive-shell/) - Persistent bash sessions
-- [Memory Folding Agent](../examples/2-core-features/memory-folding/) - Context window management
-- [Code Reviewer Agent](../examples/3-advanced/code-reviewer/) - Lifecycle hooks in action
+- [Interactive Shell Agent](../examples/interactive-shell/) - Persistent bash sessions
+- [Python REPL Agent](../examples/python-repl/) - Python REPL with state persistence
+- [Tool Syntax Demo](../examples/tool-syntax/) - Learn different tool configuration modes
+- [AI Generator Agent](../examples/delta-agent-generator/) - Meta-agent that creates agents
 
 ### 🏗️ Understand the Architecture
 - [Architecture Overview](./architecture/README.md) - System design deep dive

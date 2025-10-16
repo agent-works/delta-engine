@@ -43,27 +43,23 @@ delta run --agent ./my-agent -m "Same task"  # Auto-resume from checkpoint
 ### 1. DevOps Automation
 Let agents execute system commands, analyze logs, generate reports
 
-**Example**: [hello-world](examples/1-basics/hello-world/) - Simple agent using basic Unix commands
+**Example**: [hello-world](examples/hello-world/) - Simple agent using basic Unix commands
 
-### 2. Data Analysis & Processing
-Iteratively explore data in Python REPL while agent maintains session state
+### 2. Interactive Sessions
+Create persistent Shell/Python REPL environments that maintain state across commands
 
-**Example**: [python-repl](examples/2-core-features/python-repl/) - Persistent Python interactive environment
+**Example**: [interactive-shell](examples/interactive-shell/) - Persistent bash session management
+**Example**: [python-repl](examples/python-repl/) - Python REPL with state persistence
 
-### 3. Code Review & Generation
-Customize audit workflows with lifecycle hooks, generate complete review reports
+### 3. Tool Configuration
+Learn different ways to configure agent tools with various execution modes
 
-**Example**: [code-reviewer](examples/3-advanced/code-reviewer/) - Code review tool with audit trail
+**Example**: [tool-syntax](examples/tool-syntax/) - Demonstration of exec and shell modes
 
-### 4. Long-Running Research
-Compress conversation history with memory folding to complete long tasks within token limits
-
-**Example**: [research-agent](examples/3-advanced/research-agent/) - Research assistant with context compression
-
-### 5. AI Orchestrating AI
+### 4. AI Orchestrating AI
 Create meta-agents that can invoke other agents for complex multi-step workflows
 
-**Example**: [delta-agent-generator](examples/3-advanced/delta-agent-generator/) - Agent that generates agents
+**Example**: [delta-agent-generator](examples/delta-agent-generator/) - Agent that generates agents
 
 ---
 
@@ -138,11 +134,11 @@ Complex agent behaviors emerge from composing simple, single-purpose agents - no
 ```yaml
 # Meta-agent that orchestrates other agents
 tools:
-  - name: research_agent
-    exec: "delta run --agent ./research-agent -m ${task}"
+  - name: data_agent
+    exec: "delta run --agent ./data-analyzer -m ${task}"
 
   - name: writer_agent
-    exec: "delta run --agent ./writer-agent -m ${task}"
+    exec: "delta run --agent ./report-writer -m ${task}"
 ```
 
 Build sophisticated AI systems like LEGO blocks - each agent does one thing well, composition creates intelligence.
@@ -207,20 +203,22 @@ on_run_end:
 
 ### 🎯 Beginner (5-15 minutes)
 1. **[Quick Start](docs/QUICKSTART.md)** - 5-minute tutorial to create your first agent
-2. **[hello-world example](examples/1-basics/hello-world/)** - Understand Delta's three pillars
+2. **[hello-world example](examples/hello-world/)** - Understand Delta's three pillars
+3. **[tool-syntax example](examples/tool-syntax/)** - Learn tool configuration modes
 
 ### 📚 Intermediate (30-60 minutes)
-3. **[Agent Development Guide](docs/guides/agent-development.md)** - Complete agent development guide
-4. **[interactive-shell example](examples/2-core-features/interactive-shell/)** - Learn session management
-5. **[memory-folding example](examples/2-core-features/memory-folding/)** - Learn context management
+4. **[Agent Development Guide](docs/guides/agent-development.md)** - Complete agent development guide
+5. **[interactive-shell example](examples/interactive-shell/)** - Learn session management
+6. **[python-repl example](examples/python-repl/)** - Python REPL with state persistence
+7. **[Context Management Guide](docs/guides/context-management.md)** - Learn context composition strategies
 
 ### 🚀 Advanced (1-2 hours)
-6. **[code-reviewer example](examples/3-advanced/code-reviewer/)** - Learn lifecycle hooks
-7. **[Architecture Overview](docs/architecture/README.md)** - Understand system design principles
-8. **[delta-agent-generator example](examples/3-advanced/delta-agent-generator/)** - Advanced AI-orchestrating-AI patterns
+8. **[Hooks Guide](docs/guides/hooks.md)** - Learn lifecycle hooks and extensibility
+9. **[Architecture Overview](docs/architecture/README.md)** - Understand system design principles
+10. **[delta-agent-generator example](examples/delta-agent-generator/)** - Advanced AI-orchestrating-AI patterns
 
 ### 📖 Complete Documentation
-- **[All Examples](examples/README.md)** - 8 examples from beginner to advanced
+- **[All Examples](examples/README.md)** - 5 focused examples demonstrating core capabilities
 - **[API Reference](docs/api/)** - Complete CLI commands and configuration format docs
 - **[Architecture Docs](docs/architecture/)** - Design philosophy and technical details
 
@@ -353,7 +351,7 @@ See: [Configuration Reference](docs/api/config.md)
 
 ## Project Info
 
-- **Current Version**: v1.9.1
+- **Current Version**: v1.10.0
 - **License**: MIT
 - **Repository**: [GitHub](https://github.com/agent-works/delta-engine)
 - **Issue Tracker**: [Issues](https://github.com/agent-works/delta-engine/issues)
