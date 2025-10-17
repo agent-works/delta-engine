@@ -165,26 +165,8 @@ export async function initializeContext(
   await ensureDirectory(deltaDir);
   await fs.writeFile(path.join(deltaDir, 'VERSION'), '1.2\n', 'utf-8');
 
-  // v1.10: Blocker 1 Fix - Check run ID uniqueness to prevent data corruption
-  // If client provides a duplicate run ID, reject it immediately to prevent overwriting
-  try {
-    await fs.access(runDir);
-    // runDir exists - this is a duplicate run ID
-    throw new Error(
-      `Run ID '${runId}' already exists in workspace.\n` +
-      `Path: ${runDir}\n` +
-      `This would overwrite existing run data. Please use a different ID or remove the existing run.`
-    );
-  } catch (err: any) {
-    if (err.code !== 'ENOENT') {
-      // Error is NOT "directory doesn't exist" - it's either:
-      // 1. Our intentional duplicate ID error, or
-      // 2. Some other access error
-      throw err;
-    }
-    // err.code === 'ENOENT' means directory doesn't exist, which is what we want
-    // Safe to proceed with creating the run
-  }
+  // v1.10: Uniqueness check moved to CLI (src/cli.ts) for fail-fast behavior
+  // CLI checks uniqueness BEFORE attempting resume, preventing bypass via resume logic
 
   // Load environment variables in cascading order (workspace > agent > project root)
   const loadedEnvFiles = loadEnvFiles(workDir, agentPath, process.cwd());

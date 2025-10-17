@@ -220,25 +220,67 @@ async function handleRunCommand(options: {
     let isResuming = false;
 
     if (options.workDir) {
-      const resumableRunDir = await checkForResumableRun(options.workDir);
+      // v1.10 REQ-3.4: If client provides --run-id, check uniqueness FIRST (fail-fast)
+      // This prevents accidental data corruption from duplicate IDs
+      if (options.runId) {
+        const fs = await import('node:fs/promises');
+        const runDir = path.join(options.workDir, '.delta', options.runId);
 
-      if (resumableRunDir) {
-        logger.info('Found a resumable run with status WAITING_FOR_INPUT or INTERRUPTED');
-        logger.info('Resuming existing run...');
-        context = await resumeContext(options.workDir, resumableRunDir, options.interactive);
-        isResuming = true;
+        try {
+          await fs.access(runDir);
+          // Run directory exists - reject duplicate ID immediately
+          logger.divider();
+          logger.error(`Run ID '${options.runId}' already exists in workspace.`);
+          logger.divider();
+          logger.info('This would overwrite existing run data.');
+          logger.info('Please use a different ID or remove the existing run.');
+          logger.info('');
+          logger.info('To list existing runs:');
+          logger.info(`  delta list-runs -w ${options.workDir}`);
+          logger.divider();
+          process.exit(1);
+        } catch (err: any) {
+          // ENOENT means directory doesn't exist - safe to proceed
+          if (err.code !== 'ENOENT') {
+            // Some other error (permissions, etc.) - throw it
+            throw err;
+          }
+          // v1.10: When explicit --run-id provided, always create new run (don't auto-resume)
+          // User intent is to create a specific run, not resume an existing one
+          logger.info('Initializing new engine context with explicit run ID...');
+          context = await initializeContext(
+            options.agent,
+            options.message,
+            options.workDir,
+            options.interactive,
+            options.maxIterations,
+            true, // explicitWorkDir = true
+            options.yes,
+            options.runId // v1.10: Client-generated run ID
+          );
+        }
       } else {
-        logger.info('Initializing new engine context...');
-        context = await initializeContext(
-          options.agent,
-          options.message,
-          options.workDir,
-          options.interactive,
-          options.maxIterations,
-          true, // explicitWorkDir = true
-          options.yes,
-          options.runId // v1.10: Client-generated run ID
-        );
+        // No explicit --run-id: check for resumable runs (implicit resume behavior)
+        const resumableRunDir = await checkForResumableRun(options.workDir);
+
+        if (resumableRunDir) {
+          logger.info('Found a resumable run with status WAITING_FOR_INPUT or INTERRUPTED');
+          logger.info('Resuming existing run...');
+          context = await resumeContext(options.workDir, resumableRunDir, options.interactive);
+          isResuming = true;
+        } else {
+          logger.info('Initializing new engine context...');
+          context = await initializeContext(
+            options.agent,
+            options.message,
+            options.workDir,
+            options.interactive,
+            options.maxIterations,
+            true, // explicitWorkDir = true
+            options.yes,
+            options.runId // v1.10: Client-generated run ID (undefined, will be auto-generated)
+          );
+        }
       }
     } else {
       // No work directory specified, create new run
