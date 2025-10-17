@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2025-10-17
+
+### Fixed - Testing & Documentation
+
+**Comprehensive test coverage improvements and bug fixes:**
+
+- **Testing System Enhancements:**
+  - Completed v1.10.1 comprehensive test coverage
+  - Enhanced unit test suites (513 tests passing)
+  - Improved integration test reliability
+  - Fixed E2E test timeout issues for examples validation
+
+- **Documentation Improvements:**
+  - Updated documentation for simplified examples structure
+  - Refined v1.10.0 documentation based on user feedback
+  - Improved example README files for clarity
+
+- **Quality Improvements:**
+  - Fixed minor test flakiness issues
+  - Enhanced test isolation and cleanup
+  - Improved error messaging in test failures
+
+### Technical Details
+
+- **Commit**: 9d64845 - "test: v1.10.1 comprehensive test coverage and bug fixes"
+- **Focus**: Quality assurance and documentation polish for v1.10.0 release
+- **Impact**: No functional changes, pure quality improvements
+
+---
+
 ## [1.10.0] - 2025-10-14
 
 ### Added - Frontierless Workspace Architecture
@@ -335,6 +365,90 @@ v1.10 delivers significant improvements across multiple dimensions:
 
 ---
 
+## [1.9.1] - 2025-10-13
+
+### Changed - Breaking Change
+
+**Breaking: context.yaml is now required for all agents**
+
+Major architectural change enforcing explicit configuration:
+
+- **Problem**: Optional context.yaml led to inconsistent agent configurations
+  - Implicit DEFAULT_MANIFEST fallback created dual code paths
+  - Agents could work without context.yaml but behavior was opaque
+  - Difficult to debug context-related issues
+
+- **Solution**: Made context.yaml mandatory with clear error messages
+  - Removed DEFAULT_MANIFEST implicit fallback from engine
+  - Single code path for all agents (explicit configuration only)
+  - Friendly error message with migration template when context.yaml missing
+
+- **Impact**: All agents must now include context.yaml file
+  - Existing agents without context.yaml will fail with clear instructions
+  - Migration is straightforward (create context.yaml with default sources)
+  - Improves long-term maintainability and debugging
+
+- **Rationale**: Explicit over Implicit (ADR-005)
+  - Aligns with "Everything is a Command" principle
+  - Makes agent configuration transparent and inspectable
+  - Reduces cognitive load (no hidden defaults)
+
+### Migration Guide
+
+**For agents without context.yaml, create one with default structure:**
+
+```yaml
+# context.yaml - Default configuration
+sources:
+  - type: file
+    id: system_prompt
+    path: ${AGENT_HOME}/system_prompt.md
+    on_missing: error
+
+  - type: file
+    id: workspace_guide
+    path: ${CWD}/DELTA.md
+    on_missing: skip
+
+  - type: journal
+    id: conversation_history
+    # max_iterations: undefined (unlimited)
+```
+
+**For agents already using context.yaml**: No changes needed ✅
+
+### Breaking Changes
+
+- **context.yaml now mandatory**: Agents without context.yaml will fail
+- **Error format**:
+  ```
+  Error: context.yaml is required but not found.
+
+  Path expected: /path/to/agent/context.yaml
+
+  To fix this, create context.yaml with default sources:
+  [migration template shown above]
+  ```
+
+### Technical Implementation
+
+- **Commit**: ee2d196 - "feat(v1.9.1): make context.yaml required - Breaking Change"
+- **Modified Files**:
+  - `src/context/builder.ts` - Removed DEFAULT_MANIFEST fallback
+  - `src/config.ts` - Added context.yaml existence check
+  - Updated error messages with migration guidance
+
+### Rationale
+
+v1.9.0 introduced optional context.yaml, but optional configuration led to:
+1. Hidden behavior (what sources are being used?)
+2. Dual code paths (with/without context.yaml)
+3. Debugging difficulty (is DEFAULT_MANIFEST or custom config in use?)
+
+v1.9.1 fixes this by making configuration explicit and mandatory.
+
+---
+
 ## [1.9.0] - 2025-10-13
 
 ### Added - Unified Agent Structure
@@ -555,6 +669,63 @@ my-agent/
 
 ---
 
+## [1.8.1] - 2025-10-13
+
+### Changed - CLI Usability Improvements
+
+**Enhanced default behavior for agent directory:**
+
+- **New: `--agent` parameter now optional**
+  - Defaults to current working directory when omitted
+  - Simplifies CLI usage for common case (running agent from its directory)
+  - Particularly useful for development and testing workflows
+
+- **Before (v1.8.0)**:
+  ```bash
+  cd my-agent
+  delta run --agent . -m "Task description"  # Redundant --agent .
+  ```
+
+- **After (v1.8.1)**:
+  ```bash
+  cd my-agent
+  delta run -m "Task description"  # --agent defaults to current dir
+  ```
+
+- **Backward Compatibility**: Explicit `--agent` still works as before
+  ```bash
+  delta run --agent ./my-agent -m "Task"  # Still valid
+  ```
+
+### Implementation Details
+
+- **Commit**: 44316d7 - "feat(cli): make --agent optional, default to current directory (v1.8.1)"
+- **Modified Files**:
+  - `src/cli.ts` - Made --agent optional, added default value logic
+  - Updated default from required to `.option()` with default `process.cwd()`
+
+### Impact
+
+- **DX Improvement**: Reduces CLI verbosity for local development
+- **No Breaking Changes**: All existing commands continue to work
+- **Aligns with Convention**: Most CLI tools default to current directory
+
+### Use Cases
+
+**Development Workflow**:
+```bash
+cd my-agent
+delta run -m "Test new feature"         # Quick iteration
+delta run -m "Generate report" -i       # Interactive testing
+```
+
+**CI/CD Workflow** (explicit path still preferred):
+```bash
+delta run --agent ./agents/prod-agent -m "Deploy"  # Clear and explicit
+```
+
+---
+
 ## [1.8.0] - 2025-10-12
 
 ### Added - Unified CLI API Improvements (v1.8)
@@ -647,7 +818,11 @@ my-agent/
    - Replaces manual editing of response.txt for completed/failed runs
    - State-aware continuation vs blanket auto-resume
 
-### Added - Tool Configuration Simplification (v1.7)
+---
+
+## [1.7.0] - 2025-10-12
+
+### Added - Tool Configuration Simplification
 
 **Major feature: 77% reduction in tool configuration verbosity:**
 
@@ -992,38 +1167,7 @@ None. This is backward compatible:
 
 ---
 
-## [1.4.3] - 2025-10-02
-
-### Improved - CLI Output Visibility
-
-**Enhanced iteration output with detailed information:**
-
-- **LLM Thinking Display:**
-  - Show LLM reasoning content when present (💭 prefix)
-  - Multi-line content automatically indented for readability
-  - Helps users understand agent's decision-making process
-
-- **Tool Parameter Display:**
-  - Show actual parameters passed to tools: `tool_name(param1="value", param2=123)`
-  - Long string values truncated to 40 characters with "..." suffix
-  - Makes it immediately clear what the agent is doing
-
-- **Output Preview:**
-  - Display first 80 characters of tool output
-  - Show total character count: `(120 chars, exit 0)`
-  - Clean ANSI escape codes and compress whitespace
-  - Users can quickly see results without checking journal
-
-- **Before:** `→ Executing: shell_read` / `✓ Success (exit code: 0)`
-- **After:** `→ shell_read(session_id="sess_abc", timeout_ms=1000)` / `✓ Output: "pwd\n/tmp/test\nbash-3.2$" (45 chars, exit 0)`
-
-### Technical Changes
-
-- Added `formatOutputPreview()` method in `engine.ts` for output summarization
-- Modified tool execution display logic (engine.ts:480, 658-665)
-- Added LLM content display after thought logging (engine.ts:436-441)
-
-## [1.4.2] - 2025-10-01
+## [1.5.0] - 2025-10-01
 
 ### Changed - Session Management Architecture
 
@@ -1065,6 +1209,39 @@ None. This is backward compatible:
 ### Breaking Changes
 
 None. All CLI commands remain the same. This is an internal architecture change only.
+
+---
+
+## [1.4.3] - 2025-10-02
+
+### Improved - CLI Output Visibility
+
+**Enhanced iteration output with detailed information:**
+
+- **LLM Thinking Display:**
+  - Show LLM reasoning content when present (💭 prefix)
+  - Multi-line content automatically indented for readability
+  - Helps users understand agent's decision-making process
+
+- **Tool Parameter Display:**
+  - Show actual parameters passed to tools: `tool_name(param1="value", param2=123)`
+  - Long string values truncated to 40 characters with "..." suffix
+  - Makes it immediately clear what the agent is doing
+
+- **Output Preview:**
+  - Display first 80 characters of tool output
+  - Show total character count: `(120 chars, exit 0)`
+  - Clean ANSI escape codes and compress whitespace
+  - Users can quickly see results without checking journal
+
+- **Before:** `→ Executing: shell_read` / `✓ Success (exit code: 0)`
+- **After:** `→ shell_read(session_id="sess_abc", timeout_ms=1000)` / `✓ Output: "pwd\n/tmp/test\nbash-3.2$" (45 chars, exit 0)`
+
+### Technical Changes
+
+- Added `formatOutputPreview()` method in `engine.ts` for output summarization
+- Modified tool execution display logic (engine.ts:480, 658-665)
+- Added LLM content display after thought logging (engine.ts:436-441)
 
 ---
 
